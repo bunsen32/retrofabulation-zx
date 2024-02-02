@@ -1,0 +1,74 @@
+; Alternatively… use AF' (flags) to store previous boolean result.
+
+
+; Adds 6 t-states for total of 8 bytes, 49 tstates
+interpret_next_inc1:
+	inc	de
+; Main fetch/decode part is 7 bytes, 43 tstates
+interpret_next:
+	ld	a, (de)
+	inc	de
+	ld	h, b	; b holds MSB of opcode LUT, and interpreter code is at b * 2
+	ld	l, a
+	ld	l, (hl)
+	add	hl, hl  ; If we could squeeze all main interpreter code into 256 bytes, we could change to "inc h" and save 7 t-states
+	jp	(hl)
+
+; Main fetch/decode part is 8 bytes, 35 tstates
+interpret_false:
+	ld	a, (de)
+	inc	de
+	and	$f0
+	ld	h, $FALSE_OPS
+	ld	l, a
+	jp	(hl)
+
+; Main fetch/decode part is 8 bytes, 35 tstates
+interpret_true:
+	ld	a, (de)
+	inc	de
+	and	$f8
+	ld	h, $TRUE_OPS
+	ld	l, a
+	jp	(hl)
+
+false_not:
+	jp	interpret_true
+
+true_not:
+	jp	interpret_false
+
+true_push:
+	ld	a, $ff
+	push	af
+	jp	interpret_next
+
+true_eq:	; 8 bytes, 34 tstates
+	pop	af
+	or	a
+	jp	z, interpret_false
+	jp	interpret_true
+
+false_shortcircuit_and:	; 6 bytes, 24 tstates
+	ld	h, $0
+	ld	a, (de)	; do NOT inc de because we immediately jump
+	ld	l, a
+	jp	common_jump_fwd
+
+false_statement_if:	; 8 bytes, 32 tstates
+	and	$0f
+	ld	h, a
+	ld	a, (de)	; do NOT inc de because we immediately jump
+	ld	l, a
+	jp	common_jump_fwd
+
+statement_endloop:	; 5 bytes, 22 tstates (excluding common part)
+	or	$f0
+	ld	h, a
+	ld	a, (de)
+	ld	l, a
+common_jump_back:
+common_jump_fwd:	; 2 bytes, 15 tstates
+	add	hl, de
+	ex	de, hl
+	; then a copy of "interpret_next"

@@ -1,0 +1,383 @@
+<html>
+
+	<style>
+		.char {
+			display: inline-block;
+			width: 20px;
+			height: 20px;
+			padding: 2px;
+			margin: 2px;
+			border: 1px solid #000;
+			text-align:center;
+			text-decoration: none;
+		}
+		.char.selected {
+			background-color: #000;
+			color: #fff;
+		}
+		canvas#screen {
+			width: 512px;
+			height:auto;
+			border:1px solid #000;
+		}
+		canvas#editor {
+			border:1px solid #000;
+			margin: 12px;
+		}
+		span.char-size {
+			padding-right:1em;
+		}
+
+		body{
+			padding:1em;margin:0;
+		}
+		div#form {
+			padding:0;margin:0;
+			display: grid;
+			grid-template-columns: min-content auto;
+			column-gap: 1em;
+			width:100%;
+			height:100%
+		}
+		div#left {
+			grid-column: 1;
+		}
+		div#right {
+			grid-column: 2;
+		}
+		textarea#text-editor {
+			display:block;
+			width:100%;height:100%;
+		}
+	</style>
+	<body>
+		<div id="form">
+			<div id="left">
+				<div>
+					<script>
+						for(let i = 0x20; i <= 0x7e; i++) {
+							const c = String.fromCharCode(i)
+							document.write(`<span class='char' id="char-${i}">${c}</span>`);
+							if (i % 16 == 15) document.write("<br/>")
+						}
+						for(let i = 0x20; i <= 0x7e; i++) {
+							document.getElementById("char-"+i).addEventListener("click", () => selectChar(i));
+						}
+					</script>
+				</div>    
+				<div>
+					<canvas id="editor" width="192" height="128"></canvas>
+					<span class="char-size">
+						<label>
+							<input type="radio" name="char-size" id="char-size-h" value="h"
+								onclick="toggleWidth('h')"/>
+							&nbsp;4
+						</label>
+					</span>
+					<span class="char-size">
+						<label>
+							<input type="radio" name="char-size" id="char-size-n" value="n"
+							onclick="toggleWidth('n')"/>
+							&nbsp;8
+						</label>
+					</span>
+					<span class="char-size">
+						<label>
+							<input type="radio" name="char-size" id="char-size-w" value="w"
+							onclick="toggleWidth('w')"/>
+							&nbsp;12
+						</label>
+					</span>
+					<button id="render-button" onclick="doTestRender();return false">Test render</button>
+					<button id="save-font" onclick="saveFont();return false">Save font</button>
+				</div>
+				<div>
+					<canvas id="screen" width="256" height="192"></canvas>
+				</div>
+			</div>
+			<div id="right">
+				<span id="tab-area"></span>
+				<textarea id="text-editor"></textarea>
+				<button id="parse-and-render" onclick="parseAndRender();return false">Parse &amp; Render</button>
+			</div>
+		</div>
+	</body>
+	<script src="parsing.js"></script>
+	<script>
+		const store = window.localStorage
+
+		const scale = 16
+		const editor = document.getElementById("editor")
+		const rect = editor.getBoundingClientRect() // abs. size of element
+		const scaleX = editor.width / rect.width    // relationship bitmap vs. element for x
+		const scaleY = editor.height / rect.height  // relationship bitmap vs. element for y
+		const cx = editor.getContext("2d")
+		cx.imageSmoothingEnabled = false
+
+		const screen = document.getElementById("screen")
+		const screenCx = screen.getContext("2d")
+		screenCx.imageSmoothingEnabled = false
+
+		const textEditor = document.getElementById("text-editor")
+
+		function drawGrid(widthPixels){
+			const xMax = scale * widthPixels, yMax = scale * 8
+			cx.fillStyle = "#fff"
+			cx.fillRect(0, 0, xMax, yMax)
+			cx.fillStyle = "#ddd"
+			cx.fillRect(xMax, 0, 12 * scale, yMax)
+
+			function afterXPix(x) {
+				const xp = (x * scale) + scale - 1
+				cx.fillRect(xp, 0, 1, yMax)
+			}
+			function afterYPix(y) {
+				const yp = (y * scale) + scale - 1
+				cx.fillRect(0, yp, xMax, 1)
+			}
+
+			for (let x = 0; x < widthPixels; x++){
+				cx.fillStyle = (x % 4) == 3 ? "#777" : "#ddd"
+				afterXPix(x)
+			}
+
+			cx.fillStyle = "#ddd"
+			for (let y = 0; y < 8; y++){
+				afterYPix(y)
+			}
+			cx.fillStyle = "#444"
+			afterYPix(5)
+		}
+
+		function editorPixel(x, y, v){
+			cx.fillStyle = v ? "#000" : "#fff"
+			cx.fillRect(x*scale, y*scale, scale-1, scale-1)
+		}
+
+		function screenPixel(x, y, v){
+			screenCx.fillStyle = v ? "#000" : "#fff"
+			screenCx.fillRect(x*1, y*1, 1, 1)
+		}
+
+		function byteAndBitFromXAndY(x, y)
+		{
+			if (x > 12 || y > 8) throw "out of range";
+			const byte = (y * 2) + Math.floor(x / 8)
+			const bit = (7 - (x % 8))
+			return [byte, bit]
+		}
+
+		function renderToEditor(data){
+			const w = widthPixels(data.width)
+			for (let y = 0; y < 8; y++){
+				for(let x = 0; x < w; x++){
+					const [byte, bitPos] = byteAndBitFromXAndY(x, y)
+					const bits = data.bytes[byte]
+					const bit = (bits & (1 << bitPos)) != 0
+					editorPixel(x, y, bit)
+				}
+			}
+		}
+
+		function renderToScreen(data, left, top){
+			for (let y = 0; y < 8; y++){
+				for(let x = 0; x < 12; x++){
+					const [byte, bitPos] = byteAndBitFromXAndY(x, y)
+					const bits = data.bytes[byte]
+					const bit = (bits & (1 << bitPos)) != 0
+					if (bit)
+						screenPixel(left+x, top+y, true)
+				}
+			}
+		}
+
+		function emptyChar(){
+			return {
+				width: "n",
+				bytes: [0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0]
+			}
+		}
+
+		let selected = undefined
+		let data = emptyChar()
+		let isDirty = false
+
+		function encode(data){
+			const w = data.width
+			const s = data.bytes.map(b => b.toString(16)).join(",")
+			console.log("encoding...", w, s)
+			return `${w}${s}`
+		}
+
+		function decode(str){
+			let width, byteString
+			switch(str[0]) {
+				case 'h': case 'n': case 'w':
+					width = str[0]
+					byteString = str.substring(1)
+					//console.log("decoding(new)...",width, byteString)
+					break;
+				default:
+					width = 'n'
+					byteString = str
+					//console.log("decoding(old)...",width, byteString)
+					break
+			}
+
+			const result = {
+				width: width,
+				bytes: byteString.split(",").map(b => parseInt(b, 16))
+			}
+			//console.log("decoded: ", result)
+			return result
+		}
+
+		function saveChar(i, data){
+			if (!i) throw "i is undefined"+i
+			const encoded = encode(data)
+			console.log("saving "+i, encoded)
+			store.setItem(`char${i}`, encoded)
+		}
+
+		function saveCurrentChar() {
+			if (!isDirty) return
+			saveChar(selected, data)
+			isDirty = false
+		}
+
+		function loadCurrentChar(i) {
+			console.log("loading char " + i)
+			data = loadChar(i) ?? emptyChar()
+			drawGrid(widthPixels(data.width))
+			document.getElementById(`char-size-${data.width}`).checked = true
+			selected = i
+			isDirty = false
+		}
+
+		function loadChar(i) {
+			if (!i) return null
+			const data = store.getItem(`char${i}`)
+			if (!data) return null
+			return decode(data)
+		}
+
+		function selectChar(i){
+			console.log("selected", i)
+			if (selected) {
+				saveCurrentChar()
+				const oldC = document.getElementById(`char-${selected}`)
+				oldC.classList.remove("selected")
+			}
+			loadCurrentChar(i)
+			const newC = document.getElementById(`char-${i}`)
+			newC.classList.add("selected")
+			console.log("data: "+ data)
+			renderToEditor(data)
+		}
+
+		function toggleWidth(newW){
+			if (data.width == newW) return
+			data.width = newW
+			drawGrid(widthPixels(newW))
+			isDirty = true
+			renderToEditor(data)
+		}
+
+		function togglePixel(event){
+			const x = Math.floor(event.offsetX * scaleX / scale)
+			const y = Math.floor(event.offsetY * scaleY / scale)
+
+			const [byte, bitPos] = byteAndBitFromXAndY(x, y)
+			const mask = (1 << bitPos)
+			data.bytes[byte] ^= mask
+			isDirty = true
+			renderToEditor(data)
+		}
+		editor.addEventListener("click", togglePixel)
+
+		function saveFont() {
+			saveCurrentChar()
+			let s = ""
+			for (let c = 0x20; c < 0x7f; c++) {
+				const char = loadChar(c)
+				if (!char) continue
+				if (s) s+= ",\n"
+				s += `{"c": ${c}, "width": "${char.width}", "bytes": [${char.bytes}]}`.replace(/NaN/g,"0")
+			}
+			textEditor.value = `[\n${s}\n]`
+		}
+
+		function cls(){
+			for (let line = 0; line < 24; line ++){
+				screenCx.fillStyle = (line % 2) == 0 ? "#fff" : "#fff"
+				screenCx.fillRect(0, line * 8, 256, 8)
+			}
+		}
+
+		function doTestRender(){
+			saveCurrentChar()
+			cls()
+			const lines = [
+				"def DOUBLE(a)",
+				"  return a + a",
+				'',
+				'print "Hello mighty World!"',
+				'print "Hello minty softly?"',
+				'let A=[1; 7; 8; 11, 2, 3456]',
+				'print "Hello { name }"',
+				'let x_thing = 23',
+				'THE QUICK BROWN FOX JUMPED OVER',
+				'THE LAZY DOG. \'The quick brown fox',
+				'jumped over the lazy dog\'',
+				'01234567890',
+				'{i} {j} {f}',
+				'1234, %1010101, &5ef8',
+				'one/two/three/four... C:\\dir.name',
+				'let v# = 3.44',
+				'let s$ = "salutation"',
+				'let s% = MAX_INT',
+				'let p@ = @something'
+			]
+			row = 1
+			for(let line of lines) {
+				printLine(1, row, line)
+				row ++
+			}
+		}
+		function widthPixels(width) {
+			switch(width){
+				case 'h': return 4
+				case 'n': return 8
+				case 'w': return 12
+				default: throw "illegal width " + width
+			}
+		}
+
+		function renderText(left, top, str) {
+			const y = top
+			let x = left
+			for (let i = 0; i < str.length; i++){
+				const c = str.charCodeAt(i)
+				//console.log(`rendering ${c} @${x},${y}`)
+				const char = loadChar(c) ?? emptyChar()
+				renderToScreen(char, x, y)
+				x += widthPixels(char.width)
+			}
+		}
+
+		function printLine(col, row, line) {
+			renderText(col << 3, row << 3, line)
+		}
+
+		function parseAndRender() {
+			const p = parse(textEditor.value)
+			const lines = render(p).split('\n')
+			cls()
+			row = 1
+			for(let line of lines) {
+				printLine(1, row++, line)
+			}
+		}
+
+	</script>
+</html>
