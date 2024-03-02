@@ -1,7 +1,207 @@
 import {describe, expect, test} from '@jest/globals'
+import {literal16, Op, BoolOp, NumPres} from "./parsing"
 
-describe('addition', () => {
-	test('2+2=4', () => {
-		expect(2+2).toBe(4)
+import fs = require('node:fs')
+
+export const FRAME_BUFFER_SIZE = 0x6600;
+let core = null
+let memory = null
+let memoryData: Uint8Array = null
+let workerFrameData = null
+let registerPairs: Uint16Array = null
+let tapePulses = null
+
+const JSPECCY = "../jsspeccy3/dist/jsspeccy"
+const ROM = "dist/roms/neo48.rom"
+const memoryPageWriteMap = [11, 5, 2, 0]
+const stackTop = 0xF000
+
+type RegisterSet = {
+	AF: number,
+	BC: number,
+	DE: number,
+	HL: number,
+	SP: number,
+}
+type PartialRegisterSet = Partial<RegisterSet>
+
+async function loadRom(filename: string, page: number) {
+	const romBytes = fs.readFileSync(filename)
+	const bytes = new Uint8Array(romBytes)
+	memoryData.set(bytes, core.MACHINE_MEMORY + page * 0x4000)
+}
+
+function setRam(pos: number, bytes: ArrayLike<number>) {
+	const page = memoryPageWriteMap[Math.floor(pos / 0x4000)]
+	const offset = pos % 0x4000
+	const p = core.MACHINE_MEMORY + page * 0x4000 + offset
+	memoryData.set(bytes, p)
+}
+
+function runPcAt(address: number, forTStates: number = 100){
+	core.reset()
+	core.setPC(address)
+	const result = core.runUntil(forTStates)
+	expect(result).toBe(0)
+	console.log(getRegisters())
+	console.log("PC", core.getPC().toString(16))
+	expect(core.getHalted()).toBe(1)
+}
+
+function getRegisters(): RegisterSet {
+	const result = {};
+	['AF', 'BC', 'DE', 'HL', 'AF_', 'BC_', 'DE_', 'HL_', 'IX', 'IY', 'SP', 'IR'].forEach(
+		(r, i) => {
+			result[r] = registerPairs[i]
+		}
+	)
+	return result as RegisterSet
+}
+
+function setRegisters(registerValues: PartialRegisterSet) {
+	['AF', 'BC', 'DE', 'HL', 'AF_', 'BC_', 'DE_', 'HL_', 'IX', 'IY', 'SP', 'IR'].forEach(
+		(r, i) => {
+			registerPairs[i] = registerValues[r]
+		}
+	)
+}
+
+/**
+ * Return the Z80 stack, as 16-bit words, from top to bottom.
+ * (So ".pop()" on the result returns what Z80 POP would return.)
+ */
+function getStack(): number[] {
+	const reg = getRegisters()
+	let sp = reg.SP
+	if (sp > stackTop) throw "Stack depleted!"
+	const result = []
+	while (sp < stackTop) {
+		const v16 = core.peek(sp++) + (core.peek(sp++) << 8)
+		result.push(v16)
+	}
+	return result
+}
+
+function getStackBoolean(): boolean {
+	const stack = getStack()
+	expect(stack).toHaveLength(1)
+	const zeroFlag = stack[0] & 0b01000000
+	return !zeroFlag
+}
+
+function interpret(bytes: number[], forTStates: number = 200) {
+	const address = 0x8000
+	setRam(address, bytes)
+	setRegisters({ HL: address, SP: stackTop })
+	console.log(getRegisters())
+	runPcAt(0x0080, forTStates)
+	expect(core.getHalted()).toBe(1)
+}
+
+const emulatorWasm = fs.readFileSync(`${JSPECCY}/jsspeccy-core.wasm`)
+const fullyLoaded = WebAssembly.instantiate(emulatorWasm).then(results => {
+	core = results.instance.exports;
+	memory = core.memory;
+	memoryData = new Uint8Array(memory.buffer);
+	workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
+	registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
+	tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
+
+	loadRom(ROM, 10)
+	core.setTapeTraps(false)
+})
+
+describe('New ROM!', () => {
+
+	test('runs some Z80', async () => {
+		await fullyLoaded
+
+		setRam(0x8000, [
+			0x3E, 0x3E, // ld a, $3e
+			0x32, 0xff, 0x7f, // ld ($7fff), a
+			0x76, // HALT
+		])
+		runPcAt(0x8000)
+
+		expect(core.peek(0x7fff)).toBe(0x3e)
 	})
+
+	test('interprets the bytestream', async () => {
+		await fullyLoaded
+
+		interpret([ Op.HALT ], 80)
+	})
+
+	test('int16 literal16', async () => {
+		await fullyLoaded
+
+		interpret([ literal16(NumPres.Hex), 0x44, 0x99, Op.HALT], 200)
+
+		expect(getStack()).toEqual([0x9944])
+	})
+
+	test('int16 add', async () => {
+		await fullyLoaded
+
+		interpret([
+			literal16(NumPres.Hex), 0x44, 0x99,
+			literal16(NumPres.Hex), 0x22, 0x33,
+			Op.IntAdd,
+			Op.HALT], 400)
+
+		expect(getStack()).toEqual([0xcc66])
+	})
+
+	test('int16 eq (true)', async () => {
+		await fullyLoaded
+
+		interpret([
+			literal16(NumPres.Hex), 0x44, 0x99,
+			literal16(NumPres.Hex), 0x44, 0x99,
+			Op.IntEq,
+			BoolOp.BoolPush,
+			Op.HALT], 500)
+
+		expect(getStackBoolean()).toBeTruthy()
+	})
+
+	test('int16 eq (true)', async () => {
+		await fullyLoaded
+
+		interpret([
+			literal16(NumPres.Hex), 0x44, 0x99,
+			literal16(NumPres.Hex), 0x44, 0x99,
+			Op.IntNe,
+			BoolOp.BoolPush,
+			Op.HALT], 500)
+
+		expect(getStackBoolean()).toBeFalsy()
+	})
+
+	test('int16 ne (true)', async () => {
+		await fullyLoaded
+
+		interpret([
+			literal16(NumPres.Hex), 0x12, 0x89,
+			literal16(NumPres.Hex), 0xab, 0xcd,
+			Op.IntNe,
+			BoolOp.BoolPush,
+			Op.HALT], 500)
+
+		expect(getStackBoolean()).toBeTruthy()
+	})
+
+	test('int16 eq (true)', async () => {
+		await fullyLoaded
+
+		interpret([
+			literal16(NumPres.Hex), 0x12, 0x78,
+			literal16(NumPres.Hex), 0x12, 0x78,
+			Op.IntNe,
+			BoolOp.BoolPush,
+			Op.HALT], 500)
+
+		expect(getStackBoolean()).toBeFalsy()
+	})
+
 })

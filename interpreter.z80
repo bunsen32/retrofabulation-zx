@@ -1,5 +1,38 @@
+	OUTPUT	neo48.rom
+	SIZE	4000H
+
+	MACRO PADTO addr ; z80asm "FORG" replacement
+		; add padding + display warning
+		IF $ > addr
+			; no padding
+			DISPLAY /L, "Warning! PADORG failed! ", $, " is more than ", addr
+		ELSE
+			; add padding
+			BLOCK addr-$
+		ENDIF
+		ORG	addr
+	ENDM
+
+	DEFINE	R_RESET	$00
+	DEFINE	R_1	$08
+	DEFINE	R_2	$10
+	DEFINE	R_3	$18
+	DEFINE	R_4	$20
+	DEFINE	R_5	$28
+	DEFINE	R_ERR	$30
+	DEFINE	R_MATH	$38
+
+	DEFINE	ERR_INT_OPCODE	$01
+	DEFINE	ERR_INT_INVALID	$02
+	DEFINE	ERR_RUN_OVERFL	$11
+
 ; Alternatively… use AF' (flags) to store previous boolean result.
 
+	PADTO	$0080
+interpreter:
+	ld	b, (GENERAL_LUT >> 8)
+	ex	de, hl
+	jp	interpret_next
 
 ; Adds 6 t-states for total of 8 bytes, 49 tstates
 interpret_next_inc1:
@@ -8,59 +41,169 @@ interpret_next_inc1:
 interpret_next:
 	ld	a, (de)
 	inc	de
-	ld	h, b	; b holds MSB of opcode LUT, and interpreter code is at b * 2
+	ld	h, (GENERAL_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
 	ld	l, a
 	ld	l, (hl)
 	add	hl, hl  ; If we could squeeze all main interpreter code into 256 bytes, we could change to "inc h" and save 7 t-states
 	jp	(hl)
 
-; Main fetch/decode part is 8 bytes, 35 tstates
+; Main fetch/decode part is 9 bytes, 39 tstates
 interpret_false:
 	ld	a, (de)
 	inc	de
-	and	$f0
-	ld	h, $FALSE_OPS
+	ld	b, a
+	and	$f8
+	ld	h, FALSE_OPS>>8
 	ld	l, a
 	jp	(hl)
 
-; Main fetch/decode part is 8 bytes, 35 tstates
+; Main fetch/decode part is 9 bytes, 39 tstates
 interpret_true:
 	ld	a, (de)
 	inc	de
+	ld	b, a
 	and	$f8
-	ld	h, $TRUE_OPS
+	ld	h, TRUE_OPS>>8
 	ld	l, a
 	jp	(hl)
 
-false_not:
-	jp	interpret_true
+;------------------------------------------------
 
-true_not:
-	jp	interpret_false
+	DEFINE	GENERAL_OPS	$200
+	MACRO GENERAL code
+		IF (code - GENERAL_OPS) % 2 != 0
+			DISPLAY /L, "Warning! Opcode routine ", $ - GENERAL_LUT, " is not aligned."
+		ENDIF
+		DB	(code - GENERAL_OPS) / 2
+	ENDM
+	MACRO GENERAL_AT opcode_offset
+		BLOCK	opcode_offset - ($ - GENERAL_LUT)
+	ENDM
 
-true_push:
-	ld	a, $ff
-	push	af
+
+	PADTO	$0100
+GENERAL_LUT:
+	GENERAL_AT $00
+	GENERAL(statement_nop)	; 00 NOP
+	GENERAL(statement_nop)	; 01 line-continuation
+	GENERAL(statement_nop)	; 02 end-if
+	GENERAL(statement_nop)	; 03 else
+	GENERAL(statement_nop)	; 04 parens
+
+	GENERAL_AT $0f
+	GENERAL(statement_halt)
+
+	GENERAL_AT $10
+
+	GENERAL_AT $20
+
+	GENERAL_AT $30
+
+	GENERAL_AT $40 ; int16 operations
+	GENERAL(statement_int16_eq)	; 40
+	GENERAL(statement_int16_ne)	; 41
+	GENERAL(statement_int16_gt)	; 42
+	GENERAL(statement_int16_ge)	; 43
+	GENERAL(statement_int16_lt)	; 44
+	GENERAL(statement_int16_le)	; 45
+	GENERAL(statement_int16_add)	; 46
+	GENERAL(statement_int16_sub)	; 47
+	GENERAL(statement_int16_mul)	; 48
+	GENERAL(statement_int16_div)	; 49
+	GENERAL(statement_int16_mod)	; 4a
+	GENERAL(statement_int16_bitand)	; 4b
+	GENERAL(statement_int16_bitor)	; 4c
+	GENERAL(statement_int16_bitxor)	; 4d
+	GENERAL(statement_int16_bitshl)	; 4e
+	GENERAL(statement_int16_bitshr)	; 4f
+
+	GENERAL_AT $50
+
+	GENERAL_AT $60
+
+	GENERAL_AT $70
+
+	GENERAL_AT $80
+
+	GENERAL_AT $90
+
+	GENERAL_AT $90
+
+	GENERAL_AT $A0
+
+	GENERAL_AT $B0
+
+	GENERAL_AT $C0
+
+	GENERAL_AT $D0
+
+	GENERAL_AT $E0 ; 2-byte literals
+	GENERAL(statement_literalint16)	; E0
+	GENERAL(statement_literalint16)	; E1
+	GENERAL(statement_literalint16)	; E2
+
+	GENERAL_AT $f0
+
+	PADTO	$0200
+;GENERAL_OPS:
+statement_error:
+	RST	R_ERR
+	BYTE	ERR_INT_OPCODE
+
+	ALIGN	2
+statement_nop:
 	jp	interpret_next
 
-true_eq:	; 8 bytes, 34 tstates
-	pop	af
-	or	a
+	ALIGN	2
+statement_int16_eq:
+	pop	hl
+	pop	bc
+	sbc	hl, bc
+	jp	nz, interpret_false
+	jp	interpret_true
+
+statement_int16_ne:
+	pop	hl
+	pop	bc
+	sbc	hl, bc
 	jp	z, interpret_false
 	jp	interpret_true
 
-false_shortcircuit_and:	; 6 bytes, 24 tstates
-	ld	h, $0
-	ld	a, (de)	; do NOT inc de because we immediately jump
-	ld	l, a
-	jp	common_jump_fwd
+statement_int16_gt:
+statement_int16_ge:
+statement_int16_lt:
+statement_int16_le:
 
-false_statement_if:	; 8 bytes, 32 tstates
-	and	$0f
-	ld	h, a
-	ld	a, (de)	; do NOT inc de because we immediately jump
+statement_int16_add:
+	pop	hl
+	pop	bc
+	add	hl, bc
+	push	hl
+	jp	interpret_next
+
+	ALIGN 2
+statement_literalint16:
+	ld	a, (de)
+	inc	de
 	ld	l, a
-	jp	common_jump_fwd
+	ld	a, (de)
+	ld	h, a
+	push	hl
+	jp	interpret_next_inc1
+
+	ALIGN 2
+statement_int16_sub:
+statement_int16_mul:
+statement_int16_div:
+statement_int16_mod:
+statement_int16_bitand:
+statement_int16_bitor:
+statement_int16_bitxor:
+statement_int16_bitshl:
+statement_int16_bitshr:
+
+statement_halt:
+	halt
 
 statement_endloop:	; 5 bytes, 22 tstates (excluding common part)
 	or	$f0
@@ -72,3 +215,84 @@ common_jump_fwd:	; 2 bytes, 15 tstates
 	add	hl, de
 	ex	de, hl
 	; then a copy of "interpret_next"
+common_jump:	; 4 bytes, 26 tstates
+	ex	de, hl
+	ld	d, a
+	ld	e, (hl)	; do NOT inc de because we immediately jump
+	add	hl, de
+	ex	de, hl
+	; then a copy of "interpret_next"
+;------------------------------------------------
+	PADTO	$0400
+FALSE_OPS:
+
+false_discard:
+	PADTO	FALSE_OPS+$00
+	jp	interpret_next
+
+false_parens:
+	PADTO	FALSE_OPS+$08
+	jp	interpret_false
+
+false_eq:	; 8 bytes, 34 tstates
+	PADTO	FALSE_OPS+$10
+	pop	af
+	or	a
+	jp	nz, interpret_false
+	jp	interpret_true
+
+false_ne:	; 8 bytes, 34 tstates
+	PADTO	FALSE_OPS+$18
+	pop	af
+	or	a
+	jp	nz, interpret_false
+	jp	interpret_true
+
+false_not:
+	PADTO	FALSE_OPS+$20
+	jp	interpret_true
+
+false_shortcircuit_and:	; 5 bytes, 18 tstates
+	PADTO	FALSE_OPS+$28
+	xor	a
+	jp	common_jump
+
+false_push:
+	PADTO	FALSE_OPS+$50
+	ld	l, %11111000
+	push	hl
+	jp	interpret_next
+
+false_statement_if:	; 7 bytes, 25 tstates
+	PADTO	FALSE_OPS+$80
+	ld	a, b
+	and	$0f
+	jp	common_jump
+
+;------------------------------------------------
+	PADTO	$0500
+TRUE_OPS:
+
+true_eq:	; 7 bytes, 30 tstates
+	PADTO	TRUE_OPS+$10
+	pop	af
+	jp	z, interpret_false
+	jp	interpret_true
+
+true_ne:	; 7 bytes, 30 tstates
+	PADTO	TRUE_OPS+$18
+	pop	af
+	jp	nz, interpret_false
+	jp	interpret_true
+
+true_not:
+	PADTO	TRUE_OPS+$20
+	jp	interpret_false
+
+true_push:
+	PADTO	TRUE_OPS+$50
+	ld	l, %00000111
+	push	hl
+	jp	interpret_next
+
+

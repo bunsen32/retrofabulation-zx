@@ -24,12 +24,14 @@ enum opHigh {
 	Literal32 = 0xF,
 }
 
-enum Op {
+export enum Op {
 	Nop = 0x00, // Padding, if required. (nop, endif, line-continuation, else)
 	NopLineContinuation = 0x01,
 	NopEndIf = 0x02,
 	NopElse = 0x03,
 	NopParens = 0x04,	// A bracketed expression
+
+	HALT = 0x0F,
 
 	NeedsAnalysis = 0x10, // If func/proc requires name or type resolution before execution. 
 	Assignment = 0x11, // And dereferences?
@@ -159,7 +161,7 @@ enum Op {
 	Literal32Float = 0xF8,
 }
 
-enum BoolOp {
+export enum BoolOp {
 	Discard = 0x00, // Throw away boolean value
 	Parens = 0x08, // Bracketed boolean expression (maintain value)
 	BoolEq = 0x10,
@@ -255,7 +257,7 @@ enum Cat {
 	Statement = 4,
 	LiteralStr = 5,
 }
-enum NumPres {
+export enum NumPres {
 	Bin = 0,
 	DecimalInt = 1,
 	Hex = 2,
@@ -270,7 +272,7 @@ function parse(text: string): byte[] {
 	return out
 }
 
-function literal16(pres: NumPres) {
+export function literal16(pres: NumPres) {
 	return (opHigh.Literal16 << 4) | pres
 }
 
