@@ -93,7 +93,11 @@ GENERAL_LUT:
 	GENERAL_AT $0f
 	GENERAL(statement_halt)
 
-	GENERAL_AT $10
+	GENERAL_AT $1C
+	GENERAL(literal_false_stack)	; 1c
+	GENERAL(literal_true_stack)	; 1d
+	GENERAL(literal_false_immediate)	; 1e
+	GENERAL(literal_true_immediate)	; 1f
 
 	GENERAL_AT $20
 
@@ -153,6 +157,22 @@ statement_error:
 	ALIGN	2
 statement_nop:
 	jp	interpret_next
+
+	ALIGN	2
+literal_false_stack:
+	jp	false_push
+
+	ALIGN	2
+literal_true_stack:
+	jp	true_push
+
+	ALIGN	2
+literal_false_immediate:
+	jp	interpret_false
+
+	ALIGN	2
+literal_true_immediate:
+	jp	interpret_true
 
 	ALIGN	2
 statement_int16_eq:
@@ -222,6 +242,7 @@ common_jump:	; 4 bytes, 26 tstates
 	add	hl, de
 	ex	de, hl
 	; then a copy of "interpret_next"
+	jp	interpret_next
 ;------------------------------------------------
 	PADTO	$0400
 FALSE_OPS:
@@ -269,6 +290,11 @@ false_statement_if:	; 7 bytes, 25 tstates
 	and	$0f
 	jp	common_jump
 
+	PADTO	FALSE_OPS+$88
+	ld	a, b
+	and	$0f
+	jp	common_jump
+
 ;------------------------------------------------
 	PADTO	$0500
 TRUE_OPS:
@@ -295,4 +321,10 @@ true_push:
 	push	hl
 	jp	interpret_next
 
+true_statement_if:	; 7 bytes, 25 tstates
+	PADTO	TRUE_OPS+$80
+	jp	interpret_next_inc1
 
+	PADTO	TRUE_OPS+$88
+	jp	interpret_next_inc1
+	

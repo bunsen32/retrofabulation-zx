@@ -24,6 +24,10 @@ type RegisterSet = {
 	SP: number,
 }
 type PartialRegisterSet = Partial<RegisterSet>
+type CpuSnapshot = RegisterSet & {
+	t: number,
+	PC: number,
+}
 
 async function loadRom(filename: string, page: number) {
 	const romBytes = fs.readFileSync(filename)
@@ -43,9 +47,23 @@ function runPcAt(address: number, forTStates: number = 100){
 	core.setPC(address)
 	const result = core.runUntil(forTStates)
 	expect(result).toBe(0)
-	console.log(getRegisters())
-	console.log("PC", core.getPC().toString(16))
-	expect(core.getHalted()).toBe(1)
+}
+
+function tracePcAt(address: number, forTStates: number): CpuSnapshot[] {
+	core.reset()
+	core.setPC(address)
+	const trace: CpuSnapshot[] = []
+	while (1) {
+		const cpu = getRegisters() as any
+		cpu.PC = core.getPC()
+		cpu.t = core.getTStates()
+		trace.push(cpu)
+		if (cpu.t >= forTStates) break
+
+		const result = core.runUntil(cpu.t + 4)
+		expect(result).toBe(0)
+	}
+	return trace
 }
 
 function getRegisters(): RegisterSet {
@@ -89,12 +107,27 @@ function getStackBoolean(): boolean {
 	return !zeroFlag
 }
 
+function traceInterpret(bytes: number[], forTStates: number): CpuSnapshot[] {
+	const address = 0x8000
+	setRam(address, bytes)
+	setRegisters({ HL: address, SP: stackTop })
+	return tracePcAt(0x0080, forTStates)
+}
+
 function interpret(bytes: number[], forTStates: number = 200) {
 	const address = 0x8000
 	setRam(address, bytes)
 	setRegisters({ HL: address, SP: stackTop })
-	console.log(getRegisters())
 	runPcAt(0x0080, forTStates)
+	if (core.getHalted()) return
+
+	const trace = traceInterpret(bytes, forTStates)
+	const hex = (n) => ("0000" + (+n).toString(16)).slice(-4)
+	console.log(expect.getState().currentConcurrentTestName)
+	console.log(trace)
+	for(const cpu of trace){
+		console.log(`${hex(cpu.PC)}: AF=${hex(cpu.AF)}, BC=${hex(cpu.BC)}, DE=${hex(cpu.DE)}, HL=${hex(cpu.HL)} [${cpu.t}]`)
+	}
 	expect(core.getHalted()).toBe(1)
 }
 
@@ -111,8 +144,13 @@ const fullyLoaded = WebAssembly.instantiate(emulatorWasm).then(results => {
 	core.setTapeTraps(false)
 })
 
-describe('New ROM!', () => {
+function makeArray(value, len) {
+	const n = []
+	for (let u = 0; u < len; u++) n.push(value)
+	return n
+}
 
+describe('New ROM!', () => {
 	test('runs some Z80', async () => {
 		await fullyLoaded
 
@@ -123,6 +161,7 @@ describe('New ROM!', () => {
 		])
 		runPcAt(0x8000)
 
+		expect(core.getHalted()).toBe(1)
 		expect(core.peek(0x7fff)).toBe(0x3e)
 	})
 
@@ -204,4 +243,42 @@ describe('New ROM!', () => {
 		expect(getStackBoolean()).toBeFalsy()
 	})
 
+	test('if true', async () => {
+		await fullyLoaded
+
+		interpret([
+			Op.LiteralTrue,
+			BoolOp.If, 0x01,
+			literal16(NumPres.Hex), 0x10, 0x32,
+			Op.HALT], 500)
+
+		expect(getStack()).toEqual([0x3210])
+	})
+
+	test('if false', async () => {
+		await fullyLoaded
+
+		interpret([
+			Op.LiteralFalse,
+			BoolOp.If, 0x02,
+			Op.HALT,
+			literal16(NumPres.Hex), 0x10, 0x32,
+			Op.HALT], 500)
+
+		expect(getStack()).toEqual([0x3210])
+	})
+
+	test('if false (big-jump)', async () => {
+		await fullyLoaded
+
+		interpret([
+			Op.LiteralFalse,
+			BoolOp.If | 0x0f, 0x02,
+			Op.HALT,
+			...makeArray(Op.HALT, 15 * 256),
+			literal16(NumPres.Hex), 0x10, 0x32,
+			Op.HALT], 400)
+
+		expect(getStack()).toEqual([0x3210])
+	})
 })
