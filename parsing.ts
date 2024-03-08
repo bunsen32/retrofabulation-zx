@@ -34,9 +34,11 @@ export enum Op {
 	HALT = 0x0F,
 
 	NeedsAnalysis = 0x10, // If func/proc requires name or type resolution before execution. 
-	Assignment = 0x11, // And dereferences?
-	Definition = 0x12, // And other definitions within a proc/func
-	CallReturn = 0x13, // Calls and returns
+	Store16 = 0x11,
+	Load16 = 0x12,
+	Store32 = 0x13,
+	Load32 = 0x14,
+	CallReturn = 0x1A, // Calls and returns
 
 	LiteralEmptyString = 0x1B,
 	LiteralFalseStack = 0x1C,
@@ -44,18 +46,10 @@ export enum Op {
 	LiteralFalse = 0x1E,
 	LiteralTrue = 0x1F,
 
-	LiteralIntBin0 = 0x20,
-	LiteralIntDec0 = 0x21,
-	LiteralIntHex0 = 0x22,
-	LiteralLongBin0 = 0x20,
-	LiteralLongDec0 = 0x21,
-	LiteralLongHex0 = 0x22,
-	LiteralIntBin1 = 0x20,
-	LiteralIntDec1 = 0x21,
-	LiteralIntHex1 = 0x22,
-	LiteralLongBin1 = 0x20,
-	LiteralLongDec1 = 0x21,
-	LiteralLongHex1 = 0x22,
+	LiteralInt0 = 0x20,
+	LiteralLong0 = 0x21,
+	LiteralInt1 = 0x22,
+	LiteralLong1 = 0x23,
 	LiteralFloat1 = 0x24,
 
 	// Integer16:

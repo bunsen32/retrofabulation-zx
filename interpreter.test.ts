@@ -122,7 +122,7 @@ function interpret(bytes: number[], forTStates: number = 200) {
 	if (core.getHalted()) return
 
 	const trace = traceInterpret(bytes, forTStates)
-	const hex = (n) => ("0000" + (+n).toString(16)).slice(-4)
+	const hex = (n) => ((+n).toString(16)).padStart(4, "0")
 	console.log(expect.getState().currentConcurrentTestName)
 	console.log(trace)
 	for(const cpu of trace){

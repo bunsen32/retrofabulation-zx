@@ -5,7 +5,7 @@
 		; add padding + display warning
 		IF $ > addr
 			; no padding
-			DISPLAY /L, "Warning! PADORG failed! ", $, " is more than ", addr
+			DISPLAY /L, "Warning! PADTO failed! ", $, " is more than ", addr
 		ELSE
 			; add padding
 			BLOCK addr-$
@@ -34,11 +34,8 @@ interpreter:
 	ex	de, hl
 	jp	interpret_next
 
-; Adds 6 t-states for total of 8 bytes, 49 tstates
-interpret_next_inc1:
-	inc	de
-; Main fetch/decode part is 7 bytes, 43 tstates
-interpret_next:
+	MACRO	INTERPRET_NEXT
+	; Main fetch/decode part is 8 bytes, 46 tstates
 	ld	a, (de)
 	inc	de
 	ld	h, (GENERAL_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
@@ -46,6 +43,12 @@ interpret_next:
 	ld	l, (hl)
 	add	hl, hl  ; If we could squeeze all main interpreter code into 256 bytes, we could change to "inc h" and save 7 t-states
 	jp	(hl)
+	ENDM
+
+interpret_next_inc1:
+	inc	de
+interpret_next:
+	INTERPRET_NEXT
 
 ; Main fetch/decode part is 9 bytes, 39 tstates
 interpret_false:
@@ -76,6 +79,27 @@ interpret_true:
 		ENDIF
 		DB	(code - GENERAL_OPS) / 2
 	ENDM
+	MACRO GENERALx16 code
+		IF (code - GENERAL_OPS) % 2 != 0
+			DISPLAY /L, "Warning! Opcode routine ", $ - GENERAL_LUT, " is not aligned."
+		ENDIF
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+		DB	(code - GENERAL_OPS) / 2
+	ENDM
 	MACRO GENERAL_AT opcode_offset
 		BLOCK	opcode_offset - ($ - GENERAL_LUT)
 	ENDM
@@ -100,6 +124,10 @@ GENERAL_LUT:
 	GENERAL(literal_true_immediate)	; 1f
 
 	GENERAL_AT $20
+	GENERAL(literal_0int16)	; 20
+	GENERAL(literal_0int32)	; 21
+	GENERAL(literal_1int16)	; 22
+	GENERAL(literal_1int32)	; 23
 
 	GENERAL_AT $30
 
@@ -128,16 +156,19 @@ GENERAL_LUT:
 	GENERAL_AT $70
 
 	GENERAL_AT $80
+	GENERALx16(statement_jumpfwd)	; endif
 
 	GENERAL_AT $90
-
-	GENERAL_AT $90
+	GENERALx16(statement_for)	; for
 
 	GENERAL_AT $A0
+	GENERALx16(statement_jumpfwd)	; break
 
 	GENERAL_AT $B0
+	GENERALx16(statement_jumpback)	; continue
 
 	GENERAL_AT $C0
+	GENERALx16(statement_jumpback)	; endloop
 
 	GENERAL_AT $D0
 
@@ -153,6 +184,11 @@ GENERAL_LUT:
 statement_error:
 	RST	R_ERR
 	BYTE	ERR_INT_OPCODE
+
+statement_load16:
+statement_load32:
+statement_store16:
+statement_store32:
 
 	ALIGN	2
 statement_nop:
@@ -175,6 +211,34 @@ literal_true_immediate:
 	jp	interpret_true
 
 	ALIGN	2
+literal_0int16
+	sbc	hl,hl
+	push	hl
+	jp	interpret_next
+
+	ALIGN	2
+literal_1int16
+	sbc	hl,hl
+	inc	l
+	push	hl
+	jp	interpret_next
+
+	ALIGN	2
+literal_0int32
+	sbc	hl,hl
+	push	hl
+	push	hl
+	jp	interpret_next
+
+	ALIGN	2
+literal_1int32
+	sbc	hl,hl
+	push	hl
+	inc	l
+	push	hl
+	jp	interpret_next
+
+	ALIGN	2
 statement_int16_eq:
 	pop	hl
 	pop	bc
@@ -194,12 +258,25 @@ statement_int16_ge:
 statement_int16_lt:
 statement_int16_le:
 
+	ALIGN 2
 statement_int16_add:
 	pop	hl
 	pop	bc
 	add	hl, bc
 	push	hl
-	jp	interpret_next
+	jp	po, interpret_next
+	rst	R_ERR
+	BYTE	ERR_RUN_OVERFL
+
+	ALIGN 2
+statement_int16_sub:
+	pop	bc
+	pop	hl
+	sbc	hl, bc
+	push	hl
+	jp	po, interpret_next
+	rst	R_ERR
+	BYTE	ERR_RUN_OVERFL
 
 	ALIGN 2
 statement_literalint16:
@@ -212,7 +289,6 @@ statement_literalint16:
 	jp	interpret_next_inc1
 
 	ALIGN 2
-statement_int16_sub:
 statement_int16_mul:
 statement_int16_div:
 statement_int16_mod:
@@ -221,20 +297,22 @@ statement_int16_bitor:
 statement_int16_bitxor:
 statement_int16_bitshl:
 statement_int16_bitshr:
+statement_endif:
+statement_for:
+statement_break:
+statement_continue:
+
 
 statement_halt:
 	halt
 
-statement_endloop:	; 5 bytes, 22 tstates (excluding common part)
+	ALIGN 2
+statement_jumpfwd:	; 5 bytes, 22 tstates (excluding common part)
+	and	$0f
+	jp	common_jump
+	ALIGN 2
+statement_jumpback:	; 5 bytes, 22 tstates (excluding common part)
 	or	$f0
-	ld	h, a
-	ld	a, (de)
-	ld	l, a
-common_jump_back:
-common_jump_fwd:	; 2 bytes, 15 tstates
-	add	hl, de
-	ex	de, hl
-	; then a copy of "interpret_next"
 common_jump:	; 4 bytes, 26 tstates
 	ex	de, hl
 	ld	d, a
@@ -242,14 +320,14 @@ common_jump:	; 4 bytes, 26 tstates
 	add	hl, de
 	ex	de, hl
 	; then a copy of "interpret_next"
-	jp	interpret_next
+	INTERPRET_NEXT
 ;------------------------------------------------
 	PADTO	$0400
 FALSE_OPS:
 
 false_discard:
 	PADTO	FALSE_OPS+$00
-	jp	interpret_next
+	INTERPRET_NEXT
 
 false_parens:
 	PADTO	FALSE_OPS+$08
@@ -273,16 +351,20 @@ false_not:
 	PADTO	FALSE_OPS+$20
 	jp	interpret_true
 
-false_shortcircuit_and:	; 5 bytes, 18 tstates
+false_shortcircuit_and:
 	PADTO	FALSE_OPS+$28
 	xor	a
 	jp	common_jump
+
+false_shortcircuit_or:
+	PADTO	FALSE_OPS+$30
+	jp	interpret_next_inc1
 
 false_push:
 	PADTO	FALSE_OPS+$50
 	ld	l, %11111000
 	push	hl
-	jp	interpret_next
+	INTERPRET_NEXT
 
 false_statement_if:	; 7 bytes, 25 tstates
 	PADTO	FALSE_OPS+$80
@@ -295,9 +377,53 @@ false_statement_if:	; 7 bytes, 25 tstates
 	and	$0f
 	jp	common_jump
 
+false_statement_elseif:	; 7 bytes, 25 tstates
+	PADTO	FALSE_OPS+$90
+	ld	a, b
+	and	$0f
+	jp	common_jump
+
+	PADTO	FALSE_OPS+$98
+	ld	a, b
+	and	$0f
+	jp	common_jump
+
+false_statement_while:	; 7 bytes, 25 tstates
+	PADTO	FALSE_OPS+$a0
+	ld	a, b
+	and	$0f
+	jp	common_jump
+
+	PADTO	FALSE_OPS+$a8
+	ld	a, b
+	and	$0f
+	jp	common_jump
+
+false_statement_break:	; 7 bytes, 25 tstates
+	PADTO	FALSE_OPS+$b0
+	jp	interpret_next_inc1
+
+	PADTO	FALSE_OPS+$b8
+	jp	interpret_next_inc1
+
+false_statement_continue:	; 7 bytes, 25 tstates
+	PADTO	FALSE_OPS+$c0
+	jp	interpret_next_inc1
+
+	PADTO	FALSE_OPS+$c8
+	jp	interpret_next_inc1
+
 ;------------------------------------------------
 	PADTO	$0500
 TRUE_OPS:
+
+true_discard:
+	PADTO	TRUE_OPS+$00
+	INTERPRET_NEXT
+
+true_parens:
+	PADTO	TRUE_OPS+$08
+	jp	interpret_true
 
 true_eq:	; 7 bytes, 30 tstates
 	PADTO	TRUE_OPS+$10
@@ -315,11 +441,20 @@ true_not:
 	PADTO	TRUE_OPS+$20
 	jp	interpret_false
 
+true_shortcircuit_and:
+	PADTO	TRUE_OPS+$28
+	jp	interpret_next_inc1
+
+true_shortcircuit_or:
+	PADTO	TRUE_OPS+$30
+	xor	a
+	jp	common_jump
+
 true_push:
 	PADTO	TRUE_OPS+$50
 	ld	l, %00000111
 	push	hl
-	jp	interpret_next
+	INTERPRET_NEXT
 
 true_statement_if:	; 7 bytes, 25 tstates
 	PADTO	TRUE_OPS+$80
@@ -327,4 +462,36 @@ true_statement_if:	; 7 bytes, 25 tstates
 
 	PADTO	TRUE_OPS+$88
 	jp	interpret_next_inc1
-	
+
+true_statement_elseif:
+	PADTO	TRUE_OPS+$90
+	jp	interpret_next_inc1
+
+	PADTO	TRUE_OPS+$98
+	jp	interpret_next_inc1
+
+true_statement_while:
+	PADTO	TRUE_OPS+$a0
+	jp	interpret_next_inc1
+
+	PADTO	TRUE_OPS+$a8
+	jp	interpret_next_inc1
+
+true_statement_break:
+	PADTO	TRUE_OPS+$b0
+	and	$0f
+	jp	common_jump
+
+	PADTO	TRUE_OPS+$b8
+	and	$0f
+	jp	common_jump
+
+true_statement_continue:
+	PADTO	TRUE_OPS+$c0
+	or	$f0
+	jp	common_jump
+
+	PADTO	TRUE_OPS+$c8
+	or	$f0
+	jp	common_jump
+
