@@ -1,5 +1,5 @@
 import {describe, expect, test} from '@jest/globals'
-import {literal16, Op, BoolOp, NumPres} from "./parsing"
+import {literal16, Op, BoolOp, NumPres, load16, store16} from "./parsing"
 
 import fs = require('node:fs')
 
@@ -57,6 +57,7 @@ function tracePcAt(address: number, forTStates: number): CpuSnapshot[] {
 		const cpu = getRegisters() as any
 		cpu.PC = core.getPC()
 		cpu.t = core.getTStates()
+		cpu.stack = getStack()
 		trace.push(cpu)
 		if (cpu.t >= forTStates) break
 
@@ -124,10 +125,11 @@ function interpret(bytes: number[], forTStates: number = 200) {
 	const trace = traceInterpret(bytes, forTStates)
 	const hex = (n) => ((+n).toString(16)).padStart(4, "0")
 	console.log(expect.getState().currentConcurrentTestName)
-	console.log(trace)
+	const full = []
 	for(const cpu of trace){
-		console.log(`${hex(cpu.PC)}: AF=${hex(cpu.AF)}, BC=${hex(cpu.BC)}, DE=${hex(cpu.DE)}, HL=${hex(cpu.HL)} [${cpu.t}]`)
+		full.push(`${hex(cpu.PC)}: AF=${hex(cpu.AF)}, BC=${hex(cpu.BC)}, DE=${hex(cpu.DE)}, HL=${hex(cpu.HL)} [${cpu.stack}]`)
 	}
+	console.log(full)
 	expect(core.getHalted()).toBe(1)
 }
 
@@ -243,6 +245,45 @@ describe('New ROM!', () => {
 		expect(getStackBoolean()).toBeFalsy()
 	})
 
+	test('int16 lt (A < B)', async () => {
+		await fullyLoaded
+
+		interpret([
+			literal16(NumPres.Hex), 0x10, 0x78,
+			literal16(NumPres.Hex), 0x12, 0x78,
+			Op.IntLt,
+			BoolOp.BoolPush,
+			Op.HALT], 500)
+
+		expect(getStackBoolean()).toBeTruthy()
+	})
+
+	test('int16 lt (A = B)', async () => {
+		await fullyLoaded
+
+		interpret([
+			literal16(NumPres.Hex), 0xAB, 0xCD,
+			literal16(NumPres.Hex), 0xAB, 0xCD,
+			Op.IntLt,
+			BoolOp.BoolPush,
+			Op.HALT], 500)
+
+		expect(getStackBoolean()).toBeFalsy()
+	})
+
+	test('int16 lt (A > B)', async () => {
+		await fullyLoaded
+
+		interpret([
+			literal16(NumPres.Hex), 0xFF, 0xCD,
+			literal16(NumPres.Hex), 0xAB, 0xCD,
+			Op.IntLt,
+			BoolOp.BoolPush,
+			Op.HALT], 500)
+
+		expect(getStackBoolean()).toBeFalsy()
+	})
+
 	test('if true', async () => {
 		await fullyLoaded
 
@@ -280,5 +321,24 @@ describe('New ROM!', () => {
 			Op.HALT], 400)
 
 		expect(getStack()).toEqual([0x3210])
+	})
+
+	test('Loop 10 times', async () => {
+		await fullyLoaded
+
+		interpret([
+			Op.LiteralInt0,
+			store16(0),
+			load16(0),
+			Op.Literal16IntDec, 0x0a, 0x00,
+			Op.IntLt,
+			BoolOp.While | 0x00, 0x07, // = 7
+			load16(0),
+			Op.LiteralInt1,
+			Op.IntAdd,
+			store16(0),
+			Op.EndLoop | 0x0f, 0xf4, // = -12
+			Op.HALT
+		], 7985)
 	})
 })

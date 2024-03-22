@@ -155,22 +155,52 @@ GENERAL_LUT:
 
 	GENERAL_AT $70
 
-	GENERAL_AT $80
-	GENERALx16(statement_jumpfwd)	; endif
+	GENERAL_AT $80	; 16-bit loads+stores (short codes)
+	GENERAL(statement_store16_0)
+	GENERAL(statement_load16_0)
+	GENERAL(statement_store16_1)
+	GENERAL(statement_load16_1)
+	GENERAL(statement_store16_2)
+	GENERAL(statement_load16_2)
+	GENERAL(statement_store16_n)
+	GENERAL(statement_load16_n)
+	GENERAL(statement_store16_n)
+	GENERAL(statement_load16_n)
+	GENERAL(statement_store16_n)
+	GENERAL(statement_load16_n)
+	GENERAL(statement_store16_n)
+	GENERAL(statement_load16_n)
+	GENERAL(statement_store16_n)
+	GENERAL(statement_load16_n)
 
-	GENERAL_AT $90
-	GENERALx16(statement_for)	; for
+	GENERAL_AT $90	; 32-bit loads+stores (short codes)
+	GENERAL(statement_store32_0)
+	GENERAL(statement_load32_0)
+	GENERAL(statement_store32_2)
+	GENERAL(statement_load32_2)
+	GENERAL(statement_store32_4)
+	GENERAL(statement_load32_4)
+	GENERAL(statement_store32_n)
+	GENERAL(statement_load32_n)
+	GENERAL(statement_store32_n)
+	GENERAL(statement_load32_n)
+	GENERAL(statement_store32_n)
+	GENERAL(statement_load32_n)
+	GENERAL(statement_store32_n)
+	GENERAL(statement_load32_n)
+	GENERAL(statement_store32_n)
+	GENERAL(statement_load32_n)
 
 	GENERAL_AT $A0
-	GENERALx16(statement_jumpfwd)	; break
+	GENERALx16(statement_jumpfwd)	; endif
 
 	GENERAL_AT $B0
-	GENERALx16(statement_jumpback)	; continue
-
-	GENERAL_AT $C0
 	GENERALx16(statement_jumpback)	; endloop
 
-	GENERAL_AT $D0
+	GENERAL_AT $C0
+	GENERALx16(statement_for)	; for
+
+	GENERAL_AT $D0 ; 1-byte literals (and loads+stores)
 
 	GENERAL_AT $E0 ; 2-byte literals
 	GENERAL(statement_literalint16)	; E0
@@ -185,10 +215,92 @@ statement_error:
 	RST	R_ERR
 	BYTE	ERR_INT_OPCODE
 
-statement_load16:
-statement_load32:
-statement_store16:
-statement_store32:
+statement_load16_0:
+	ALIGN	2
+	exx
+	push	bc
+	exx
+	jp	interpret_next
+
+statement_load16_1:
+	ALIGN	2
+	exx
+	push	de
+	exx
+	jp	interpret_next
+
+statement_load16_2:
+	ALIGN	2
+	exx
+	push	hl
+	exx
+	jp	interpret_next
+
+	ALIGN	2
+statement_load16_3:
+	ld	c, (ix+6)
+	ld	b, (ix+7)
+	push	bc
+	jp	interpret_next
+
+	ALIGN	2
+statement_load16_n:
+	and	$0e
+	push	ix
+	pop	hl
+	ld	c, a
+	ld	b, 0
+	add	hl, bc
+	ld	c, (hl)
+	inc	hl
+	ld	b, (hl)
+	push	bc
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_0:
+	pop	bc
+	ld	(ix+0), c
+	ld	(ix+1), b
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_1:
+	pop	bc
+	ld	(ix+2), c
+	ld	(ix+3), b
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_2:
+	pop	bc
+	ld	(ix+4), c
+	ld	(ix+5), b
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_3:
+	pop	bc
+	ld	(ix+6), c
+	ld	(ix+7), b
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_n:
+	and	$07
+	ld	(selfmodifying_store16_frame), a
+	inc a
+	ld	(selfmodifying_store16_frame), a
+	jp	selfmodifying_store16
+
+statement_load32_0:
+statement_store32_0:
+statement_load32_2:
+statement_store32_2:
+statement_load32_4:
+statement_store32_4:
+statement_load32_n:
+statement_store32_n:
 
 	ALIGN	2
 statement_nop:
@@ -246,6 +358,7 @@ statement_int16_eq:
 	jp	nz, interpret_false
 	jp	interpret_true
 
+	ALIGN	2
 statement_int16_ne:
 	pop	hl
 	pop	bc
@@ -253,10 +366,36 @@ statement_int16_ne:
 	jp	z, interpret_false
 	jp	interpret_true
 
-statement_int16_gt:
-statement_int16_ge:
+	ALIGN	2
 statement_int16_lt:
+	pop	bc
+	pop	hl
+	sbc	hl, bc
+	jp	c, interpret_true
+	jp	interpret_false
+
+	ALIGN	2
+statement_int16_ge:
+	pop	bc
+	pop	hl
+	sbc	hl, bc
+	jp	nc, interpret_true
+	jp	interpret_false
+
+	ALIGN	2
+statement_int16_gt:
+	pop	hl
+	pop	bc
+	sbc	hl, bc
+	jp	c, interpret_true
+	jp	interpret_false
+
 statement_int16_le:
+	pop	hl
+	pop	bc
+	sbc	hl, bc
+	jp	nc, interpret_true
+	jp	interpret_false
 
 	ALIGN 2
 statement_int16_add:
@@ -292,16 +431,49 @@ statement_literalint16:
 statement_int16_mul:
 statement_int16_div:
 statement_int16_mod:
+
+	ALIGN 2
 statement_int16_bitand:
+	pop	hl
+	pop	bc
+	ld	a, h
+	and	b
+	ld	h, a
+	ld	a, l
+	and	c
+	ld	l, a
+	push	hl
+	jp	interpret_next
+
+	ALIGN 2
 statement_int16_bitor:
+	pop	hl
+	pop	bc
+	ld	a, h
+	or	b
+	ld	h, a
+	ld	a, l
+	or	c
+	ld	l, a
+	push	hl
+	jp	interpret_next
+
+	ALIGN 2
 statement_int16_bitxor:
+	pop	hl
+	pop	bc
+	ld	a, h
+	or	b
+	ld	h, a
+	ld	a, l
+	or	c
+	ld	l, a
+	push	hl
+	jp	interpret_next
+
 statement_int16_bitshl:
 statement_int16_bitshr:
-statement_endif:
 statement_for:
-statement_break:
-statement_continue:
-
 
 statement_halt:
 	halt
@@ -495,3 +667,31 @@ true_statement_continue:
 	or	$f0
 	jp	common_jump
 
+	ORG	$ffe0
+selfmodifying_load16:
+
+selfmodifying_store16:
+	pop	bc
+	ld	(ix+6), c
+	ld	(ix+7), b
+	jp	interpret_next
+selfmodifying_store16_frame:
+
+
+interpret_with16bitvalue
+	ld	a, (de)
+	inc	de
+	or	a
+	jp	pe, interpret_rest
+	push	bc
+	ld	h, opcodes_new_value
+	ld	l, a
+	ld	l, (hl)
+	ld	h, interpreter_code
+	jp	(hl)
+interpret_next:
+	ld	h, (GENERAL_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
+	ld	l, a
+	ld	l, (hl)
+	add	hl, hl  ; If we could squeeze all main interpreter code into 256 bytes, we could change to "inc h" and save 7 t-states
+	jp	(hl)

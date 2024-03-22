@@ -34,10 +34,6 @@ export enum Op {
 	HALT = 0x0F,
 
 	NeedsAnalysis = 0x10, // If func/proc requires name or type resolution before execution. 
-	Store16 = 0x11,
-	Load16 = 0x12,
-	Store32 = 0x13,
-	Load32 = 0x14,
 	CallReturn = 0x1A, // Calls and returns
 
 	LiteralEmptyString = 0x1B,
@@ -116,13 +112,15 @@ export enum Op {
 
 	StrCat = 0x76,
 
+	LocalStoreLoad16Near = 0x80,
+	LocalStoreLoad32Near = 0x90,
+
 	// All of these are followed by a 1-byte LSB of jump offset
 	// Offset is (hex) xYY, where x is low-nyble of OP.
-	EndIfBranch = 0x80, // fwd: "else" (if followed by anything other than an "elif" statement)
-	For = 0x90, // fwd
-	Break = 0xA0, // fwd (include these versions? or just boolean ones?)
-	Continue = 0xB0, // back (include these versions? or just boolean ones?)
-	EndLoop = 0xC0, // back (0b1100)
+	EndIfBranch = 0xA0, // fwd: "else" (if followed by anything other than an "elif" statement)
+	EndLoop = 0xB0, // back (0b1100)
+	For = 0xC0, // fwd
+	// NB: "break" & "continue" are encoded as "break if true", "continue if true"
 
 	// Followed by 1 byte of data (0b1101):
 	Literal8IntBin = 0xD0,
@@ -132,7 +130,17 @@ export enum Op {
 	Literal8LongDec = 0xD5,
 	Literal8LongHex = 0xD6,
 	Literal8Float = 0xD8,
-	LiteralString1 = 0xDE,	// One-character string
+	LiteralString1 = 0xDA,	// One-character string
+
+	ModuleStore16 = 0xD3,
+	ModuleLoad16 = 0xD7,
+	ModuleStore32 = 0xD9,
+	ModuleLoad32 = 0xDB,
+
+	LocalStore16Far = 0xDC,
+	LocalLoad16Far = 0xDD,
+	LocalStore32Far = 0xDE,
+	LocalLoad32Far = 0xDF,
 
 	// Followed by 2 bytes of data (0b1101):
 	Literal16IntBin = 0xE0,
@@ -142,8 +150,8 @@ export enum Op {
 	Literal16LongDec = 0xE5,
 	Literal16LongHex = 0xE6,
 	Literal16Float = 0xE8,
-	LiteralString2 = 0xEE,	// Two-character string
-	LiteralStringP = 0xEF,	// Literal string pointer
+	LiteralString2 = 0xEA,	// Two-character string
+	LiteralStringP = 0xEB,	// Literal string pointer
 
 	// Followed by 4 bytes of data (0b1110):
 	Literal32IntBin = 0xF0,	// Error (or at least: risk of overflow)
@@ -171,9 +179,9 @@ export enum BoolOp {
 	// Offset is (hex) xYY, where x is low-nyble of OP.
 	If =	0x80, // fwd
 	Elif =	0x90, //fwd
-	While = 0xB0, // fwd: 'loop' is encoded (and parsed from) "true, while"
-	Break = 0xD0, // fwd
-	Continue = 0xE0, // back
+	While = 0xA0, // fwd: 'loop' is encoded (and parsed from) "true, while"
+	Break = 0xB0, // fwd
+	Continue = 0xC0, // back
 }
 
 const statements = [
@@ -268,6 +276,20 @@ function parse(text: string): byte[] {
 
 export function literal16(pres: NumPres) {
 	return (opHigh.Literal16 << 4) | pres
+}
+
+export function load16(slotNumber) {
+	if (slotNumber < 8) {
+		return Op.LocalStoreLoad16Near | (slotNumber << 1)  | 1
+	}
+	throw "Unsupported load16 "+slotNumber
+}
+
+export function store16(slotNumber) {
+	if (slotNumber < 8) {
+		return Op.LocalStoreLoad16Near | (slotNumber << 1)  | 0
+	}
+	throw "Unsupported store16 "+slotNumber
 }
 
 const sample: byte[][] = [
