@@ -27,6 +27,7 @@ type PartialRegisterSet = Partial<RegisterSet>
 type CpuSnapshot = RegisterSet & {
 	t: number,
 	PC: number,
+	stack: number[]
 }
 
 async function loadRom(filename: string, page: number) {
@@ -325,7 +326,7 @@ describe('New ROM!', () => {
 
 	test('Loop 10 times', async () => {
 		await fullyLoaded
-
+		console.log(Op.EndLoop)
 		interpret([
 			Op.LiteralInt0,
 			store16(0),
@@ -341,4 +342,6 @@ describe('New ROM!', () => {
 			Op.HALT
 		], 7985)
 	})
+/*
+*/
 })

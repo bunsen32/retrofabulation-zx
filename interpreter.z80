@@ -30,7 +30,7 @@
 
 	PADTO	$0080
 interpreter:
-	ld	b, (GENERAL_LUT >> 8)
+	ld	b, (TABLE0_LUT >> 8)
 	ex	de, hl
 	jp	interpret_next
 
@@ -38,7 +38,7 @@ interpreter:
 	; Main fetch/decode part is 8 bytes, 46 tstates
 	ld	a, (de)
 	inc	de
-	ld	h, (GENERAL_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
+	ld	h, (TABLE0_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
 	ld	l, a
 	ld	l, (hl)
 	add	hl, hl  ; If we could squeeze all main interpreter code into 256 bytes, we could change to "inc h" and save 7 t-states
@@ -72,145 +72,149 @@ interpret_true:
 
 ;------------------------------------------------
 
-	DEFINE	GENERAL_OPS	$200
-	MACRO GENERAL code
-		IF (code - GENERAL_OPS) % 2 != 0
-			DISPLAY /L, "Warning! Opcode routine ", $ - GENERAL_LUT, " is not aligned."
+	DEFINE	TABLE0_OPS	$200
+	MACRO TABLE0 code
+		IF (code - TABLE0_OPS) % 2 != 0
+			DISPLAY /L, "Warning! Opcode routine ", $ - TABLE0_LUT, " is not aligned."
 		ENDIF
-		DB	(code - GENERAL_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
 	ENDM
-	MACRO GENERALx16 code
-		IF (code - GENERAL_OPS) % 2 != 0
-			DISPLAY /L, "Warning! Opcode routine ", $ - GENERAL_LUT, " is not aligned."
+	MACRO TABLE0x16 code
+		IF (code - TABLE0_OPS) % 2 != 0
+			DISPLAY /L, "Warning! Opcode routine ", $ - TABLE0_LUT, " is not aligned."
 		ENDIF
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
-		DB	(code - GENERAL_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS) / 2
 	ENDM
-	MACRO GENERAL_AT opcode_offset
-		BLOCK	opcode_offset - ($ - GENERAL_LUT)
+	MACRO TABLE0_AT opcode_offset
+		BLOCK	opcode_offset - ($ - TABLE0_LUT)
 	ENDM
 
 
 	PADTO	$0100
-GENERAL_LUT:
-	GENERAL_AT $00
-	GENERAL(statement_nop)	; 00 NOP
-	GENERAL(statement_nop)	; 01 line-continuation
-	GENERAL(statement_nop)	; 02 end-if
-	GENERAL(statement_nop)	; 03 else
-	GENERAL(statement_nop)	; 04 parens
+TABLE0_LUT:
+	TABLE0_AT $00
+	TABLE0(statement_nop)	; 00 NOP
+	TABLE0(statement_nop)	; 01 line-continuation
+	TABLE0(statement_nop)	; 02 end-if
+	TABLE0(statement_nop)	; 03 else
+	TABLE0(statement_nop)	; 04 parens
 
-	GENERAL_AT $0f
-	GENERAL(statement_halt)
+	TABLE0_AT $0E
+	TABLE0(statement_halt)
 
-	GENERAL_AT $1C
-	GENERAL(literal_false_stack)	; 1c
-	GENERAL(literal_true_stack)	; 1d
-	GENERAL(literal_false_immediate)	; 1e
-	GENERAL(literal_true_immediate)	; 1f
+	TABLE0_AT $12
+	TABLE0(literal_false_immediate)	; 12
+	TABLE0(literal_true_immediate)	; 13
+	TABLE0(statement_nop)
+	TABLE0(literal_false_stack)	; 15
+	TABLE0(literal_true_stack)	; 16
 
-	GENERAL_AT $20
-	GENERAL(literal_0int16)	; 20
-	GENERAL(literal_0int32)	; 21
-	GENERAL(literal_1int16)	; 22
-	GENERAL(literal_1int32)	; 23
+	TABLE0_AT $18
+	TABLE0(literal_0int16)	; 18
+	TABLE0(literal_0int32)	; 19
+	TABLE0(literal_0int32)	; 1A
+	TABLE0(literal_1int16)	; 1B
+	TABLE0(literal_1int32)	; 1C
+	TABLE0(literal_1int32)	; 1D
 
-	GENERAL_AT $30
+	TABLE0_AT $20	; 16/32-bit loads (short codes)
+	TABLE0(statement_load16_0)
+	TABLE0(statement_load32_0)
+	TABLE0(statement_load16_1)
+	TABLE0(statement_load32_1)
+	TABLE0(statement_load16_2)
+	TABLE0(statement_load32_2)
+	TABLE0(statement_load16_n)
+	TABLE0(statement_load32_n)
+	TABLE0(statement_load16_n)
+	TABLE0(statement_load32_n)
+	TABLE0(statement_load16_n)
+	TABLE0(statement_load32_n)
+	TABLE0(statement_load16_n)
+	TABLE0(statement_load32_n)
+	TABLE0(statement_load16_n)
+	TABLE0(statement_load32_n)
 
-	GENERAL_AT $40 ; int16 operations
-	GENERAL(statement_int16_eq)	; 40
-	GENERAL(statement_int16_ne)	; 41
-	GENERAL(statement_int16_gt)	; 42
-	GENERAL(statement_int16_ge)	; 43
-	GENERAL(statement_int16_lt)	; 44
-	GENERAL(statement_int16_le)	; 45
-	GENERAL(statement_int16_add)	; 46
-	GENERAL(statement_int16_sub)	; 47
-	GENERAL(statement_int16_mul)	; 48
-	GENERAL(statement_int16_div)	; 49
-	GENERAL(statement_int16_mod)	; 4a
-	GENERAL(statement_int16_bitand)	; 4b
-	GENERAL(statement_int16_bitor)	; 4c
-	GENERAL(statement_int16_bitxor)	; 4d
-	GENERAL(statement_int16_bitshl)	; 4e
-	GENERAL(statement_int16_bitshr)	; 4f
+	TABLE0_AT $30
+	TABLE0x16(statement_jumpfwd)	; endif
 
-	GENERAL_AT $50
+	TABLE0_AT $40
+	TABLE0x16(statement_for)	; for
 
-	GENERAL_AT $60
+	TABLE0_AT $50
+	TABLE0x16(statement_jumpback)	; endloop
 
-	GENERAL_AT $70
+	TABLE0_AT $70 ; 2-byte literals
+	TABLE0(statement_literalint16)	; 70
+	TABLE0(statement_literalint16)	; 71
+	TABLE0(statement_literalint16)	; 72
 
-	GENERAL_AT $80	; 16-bit loads+stores (short codes)
-	GENERAL(statement_store16_0)
-	GENERAL(statement_load16_0)
-	GENERAL(statement_store16_1)
-	GENERAL(statement_load16_1)
-	GENERAL(statement_store16_2)
-	GENERAL(statement_load16_2)
-	GENERAL(statement_store16_n)
-	GENERAL(statement_load16_n)
-	GENERAL(statement_store16_n)
-	GENERAL(statement_load16_n)
-	GENERAL(statement_store16_n)
-	GENERAL(statement_load16_n)
-	GENERAL(statement_store16_n)
-	GENERAL(statement_load16_n)
-	GENERAL(statement_store16_n)
-	GENERAL(statement_load16_n)
 
-	GENERAL_AT $90	; 32-bit loads+stores (short codes)
-	GENERAL(statement_store32_0)
-	GENERAL(statement_load32_0)
-	GENERAL(statement_store32_2)
-	GENERAL(statement_load32_2)
-	GENERAL(statement_store32_4)
-	GENERAL(statement_load32_4)
-	GENERAL(statement_store32_n)
-	GENERAL(statement_load32_n)
-	GENERAL(statement_store32_n)
-	GENERAL(statement_load32_n)
-	GENERAL(statement_store32_n)
-	GENERAL(statement_load32_n)
-	GENERAL(statement_store32_n)
-	GENERAL(statement_load32_n)
-	GENERAL(statement_store32_n)
-	GENERAL(statement_load32_n)
+	TABLE0_AT $80 ; int16 operations
+	TABLE0(statement_int16_eq)	; 80
+	TABLE0(statement_int16_ne)	; 81
+	TABLE0(statement_int16_gt)	; 82
+	TABLE0(statement_int16_ge)	; 83
+	TABLE0(statement_int16_lt)	; 84
+	TABLE0(statement_int16_le)	; 85
+	TABLE0(statement_int16_add)	; 86
+	TABLE0(statement_int16_sub)	; 87
+	TABLE0(statement_int16_mul)	; 88
+	TABLE0(statement_int16_div)	; 89
+	TABLE0(statement_int16_mod)	; 8a
+	TABLE0(statement_int16_bitand)	; 8b
+	TABLE0(statement_int16_bitor)	; 8c
+	TABLE0(statement_int16_bitxor)	; 8d
+	TABLE0(statement_int16_bitshl)	; 8e
+	TABLE0(statement_int16_bitshr)	; 8f
 
-	GENERAL_AT $A0
-	GENERALx16(statement_jumpfwd)	; endif
+	TABLE0_AT $90
 
-	GENERAL_AT $B0
-	GENERALx16(statement_jumpback)	; endloop
+	TABLE0_AT $A0
 
-	GENERAL_AT $C0
-	GENERALx16(statement_for)	; for
+	TABLE0_AT $B0
 
-	GENERAL_AT $D0 ; 1-byte literals (and loads+stores)
+	TABLE0_AT $C0	; 16/32-bit stores (short codes)
+	TABLE0(statement_store16_0)
+	TABLE0(statement_store32_0)
+	TABLE0(statement_store16_1)
+	TABLE0(statement_store32_1)
+	TABLE0(statement_store16_2)
+	TABLE0(statement_store32_2)
+	TABLE0(statement_store16_n)
+	TABLE0(statement_store32_n)
+	TABLE0(statement_store16_n)
+	TABLE0(statement_store32_n)
+	TABLE0(statement_store16_n)
+	TABLE0(statement_store32_n)
+	TABLE0(statement_store16_n)
+	TABLE0(statement_store32_n)
+	TABLE0(statement_store16_n)
+	TABLE0(statement_store32_n)
 
-	GENERAL_AT $E0 ; 2-byte literals
-	GENERAL(statement_literalint16)	; E0
-	GENERAL(statement_literalint16)	; E1
-	GENERAL(statement_literalint16)	; E2
+	TABLE0_AT $D0 ; 1-byte literals (and loads+stores)
 
-	GENERAL_AT $f0
+	TABLE0_AT $E0
+
+	TABLE0_AT $F0
 
 	PADTO	$0200
-;GENERAL_OPS:
+;TABLE0_OPS:
 statement_error:
 	RST	R_ERR
 	BYTE	ERR_INT_OPCODE
@@ -259,9 +263,9 @@ statement_load16_n:
 
 	ALIGN	2
 statement_store16_0:
+	exx
 	pop	bc
-	ld	(ix+0), c
-	ld	(ix+1), b
+	exx
 	jp	interpret_next
 
 	ALIGN	2
@@ -295,10 +299,10 @@ statement_store16_n:
 
 statement_load32_0:
 statement_store32_0:
+statement_load32_1:
+statement_store32_1:
 statement_load32_2:
 statement_store32_2:
-statement_load32_4:
-statement_store32_4:
 statement_load32_n:
 statement_store32_n:
 
@@ -677,7 +681,7 @@ selfmodifying_store16:
 	jp	interpret_next
 selfmodifying_store16_frame:
 
-
+/*
 interpret_with16bitvalue
 	ld	a, (de)
 	inc	de
@@ -690,8 +694,9 @@ interpret_with16bitvalue
 	ld	h, interpreter_code
 	jp	(hl)
 interpret_next:
-	ld	h, (GENERAL_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
+	ld	h, (TABLE0_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
 	ld	l, a
 	ld	l, (hl)
 	add	hl, hl  ; If we could squeeze all main interpreter code into 256 bytes, we could change to "inc h" and save 7 t-states
 	jp	(hl)
+*/

@@ -6,161 +6,170 @@ enum opHigh {
 	Nop = 0, // Padding, if required. (nop, endif, line-continuation, else)
 	NeedsAnalysis = 1, // If func/proc requires name or type resolution before execution. 
 	Literal = 2,
-	IntOp = 4,
-	Int32Op = 5,
-	FltOp = 6,
-	StrOp = 7,
 
 	// All of these are followed by a 1-byte LSB of jump offset
 	// Offset is (hex) xYY, where x is low-nyble of OP.
-	EndIfBranch = 0x8, // fwd: "else" (if followed by anything other than an "elif" statement)
-	For = 0x9, // fwd
-	Break = 0xA, // fwd
-	Continue = 0xB, // back
-	EndLoop = 0xC, // back
+	EndIfBranch = 0x3, // fwd: "else" (if followed by anything other than an "elif" statement)
+	For = 0x4, // fwd
+	EndLoop = 0x5, // back
 
-	Literal8 = 0xD,
-	Literal16 = 0xE,
-	Literal32 = 0xF,
+	IntOp = 8,
+	Int32Op = 9,
+	FltOp = 0xA,
+	StrOp = 0xB,
+
 }
 
 export enum Op {
+	// ----------------------------------------
+	// TABLE-0 instructions (no ‘current value’)
+
 	Nop = 0x00, // Padding, if required. (nop, endif, line-continuation, else)
 	NopLineContinuation = 0x01,
 	NopEndIf = 0x02,
 	NopElse = 0x03,
 	NopParens = 0x04,	// A bracketed expression
 
-	HALT = 0x0F,
+	HALT = 0x0E,
+	NeedsAnalysis = 0x0F, // If func/proc requires name or type resolution before execution. 
 
-	NeedsAnalysis = 0x10, // If func/proc requires name or type resolution before execution. 
 	CallReturn = 0x1A, // Calls and returns
 
-	LiteralEmptyString = 0x1B,
-	LiteralFalseStack = 0x1C,
-	LiteralTrueStack = 0x1D,
-	LiteralFalse = 0x1E,
-	LiteralTrue = 0x1F,
+	LiteralFalse = 0x12,
+	LiteralTrue = 0x13,
 
-	LiteralInt0 = 0x20,
-	LiteralLong0 = 0x21,
-	LiteralInt1 = 0x22,
-	LiteralLong1 = 0x23,
-	LiteralFloat1 = 0x24,
+	LiteralFalseStack = 0x15,
+	LiteralTrueStack = 0x16,
+	LiteralEmptyString = 0x17,
 
-	// Integer16:
-	IntEq = 0x40,
-	IntNe = 0x41,
-	IntGt = 0x42,
-	IntGe = 0x43,
-	IntLt = 0x44,
-	IntLe = 0x45,
+	LiteralInt0 = 0x18,
+	LiteralLong0 = 0x19,
+	LiteralFloat0 = 0x1A,
+	LiteralInt1 = 0x1B,
+	LiteralLong1 = 0x1C,
+	LiteralFloat1 = 0x1D,
+	LiteralFloatPi = 0x1E,
+	LiteralFloatE = 0x1F,
 
-	IntAdd = 0x46,
-	IntSub = 0x47,
-	IntMul = 0x48,
-	IntDiv = 0x49,
-	IntMod = 0x4A,
-
-	IntBitAnd = 0x4B, // '&'
-	IntBitOr = 0x4C, // '|'
-	IntBitXor = 0x4D, // '^'
-	IntBitShl = 0x4E, // '<<'
-	IntBitShr = 0x4F, // '>>'
-
-	// Integer32:
-	LongEq = 0x50,
-	LongNe = 0x51,
-	LongGt = 0x52,
-	LongGe = 0x53,
-	LongLt = 0x54,
-	LongLe = 0x55,
-
-	LongAdd = 0x56,
-	LongSub = 0x57,
-	LongMul = 0x58,
-	LongDiv = 0x59,
-	LongMod = 0x5A,
-
-	LongBitAnd = 0x5B, // '&'
-	LongBitOr = 0x5C, // '|'
-	LongBitXor = 0x5D, // '^'
-	LongBitShl = 0x5E, // '<<'
-	LongBitShr = 0x5F, // '>>'
-
-	// Float:
-	FltEq = 0x60,
-	FltNe = 0x61,
-	FltGt = 0x62,
-	FltGe = 0x63,
-	FltLt = 0x64,
-	FltLe = 0x65,
-
-	FltAdd = 0x66,
-	FltSub = 0x67,
-	FltMul = 0x68,
-	FltDiv = 0x69,
-	FltMod = 0x6A,
-
-	// String:
-	StrEq = 0x70,
-	StrNe = 0x71,
-	StrGt = 0x72,
-	StrGe = 0x73,
-	StrLt = 0x74,
-	StrLe = 0x75,
-
-	StrCat = 0x76,
-
-	LocalStoreLoad16Near = 0x80,
-	LocalStoreLoad32Near = 0x90,
+	LocalLoadsNear = 0x20,
 
 	// All of these are followed by a 1-byte LSB of jump offset
 	// Offset is (hex) xYY, where x is low-nyble of OP.
-	EndIfBranch = 0xA0, // fwd: "else" (if followed by anything other than an "elif" statement)
-	EndLoop = 0xB0, // back (0b1100)
-	For = 0xC0, // fwd
+	EndIfBranch = 0x30, // fwd: "else" (if followed by anything other than an "elif" statement)
+	For = 0x40, // fwd
+	EndLoop = 0x50, // back (0b1100)
 	// NB: "break" & "continue" are encoded as "break if true", "continue if true"
 
 	// Followed by 1 byte of data (0b1101):
-	Literal8IntBin = 0xD0,
-	Literal8IntDec = 0xD1,
-	Literal8IntHex = 0xD2,
-	Literal8LongBin = 0xD4,
-	Literal8LongDec = 0xD5,
-	Literal8LongHex = 0xD6,
-	Literal8Float = 0xD8,
-	LiteralString1 = 0xDA,	// One-character string
+	Literal8IntBin = 0x60,
+	Literal8IntDec = 0x61,
+	Literal8IntHex = 0x62,
+	Literal8Float = 0x63,
+	Literal8LongBin = 0x64,
+	Literal8LongDec = 0x65,
+	Literal8LongHex = 0x66,
+	LiteralString1 = 0x67,	// One-character string
 
-	ModuleStore16 = 0xD3,
-	ModuleLoad16 = 0xD7,
-	ModuleStore32 = 0xD9,
-	ModuleLoad32 = 0xDB,
-
-	LocalStore16Far = 0xDC,
-	LocalLoad16Far = 0xDD,
-	LocalStore32Far = 0xDE,
-	LocalLoad32Far = 0xDF,
+	LocalLoad16Far = 0x6E,
+	LocalLoad32Far = 0x6F,
 
 	// Followed by 2 bytes of data (0b1101):
-	Literal16IntBin = 0xE0,
-	Literal16IntDec = 0xE1,
-	Literal16IntHex = 0xE2,
-	Literal16LongBin = 0xE4,
-	Literal16LongDec = 0xE5,
-	Literal16LongHex = 0xE6,
-	Literal16Float = 0xE8,
-	LiteralString2 = 0xEA,	// Two-character string
-	LiteralStringP = 0xEB,	// Literal string pointer
+	Literal16IntBin = 0x70,
+	Literal16IntDec = 0x71,
+	Literal16IntHex = 0x72,
+	Literal16Float = 0x73,
+	Literal16LongBin = 0x74,
+	Literal16LongDec = 0x75,
+	Literal16LongHex = 0x76,
+	LiteralString2 = 0x77,	// Two-character string
+	LiteralStringP = 0x78,	// Literal string pointer
+
+	ModuleLoad16 = 0x79,
+	ModuleLoad32 = 0x7A,
 
 	// Followed by 4 bytes of data (0b1110):
-	Literal32IntBin = 0xF0,	// Error (or at least: risk of overflow)
-	Literal32IntDec = 0xF1,	// Error (or at least: risk of overflow)
-	Literal32IntHex = 0xF2,	// Error (or at least: risk of overflow)
-	Literal32LongBin = 0xF4,
-	Literal32LongDec = 0xF5,
-	Literal32LongHex = 0xF6,
-	Literal32Float = 0xF8,
+	Literal32LongBin = 0x7C,
+	Literal32LongDec = 0x7D,
+	Literal32LongHex = 0x7E,
+	Literal32Float = 0x7F,
+
+
+	// ----------------------------------------
+	// TABLE-2 instructions (has ‘current value’)
+
+	// Integer16:
+	IntEq = 0x80,
+	IntNe = 0x81,
+	IntGt = 0x82,
+	IntGe = 0x83,
+	IntLt = 0x84,
+	IntLe = 0x85,
+
+	IntAdd = 0x86,
+	IntSub = 0x87,
+	IntMul = 0x88,
+	IntDiv = 0x89,
+	IntMod = 0x8A,
+
+	IntBitAnd = 0x8B, // '&'
+	IntBitOr = 0x8C, // '|'
+	IntBitXor = 0x8D, // '^'
+	IntBitShl = 0x8E, // '<<'
+	IntBitShr = 0x8F, // '>>'
+
+	// Integer32:
+	LongEq = 0x90,
+	LongNe = 0x91,
+	LongGt = 0x92,
+	LongGe = 0x93,
+	LongLt = 0x94,
+	LongLe = 0x95,
+
+	LongAdd = 0x96,
+	LongSub = 0x97,
+	LongMul = 0x98,
+	LongDiv = 0x99,
+	LongMod = 0x9A,
+
+	LongBitAnd = 0x9B, // '&'
+	LongBitOr = 0x9C, // '|'
+	LongBitXor = 0x9D, // '^'
+	LongBitShl = 0x9E, // '<<'
+	LongBitShr = 0x9F, // '>>'
+
+	// Float:
+	FltEq = 0xA0,
+	FltNe = 0xA1,
+	FltGt = 0xA2,
+	FltGe = 0xA3,
+	FltLt = 0xA4,
+	FltLe = 0xA5,
+
+	FltAdd = 0xA6,
+	FltSub = 0xA7,
+	FltMul = 0xA8,
+	FltDiv = 0xA9,
+	FltMod = 0xAA,
+
+	// String:
+	StrEq = 0xB0,
+	StrNe = 0xB1,
+	StrGt = 0xB2,
+	StrGe = 0xB3,
+	StrLt = 0xB4,
+	StrLe = 0xB5,
+
+	StrCat = 0xB6,
+
+	LocalStoresNear = 0xC0,
+
+	// Followed by 1 byte of data:
+	LocalStore16Far = 0xE0,
+	LocalStore32Far = 0xE1,
+
+	// Followed by 2 bytes of data
+	ModuleStore16 = 0xF0,
+	ModuleStore32 = 0xF1,
 }
 
 export enum BoolOp {
@@ -275,19 +284,19 @@ function parse(text: string): byte[] {
 }
 
 export function literal16(pres: NumPres) {
-	return (opHigh.Literal16 << 4) | pres
+	return Op.Literal16IntBin + pres
 }
 
 export function load16(slotNumber) {
 	if (slotNumber < 8) {
-		return Op.LocalStoreLoad16Near | (slotNumber << 1)  | 1
+		return Op.LocalLoadsNear | (slotNumber << 1) | 0
 	}
 	throw "Unsupported load16 "+slotNumber
 }
 
 export function store16(slotNumber) {
 	if (slotNumber < 8) {
-		return Op.LocalStoreLoad16Near | (slotNumber << 1)  | 0
+		return Op.LocalStoresNear | (slotNumber << 1) | 0
 	}
 	throw "Unsupported store16 "+slotNumber
 }
@@ -339,7 +348,7 @@ function renderLine(tokens: byte[], start = 0): string {
 					break;
 				}
 
-				case opHigh.Literal16: {
+				case 1: {
 					switch (b as Op){
 					case Op.Literal16IntBin:
 					case Op.Literal16IntDec:
