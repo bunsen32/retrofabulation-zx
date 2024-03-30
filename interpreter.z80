@@ -32,23 +32,48 @@
 interpreter:
 	ld	b, (TABLE0_LUT >> 8)
 	ex	de, hl
-	jp	interpret_next
+	jp	interpret_t0
 
-	MACRO	INTERPRET_NEXT
-	; Main fetch/decode part is 8 bytes, 46 tstates
+	MACRO	INTERPRET_T0
+	; Main fetch/decode part is 8 bytes, 39 tstates
 	ld	a, (de)
 	inc	de
 	ld	h, (TABLE0_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
 	ld	l, a
 	ld	l, (hl)
-	add	hl, hl  ; If we could squeeze all main interpreter code into 256 bytes, we could change to "inc h" and save 7 t-states
+	inc	h
 	jp	(hl)
 	ENDM
 
-interpret_next_inc1:
+	MACRO	INTERPRET_T1
+	; t0+push: 64 tstates; t1: 53 tstates
+	ld	a, (de)
 	inc	de
-interpret_next:
-	INTERPRET_NEXT
+	or	a
+	jp	p, interpret_t0_with_push
+	ld	h, (TABLE1_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
+	ld	l, a
+	ld	l, (hl)
+	inc	h
+	jp	(hl)
+	ENDM
+
+interpret_t0_inc1:
+	inc	de
+interpret_t0:
+	INTERPRET_T0
+interpret_t1_inc1:
+	inc	de
+interpret_t1:
+	INTERPRET_T1
+interpret_t0_with_push:
+	push	bc
+	ld	h, (TABLE0_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
+	ld	l, a
+	ld	l, (hl)
+	inc	h
+	jp	(hl)
+
 
 ; Main fetch/decode part is 9 bytes, 39 tstates
 interpret_false:
@@ -74,31 +99,25 @@ interpret_true:
 
 	DEFINE	TABLE0_OPS	$200
 	MACRO TABLE0 code
-		IF (code - TABLE0_OPS) % 2 != 0
-			DISPLAY /L, "Warning! Opcode routine ", $ - TABLE0_LUT, " is not aligned."
-		ENDIF
-		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS)
 	ENDM
 	MACRO TABLE0x16 code
-		IF (code - TABLE0_OPS) % 2 != 0
-			DISPLAY /L, "Warning! Opcode routine ", $ - TABLE0_LUT, " is not aligned."
-		ENDIF
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
-		DB	(code - TABLE0_OPS) / 2
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
+		DB	(code - TABLE0_OPS)
 	ENDM
 	MACRO TABLE0_AT opcode_offset
 		BLOCK	opcode_offset - ($ - TABLE0_LUT)
@@ -164,98 +183,47 @@ TABLE0_LUT:
 	TABLE0(statement_literalint16)	; 71
 	TABLE0(statement_literalint16)	; 72
 
+	TABLE0_AT $FF
+	TABLE0(statement_halt)
 
-	TABLE0_AT $80 ; int16 operations
-	TABLE0(statement_int16_eq)	; 80
-	TABLE0(statement_int16_ne)	; 81
-	TABLE0(statement_int16_gt)	; 82
-	TABLE0(statement_int16_ge)	; 83
-	TABLE0(statement_int16_lt)	; 84
-	TABLE0(statement_int16_le)	; 85
-	TABLE0(statement_int16_add)	; 86
-	TABLE0(statement_int16_sub)	; 87
-	TABLE0(statement_int16_mul)	; 88
-	TABLE0(statement_int16_div)	; 89
-	TABLE0(statement_int16_mod)	; 8a
-	TABLE0(statement_int16_bitand)	; 8b
-	TABLE0(statement_int16_bitor)	; 8c
-	TABLE0(statement_int16_bitxor)	; 8d
-	TABLE0(statement_int16_bitshl)	; 8e
-	TABLE0(statement_int16_bitshr)	; 8f
-
-	TABLE0_AT $90
-
-	TABLE0_AT $A0
-
-	TABLE0_AT $B0
-
-	TABLE0_AT $C0	; 16/32-bit stores (short codes)
-	TABLE0(statement_store16_0)
-	TABLE0(statement_store32_0)
-	TABLE0(statement_store16_1)
-	TABLE0(statement_store32_1)
-	TABLE0(statement_store16_2)
-	TABLE0(statement_store32_2)
-	TABLE0(statement_store16_n)
-	TABLE0(statement_store32_n)
-	TABLE0(statement_store16_n)
-	TABLE0(statement_store32_n)
-	TABLE0(statement_store16_n)
-	TABLE0(statement_store32_n)
-	TABLE0(statement_store16_n)
-	TABLE0(statement_store32_n)
-	TABLE0(statement_store16_n)
-	TABLE0(statement_store32_n)
-
-	TABLE0_AT $D0 ; 1-byte literals (and loads+stores)
-
-	TABLE0_AT $E0
-
-	TABLE0_AT $F0
-
-	PADTO	$0200
+	PADTO	TABLE0_OPS
 ;TABLE0_OPS:
 statement_error:
 	RST	R_ERR
 	BYTE	ERR_INT_OPCODE
 
-	ALIGN	2
 statement_nop:
-	jp	interpret_next
+	jp	interpret_t0
 
-	ALIGN	2
 statement_halt:
 	halt
 
-	ALIGN	2
 statement_load16_0:
 	exx
 	push	bc
 	exx
-	jp	interpret_next
+	pop	bc
+	jp	interpret_t1
 
-	ALIGN	2
 statement_load16_1:
 	exx
 	push	de
 	exx
-	jp	interpret_next
+	pop	bc
+	jp	interpret_t1
 
-	ALIGN	2
 statement_load16_2:
 	exx
 	push	hl
 	exx
-	jp	interpret_next
+	pop	bc
+	jp	interpret_t1
 
-	ALIGN	2
 statement_load16_3:
 	ld	c, (ix+6)
 	ld	b, (ix+7)
-	push	bc
-	jp	interpret_next
+	jp	interpret_t1
 
-	ALIGN	2
 statement_load16_n:
 	and	$0e
 	push	ix
@@ -266,8 +234,7 @@ statement_load16_n:
 	ld	c, (hl)
 	inc	hl
 	ld	b, (hl)
-	push	bc
-	jp	interpret_next
+	jp	interpret_t1
 
 statement_load32_0:
 statement_load32_1:
@@ -277,68 +244,50 @@ statement_load32_n:
 ; ---------------------------------------------
 ; LITERALS
 
-	ALIGN	2
 literal_false_stack:
 	jp	false_push
 
-	ALIGN	2
 literal_true_stack:
 	jp	true_push
 
-	ALIGN	2
 literal_false_immediate:
 	jp	interpret_false
 
-	ALIGN	2
 literal_true_immediate:
 	jp	interpret_true
 
-	ALIGN	2
 literal_0int16
-	sbc	hl,hl
-	push	hl
-	jp	interpret_next
+	ld	bc, 0
+	jp	interpret_t1
 
-	ALIGN	2
 literal_1int16
-	sbc	hl,hl
-	inc	l
-	push	hl
-	jp	interpret_next
+	ld	bc, 1
+	jp	interpret_t1
 
-	ALIGN	2
 literal_0int32
-	sbc	hl,hl
-	push	hl
-	push	hl
-	jp	interpret_next
+	ld	bc, 0
+	push	bc
+	jp	interpret_t1
 
-	ALIGN	2
 literal_1int32
-	sbc	hl,hl
-	push	hl
-	inc	l
-	push	hl
-	jp	interpret_next
+	ld	bc, 0
+	push	bc
+	inc	bc
+	jp	interpret_t1
 
-	ALIGN 2
 statement_literalint16:
-	ld	a, (de)
-	inc	de
-	ld	l, a
-	ld	a, (de)
-	ld	h, a
-	push	hl
-	jp	interpret_next_inc1
+	ex	de, hl
+	ld	c, (hl)
+	inc	hl
+	ld	b, (hl)
+	ex	de, hl
+	jp	interpret_t1_inc1
 
-	ALIGN 2
 statement_for:
 
-	ALIGN 2
 statement_jumpfwd:	; 5 bytes, 22 tstates (excluding common part)
 	and	$0f
 	jp	common_jump
-	ALIGN 2
 statement_jumpback:	; 5 bytes, 22 tstates (excluding common part)
 	or	$f0
 common_jump:	; 4 bytes, 26 tstates
@@ -348,174 +297,15 @@ common_jump:	; 4 bytes, 26 tstates
 	add	hl, de
 	ex	de, hl
 	; then a copy of "interpret_next"
-	INTERPRET_NEXT
+	INTERPRET_T0
 
-
-	ALIGN	2
-statement_store16_0:
-	exx
-	pop	bc
-	exx
-	jp	interpret_next
-
-	ALIGN	2
-statement_store16_1:
-	pop	bc
-	ld	(ix+2), c
-	ld	(ix+3), b
-	jp	interpret_next
-
-	ALIGN	2
-statement_store16_2:
-	pop	bc
-	ld	(ix+4), c
-	ld	(ix+5), b
-	jp	interpret_next
-
-	ALIGN	2
-statement_store16_3:
-	pop	bc
-	ld	(ix+6), c
-	ld	(ix+7), b
-	jp	interpret_next
-
-	ALIGN	2
-statement_store16_n:
-	and	$07
-	ld	(selfmodifying_store16_frame), a
-	inc a
-	ld	(selfmodifying_store16_frame), a
-	jp	selfmodifying_store16
-
-statement_store32_0:
-statement_store32_1:
-statement_store32_2:
-statement_store32_n:
-
-; ---------------------------------------------
-; 16-bit INTEGER MATHS
-
-
-	ALIGN	2
-statement_int16_eq:
-	pop	hl
-	pop	bc
-	sbc	hl, bc
-	jp	nz, interpret_false
-	jp	interpret_true
-
-	ALIGN	2
-statement_int16_ne:
-	pop	hl
-	pop	bc
-	sbc	hl, bc
-	jp	z, interpret_false
-	jp	interpret_true
-
-	ALIGN	2
-statement_int16_lt:
-	pop	bc
-	pop	hl
-	sbc	hl, bc
-	jp	c, interpret_true
-	jp	interpret_false
-
-	ALIGN	2
-statement_int16_ge:
-	pop	bc
-	pop	hl
-	sbc	hl, bc
-	jp	nc, interpret_true
-	jp	interpret_false
-
-	ALIGN	2
-statement_int16_gt:
-	pop	hl
-	pop	bc
-	sbc	hl, bc
-	jp	c, interpret_true
-	jp	interpret_false
-
-statement_int16_le:
-	pop	hl
-	pop	bc
-	sbc	hl, bc
-	jp	nc, interpret_true
-	jp	interpret_false
-
-	ALIGN 2
-statement_int16_add:
-	pop	hl
-	pop	bc
-	add	hl, bc
-	push	hl
-	jp	po, interpret_next
-	rst	R_ERR
-	BYTE	ERR_RUN_OVERFL
-
-	ALIGN 2
-statement_int16_sub:
-	pop	bc
-	pop	hl
-	sbc	hl, bc
-	push	hl
-	jp	po, interpret_next
-	rst	R_ERR
-	BYTE	ERR_RUN_OVERFL
-
-	ALIGN 2
-statement_int16_mul:
-statement_int16_div:
-statement_int16_mod:
-
-	ALIGN 2
-statement_int16_bitand:
-	pop	hl
-	pop	bc
-	ld	a, h
-	and	b
-	ld	h, a
-	ld	a, l
-	and	c
-	ld	l, a
-	push	hl
-	jp	interpret_next
-
-	ALIGN 2
-statement_int16_bitor:
-	pop	hl
-	pop	bc
-	ld	a, h
-	or	b
-	ld	h, a
-	ld	a, l
-	or	c
-	ld	l, a
-	push	hl
-	jp	interpret_next
-
-	ALIGN 2
-statement_int16_bitxor:
-	pop	hl
-	pop	bc
-	ld	a, h
-	or	b
-	ld	h, a
-	ld	a, l
-	or	c
-	ld	l, a
-	push	hl
-	jp	interpret_next
-
-statement_int16_bitshl:
-statement_int16_bitshr:
 ;------------------------------------------------
 	PADTO	$0400
 FALSE_OPS:
 
 false_discard:
 	PADTO	FALSE_OPS+$00
-	INTERPRET_NEXT
+	INTERPRET_T0
 
 false_parens:
 	PADTO	FALSE_OPS+$08
@@ -546,13 +336,13 @@ false_shortcircuit_and:
 
 false_shortcircuit_or:
 	PADTO	FALSE_OPS+$30
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 false_push:
 	PADTO	FALSE_OPS+$50
 	ld	l, %11111000
 	push	hl
-	INTERPRET_NEXT
+	INTERPRET_T0
 
 false_statement_if:	; 7 bytes, 25 tstates
 	PADTO	FALSE_OPS+$80
@@ -589,17 +379,17 @@ false_statement_while:	; 7 bytes, 25 tstates
 
 false_statement_break:	; 7 bytes, 25 tstates
 	PADTO	FALSE_OPS+$b0
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 	PADTO	FALSE_OPS+$b8
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 false_statement_continue:	; 7 bytes, 25 tstates
 	PADTO	FALSE_OPS+$c0
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 	PADTO	FALSE_OPS+$c8
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 ;------------------------------------------------
 	PADTO	$0500
@@ -607,7 +397,7 @@ TRUE_OPS:
 
 true_discard:
 	PADTO	TRUE_OPS+$00
-	INTERPRET_NEXT
+	INTERPRET_T0
 
 true_parens:
 	PADTO	TRUE_OPS+$08
@@ -631,7 +421,7 @@ true_not:
 
 true_shortcircuit_and:
 	PADTO	TRUE_OPS+$28
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 true_shortcircuit_or:
 	PADTO	TRUE_OPS+$30
@@ -642,28 +432,28 @@ true_push:
 	PADTO	TRUE_OPS+$50
 	ld	l, %00000111
 	push	hl
-	INTERPRET_NEXT
+	INTERPRET_T0
 
 true_statement_if:	; 7 bytes, 25 tstates
 	PADTO	TRUE_OPS+$80
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 	PADTO	TRUE_OPS+$88
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 true_statement_elseif:
 	PADTO	TRUE_OPS+$90
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 	PADTO	TRUE_OPS+$98
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 true_statement_while:
 	PADTO	TRUE_OPS+$a0
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 	PADTO	TRUE_OPS+$a8
-	jp	interpret_next_inc1
+	jp	interpret_t0_inc1
 
 true_statement_break:
 	PADTO	TRUE_OPS+$b0
@@ -683,15 +473,6 @@ true_statement_continue:
 	or	$f0
 	jp	common_jump
 
-	ORG	$ffe0
-selfmodifying_load16:
-
-selfmodifying_store16:
-	pop	bc
-	ld	(ix+6), c
-	ld	(ix+7), b
-	jp	interpret_next
-selfmodifying_store16_frame:
 
 /*
 interpret_with16bitvalue
@@ -705,10 +486,261 @@ interpret_with16bitvalue
 	ld	l, (hl)
 	ld	h, interpreter_code
 	jp	(hl)
-interpret_next:
+interpret_t0:
 	ld	h, (TABLE0_LUT >> 8)	; Holds MSB of opcode LUT, and interpreter code is at b * 2
 	ld	l, a
 	ld	l, (hl)
 	add	hl, hl  ; If we could squeeze all main interpreter code into 256 bytes, we could change to "inc h" and save 7 t-states
 	jp	(hl)
 */
+
+
+
+
+
+	DEFINE	TABLE1_OPS	(TABLE1_LUT + $100)
+	MACRO TABLE1 code
+		DB	(code - TABLE1_OPS)
+	ENDM
+	MACRO TABLE1x16 code
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+		DB	(code - TABLE1_OPS)
+	ENDM
+	MACRO TABLE1_AT opcode_offset
+		BLOCK	opcode_offset - ($ - TABLE1_LUT)
+	ENDM
+	MACRO TABLE1_ERR
+		TABLE1(statement_error_t1)
+	ENDM
+
+	PADTO	$0600
+TABLE1_LUT:
+	TABLE1_AT $00
+	TABLE1(statement_nop_t1)	; 00 NOP
+	TABLE1_ERR			; 01 line-continuation
+	TABLE1_ERR			; 02 end-if
+	TABLE1_ERR			; 03 else
+	TABLE1(statement_nop_t1)	; 04 parens
+
+	TABLE1_AT $0E
+	TABLE1(statement_halt_t1)
+
+	TABLE1_AT $80 ; int16 operations
+	TABLE1(statement_int16_eq)	; 80
+	TABLE1(statement_int16_ne)	; 81
+	TABLE1(statement_int16_gt)	; 82
+	TABLE1(statement_int16_ge)	; 83
+	TABLE1(statement_int16_lt)	; 84
+	TABLE1(statement_int16_le)	; 85
+	TABLE1(statement_int16_add)	; 86
+	TABLE1(statement_int16_sub)	; 87
+	TABLE1(statement_int16_mul)	; 88
+	TABLE1(statement_int16_div)	; 89
+	TABLE1(statement_int16_mod)	; 8a
+	TABLE1(statement_int16_bitand)	; 8b
+	TABLE1(statement_int16_bitor)	; 8c
+	TABLE1(statement_int16_bitxor)	; 8d
+	TABLE1(statement_int16_bitshl)	; 8e
+	TABLE1(statement_int16_bitshr)	; 8f
+
+	TABLE1_AT $90
+
+	TABLE1_AT $A0
+
+	TABLE1_AT $B0
+
+	TABLE1_AT $C0	; 16/32-bit stores (short codes)
+	TABLE1(statement_store16_0)
+	TABLE1(statement_store32_0)
+	TABLE1(statement_store16_1)
+	TABLE1(statement_store32_1)
+	TABLE1(statement_store16_2)
+	TABLE1(statement_store32_2)
+	TABLE1(statement_store16_n)
+	TABLE1(statement_store32_n)
+	TABLE1(statement_store16_n)
+	TABLE1(statement_store32_n)
+	TABLE1(statement_store16_n)
+	TABLE1(statement_store32_n)
+	TABLE1(statement_store16_n)
+	TABLE1(statement_store32_n)
+	TABLE1(statement_store16_n)
+	TABLE1(statement_store32_n)
+
+	TABLE1_AT $D0 ; 1-byte literals (and loads+stores)
+
+	TABLE1_AT $E0
+
+	TABLE1_AT $F0
+
+	TABLE1_AT $FF
+	TABLE1(statement_halt_t1)
+
+	PADTO	TABLE1_OPS
+;TABLE1_OPS:
+statement_error_t1:
+	RST	R_ERR
+	BYTE	ERR_INT_OPCODE
+
+statement_nop_t1:
+	jp	interpret_t1
+
+statement_halt_t1:
+	halt
+
+statement_store16_0:
+	push	bc
+	exx
+	pop	bc
+	exx
+	jp	interpret_t0
+
+statement_store16_1:
+	ld	(ix+2), c
+	ld	(ix+3), b
+	jp	interpret_t0
+
+statement_store16_2:
+	ld	(ix+4), c
+	ld	(ix+5), b
+	jp	interpret_t0
+
+statement_store16_3:
+	ld	(ix+6), c
+	ld	(ix+7), b
+	jp	interpret_t0
+
+statement_store16_n:
+	and	$07
+	ld	(selfmodifying_store16_frame), a
+	inc a
+	ld	(selfmodifying_store16_frame), a
+	jp	selfmodifying_store16
+
+statement_store32_0:
+statement_store32_1:
+statement_store32_2:
+statement_store32_n:
+
+; ---------------------------------------------
+; 16-bit INTEGER MATHS
+
+
+statement_int16_eq:
+	pop	hl
+	sbc	hl, bc
+	jp	nz, interpret_false
+	jp	interpret_true
+
+statement_int16_ne:
+	pop	hl
+	sbc	hl, bc
+	jp	z, interpret_false
+	jp	interpret_true
+
+statement_int16_lt:
+	pop	hl
+	sbc	hl, bc
+	jp	c, interpret_true
+	jp	interpret_false
+
+statement_int16_ge:
+	pop	hl
+	sbc	hl, bc
+	jp	nc, interpret_true
+	jp	interpret_false
+
+statement_int16_gt:
+	pop	hl
+	sbc	hl, bc
+	jp	c, interpret_true
+	jp	interpret_false
+
+statement_int16_le:
+	pop	hl
+	sbc	hl, bc
+	jp	nc, interpret_true
+	jp	interpret_false
+
+statement_int16_add:
+	pop	hl
+	add	hl, bc
+	ld	c, l
+	ld	b, h
+	jp	po, interpret_t1
+	rst	R_ERR
+	BYTE	ERR_RUN_OVERFL
+
+statement_int16_sub:
+	pop	hl
+	sbc	hl, bc
+	ld	c, l
+	ld	b, h
+	jp	po, interpret_t1
+	rst	R_ERR
+	BYTE	ERR_RUN_OVERFL
+
+statement_int16_mul:
+statement_int16_div:
+statement_int16_mod:
+
+statement_int16_bitand:
+	pop	hl
+	ld	a, h
+	and	b
+	ld	h, a
+	ld	a, l
+	and	c
+	ld	l, a
+	push	hl
+	jp	interpret_t1
+
+statement_int16_bitor:
+	pop	hl
+	ld	a, h
+	or	b
+	ld	h, a
+	ld	a, l
+	or	c
+	ld	l, a
+	push	hl
+	jp	interpret_t1
+
+statement_int16_bitxor:
+	pop	hl
+	ld	a, h
+	or	b
+	ld	h, a
+	ld	a, l
+	or	c
+	ld	l, a
+	push	hl
+	jp	interpret_t1
+
+statement_int16_bitshl:
+statement_int16_bitshr:
+
+
+
+	ORG	$ffe0
+selfmodifying_load16:
+
+selfmodifying_store16:
+	ld	(ix+6), c
+	ld	(ix+7), b
+	jp	interpret_t0
+selfmodifying_store16_frame:

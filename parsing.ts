@@ -170,6 +170,8 @@ export enum Op {
 	// Followed by 2 bytes of data
 	ModuleStore16 = 0xF0,
 	ModuleStore32 = 0xF1,
+
+	HALT1 = 0xFF,
 }
 
 export enum BoolOp {

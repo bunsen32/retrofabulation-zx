@@ -102,6 +102,13 @@ function getStack(): number[] {
 	return result
 }
 
+function getSingleResult16(): number {
+	const stack = getStack()
+	expect(stack).toHaveLength(0)
+	const reg = getRegisters()
+	return reg.BC
+}
+
 function getStackBoolean(): boolean {
 	const stack = getStack()
 	expect(stack).toHaveLength(1)
@@ -177,9 +184,11 @@ describe('New ROM!', () => {
 	test('int16 literal16', async () => {
 		await fullyLoaded
 
-		interpret([ literal16(NumPres.Hex), 0x44, 0x99, Op.HALT], 200)
+		interpret([
+			literal16(NumPres.Hex), 0x44, 0x99,
+			Op.HALT1], 200)
 
-		expect(getStack()).toEqual([0x9944])
+		expect(getSingleResult16()).toEqual(0x9944)
 	})
 
 	test('int16 add', async () => {
@@ -189,9 +198,9 @@ describe('New ROM!', () => {
 			literal16(NumPres.Hex), 0x44, 0x99,
 			literal16(NumPres.Hex), 0x22, 0x33,
 			Op.IntAdd,
-			Op.HALT], 400)
+			Op.HALT1], 400)
 
-		expect(getStack()).toEqual([0xcc66])
+		expect(getSingleResult16()).toEqual(0xcc66)
 	})
 
 	test('int16 eq (true)', async () => {
@@ -212,7 +221,7 @@ describe('New ROM!', () => {
 
 		interpret([
 			literal16(NumPres.Hex), 0x44, 0x99,
-			literal16(NumPres.Hex), 0x44, 0x99,
+			literal16(NumPres.Hex), 0x41, 0x99,
 			Op.IntEq,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
@@ -340,8 +349,9 @@ describe('New ROM!', () => {
 			store16(0),
 			Op.EndLoop | 0x0f, 0xf4, // = -12
 			Op.HALT
-		], 7985)
+		], 8096)
 	})
+
 /*
 */
 })
