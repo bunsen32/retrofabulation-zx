@@ -219,22 +219,30 @@ statement_error:
 	RST	R_ERR
 	BYTE	ERR_INT_OPCODE
 
-statement_load16_0:
 	ALIGN	2
+statement_nop:
+	jp	interpret_next
+
+	ALIGN	2
+statement_halt:
+	halt
+
+	ALIGN	2
+statement_load16_0:
 	exx
 	push	bc
 	exx
 	jp	interpret_next
 
-statement_load16_1:
 	ALIGN	2
+statement_load16_1:
 	exx
 	push	de
 	exx
 	jp	interpret_next
 
-statement_load16_2:
 	ALIGN	2
+statement_load16_2:
 	exx
 	push	hl
 	exx
@@ -261,54 +269,13 @@ statement_load16_n:
 	push	bc
 	jp	interpret_next
 
-	ALIGN	2
-statement_store16_0:
-	exx
-	pop	bc
-	exx
-	jp	interpret_next
-
-	ALIGN	2
-statement_store16_1:
-	pop	bc
-	ld	(ix+2), c
-	ld	(ix+3), b
-	jp	interpret_next
-
-	ALIGN	2
-statement_store16_2:
-	pop	bc
-	ld	(ix+4), c
-	ld	(ix+5), b
-	jp	interpret_next
-
-	ALIGN	2
-statement_store16_3:
-	pop	bc
-	ld	(ix+6), c
-	ld	(ix+7), b
-	jp	interpret_next
-
-	ALIGN	2
-statement_store16_n:
-	and	$07
-	ld	(selfmodifying_store16_frame), a
-	inc a
-	ld	(selfmodifying_store16_frame), a
-	jp	selfmodifying_store16
-
 statement_load32_0:
-statement_store32_0:
 statement_load32_1:
-statement_store32_1:
 statement_load32_2:
-statement_store32_2:
 statement_load32_n:
-statement_store32_n:
 
-	ALIGN	2
-statement_nop:
-	jp	interpret_next
+; ---------------------------------------------
+; LITERALS
 
 	ALIGN	2
 literal_false_stack:
@@ -353,6 +320,81 @@ literal_1int32
 	inc	l
 	push	hl
 	jp	interpret_next
+
+	ALIGN 2
+statement_literalint16:
+	ld	a, (de)
+	inc	de
+	ld	l, a
+	ld	a, (de)
+	ld	h, a
+	push	hl
+	jp	interpret_next_inc1
+
+	ALIGN 2
+statement_for:
+
+	ALIGN 2
+statement_jumpfwd:	; 5 bytes, 22 tstates (excluding common part)
+	and	$0f
+	jp	common_jump
+	ALIGN 2
+statement_jumpback:	; 5 bytes, 22 tstates (excluding common part)
+	or	$f0
+common_jump:	; 4 bytes, 26 tstates
+	ex	de, hl
+	ld	d, a
+	ld	e, (hl)	; do NOT inc de because we immediately jump
+	add	hl, de
+	ex	de, hl
+	; then a copy of "interpret_next"
+	INTERPRET_NEXT
+
+
+	ALIGN	2
+statement_store16_0:
+	exx
+	pop	bc
+	exx
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_1:
+	pop	bc
+	ld	(ix+2), c
+	ld	(ix+3), b
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_2:
+	pop	bc
+	ld	(ix+4), c
+	ld	(ix+5), b
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_3:
+	pop	bc
+	ld	(ix+6), c
+	ld	(ix+7), b
+	jp	interpret_next
+
+	ALIGN	2
+statement_store16_n:
+	and	$07
+	ld	(selfmodifying_store16_frame), a
+	inc a
+	ld	(selfmodifying_store16_frame), a
+	jp	selfmodifying_store16
+
+statement_store32_0:
+statement_store32_1:
+statement_store32_2:
+statement_store32_n:
+
+; ---------------------------------------------
+; 16-bit INTEGER MATHS
+
 
 	ALIGN	2
 statement_int16_eq:
@@ -422,16 +464,6 @@ statement_int16_sub:
 	BYTE	ERR_RUN_OVERFL
 
 	ALIGN 2
-statement_literalint16:
-	ld	a, (de)
-	inc	de
-	ld	l, a
-	ld	a, (de)
-	ld	h, a
-	push	hl
-	jp	interpret_next_inc1
-
-	ALIGN 2
 statement_int16_mul:
 statement_int16_div:
 statement_int16_mod:
@@ -477,26 +509,6 @@ statement_int16_bitxor:
 
 statement_int16_bitshl:
 statement_int16_bitshr:
-statement_for:
-
-statement_halt:
-	halt
-
-	ALIGN 2
-statement_jumpfwd:	; 5 bytes, 22 tstates (excluding common part)
-	and	$0f
-	jp	common_jump
-	ALIGN 2
-statement_jumpback:	; 5 bytes, 22 tstates (excluding common part)
-	or	$f0
-common_jump:	; 4 bytes, 26 tstates
-	ex	de, hl
-	ld	d, a
-	ld	e, (hl)	; do NOT inc de because we immediately jump
-	add	hl, de
-	ex	de, hl
-	; then a copy of "interpret_next"
-	INTERPRET_NEXT
 ;------------------------------------------------
 	PADTO	$0400
 FALSE_OPS:
