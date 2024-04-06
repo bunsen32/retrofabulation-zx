@@ -93,7 +93,7 @@ function setRegisters(registerValues: PartialRegisterSet) {
 function getStack(): number[] {
 	const reg = getRegisters()
 	let sp = reg.SP
-	if (sp > stackTop) throw "Stack depleted!"
+	if (sp > stackTop) throw "Stack underflow!"
 	const result = []
 	while (sp < stackTop) {
 		const v16 = core.peek(sp++) + (core.peek(sp++) << 8)
@@ -207,13 +207,13 @@ describe('New ROM!', () => {
 		expect(getStackBoolean()).toBeTruthy()
 	})
 
-	test('int16 eq (true)', async () => {
+	test('int16 eq (false)', async () => {
 		await fullyLoaded
 
 		interpret([
 			literal16(NumPres.Hex), 0x44, 0x99,
 			literal16(NumPres.Hex), 0x44, 0x99,
-			Op.IntNe,
+			Op.IntEq,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
 
@@ -233,7 +233,7 @@ describe('New ROM!', () => {
 		expect(getStackBoolean()).toBeTruthy()
 	})
 
-	test('int16 eq (true)', async () => {
+	test('int16 ne (false)', async () => {
 		await fullyLoaded
 
 		interpret([
