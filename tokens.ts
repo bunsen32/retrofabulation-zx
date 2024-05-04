@@ -77,7 +77,6 @@ export const symbolLookup = {
 	':': 1,
 	'{': 1,
 	'}': 1,
-
 }
 
 export type KeywordToken = keyof typeof keywordLookup

@@ -1,5 +1,5 @@
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "./parsing"
-import { tokens, Token, LiteralToken, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral } from './tokens'
+import { Token, LiteralToken, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral } from './tokens'
 
 type Line = {indent: number, tokens: Token[]}
 
