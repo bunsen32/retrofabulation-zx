@@ -326,7 +326,6 @@ describe('New ROM!', () => {
 
 	test('Loop 10 times', async () => {
 		await fullyLoaded
-		console.log(Op.EndLoop)
 		interpret([
 			Op.LiteralInt0,
 			store16(0),

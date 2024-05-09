@@ -1,23 +1,23 @@
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "./parsing"
 import { Token, LiteralToken, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral } from './tokens'
 
-type Line = {indent: number, tokens: Token[]}
+export type Line = {indent: number, tokens: Token[]}
 
 export function tokeniseLine(text: string): Line {
 	const tokens: Token[] = []
 	let p = 0
 
-	let next : number = p < text.length ? text.charCodeAt(p++) : undefined
+	let next : number = p < text.length ? text.charCodeAt(p++) : 0
 	function fetchNext() : number {
 		const result = next
-		next = p < text.length ? text.charCodeAt(p++) : undefined
+		next = p < text.length ? text.charCodeAt(p++) : 0
 		return result
 	}
 
-	function fetchToEndOfLine(): String {
+	function fetchToEndOfLine(): string {
 		const str = text.substring(p - 1)
 		p = text.length
-		next = undefined
+		next = 0
 		return str
 	}
 
@@ -27,7 +27,7 @@ export function tokeniseLine(text: string): Line {
 		fetchNext()
 	}
 
-	while (next != null) {
+	while (next != 0) {
 		if (next <= 0x20) {
 			fetchNext()
 
@@ -56,7 +56,6 @@ export function tokeniseLine(text: string): Line {
 				case '(':
 				case ')':
 				case '*':
-				case '+':
 				case ',':
 				case '-':
 				case '/':
@@ -75,6 +74,9 @@ export function tokeniseLine(text: string): Line {
 				case '≠':
 					tokens.push(nextChar)
 					fetchNext()
+					break
+				case '+':
+					tokens.push(parsePlus())
 					break
 				case '<':
 					tokens.push(parseLt())
@@ -106,7 +108,7 @@ export function tokeniseLine(text: string): Line {
 
 	function parseLt(): Token {
 		fetchNext()
-		if (next != null) {
+		if (next != 0) {
 			switch (String.fromCharCode(next)) {
 				case '>':
 					fetchNext()
@@ -122,9 +124,27 @@ export function tokeniseLine(text: string): Line {
 		return '<'
 	}
 
+	function parsePlus(): Token {
+		fetchNext()
+		if (next != 0) {
+			switch (String.fromCharCode(next)) {
+				case '+':
+					fetchNext()
+					return '++'
+				case '=':
+					fetchNext()
+					return '+='
+				default:
+					break
+			}
+		}
+
+		return '+'
+	}
+
 	function parseGt(): Token {
 		fetchNext()
-		if (next != null) {
+		if (next != 0) {
 			switch (String.fromCharCode(next)) {
 				case '=':
 					fetchNext()
@@ -139,11 +159,11 @@ export function tokeniseLine(text: string): Line {
 
 	function parseExclam(): Token {
 		fetchNext()
-		if (next != null) {
+		if (next != 0) {
 			switch (String.fromCharCode(next)) {
 				case '=':
 					fetchNext()
-					return {t: '≠'}
+					return '≠'
 				default:
 					break
 			}
@@ -257,7 +277,7 @@ export function tokeniseLine(text: string): Line {
 
 	function parseBinNumber(): IntLiteral|'%' {
 		fetchNext()
-		if (next == null || !isNumeric(next)) {
+		if (next == 0 || !isNumeric(next)) {
 			return '%'
 		}
 
@@ -320,13 +340,14 @@ export function tokeniseLine(text: string): Line {
 		let str = ''
 		while (true) {
 			fetchNext()
-			if (next == undefined || next == 0x0){
+			if (next === 0x0){
 				throw "Syntax error: string not terminated"
 
 			} else if (next < 0x20) {
 				throw "Syntax error: invalid character in string"
 
-			} else if (next == 0x33) {
+			} else if (next === 0x22) {
+				fetchNext()
 				break
 
 			} else {
@@ -340,14 +361,14 @@ export function tokeniseLine(text: string): Line {
 		}
 	}
 	
-	function isAlphabetic(next: number): Boolean {
+	function isAlphabetic(next: number): boolean {
 		return next >= 0x41 && next <= 0x5a || next >= 0x61 && next <= 0x7a
 	}
-	function isNumeric(next: number): Boolean {
+	function isNumeric(next: number): boolean {
 		return next >= 0x30 && next <= 0x39
 	}
 
-	function unrecognised(tokenText: String): UnrecognisedToken {
+	function unrecognised(tokenText: string): UnrecognisedToken {
 		return {
 			t: '!!',
 			v: tokenText

@@ -66,6 +66,11 @@ export const symbolLookup = {
 	'**': 1,
 	'~': 1,
 
+	'+=': 1,
+	'++': 1,
+	'-=': 1,
+	'--': 1,
+
 	'&': 1,    // bit-and
 	'|': 1,    // bit-or
 	'^': 1,    // bit-xor
@@ -83,10 +88,6 @@ export type KeywordToken = keyof typeof keywordLookup
 
 export type SymbolToken = keyof typeof symbolLookup
 
-export interface TokenStruct {
-	t : String
-}
-
 export type Token = TokenStruct|KeywordToken|SymbolToken
 
 export interface Newline {
@@ -94,22 +95,22 @@ export interface Newline {
 	v: number
 }
 
-export interface IntLiteral extends TokenStruct {
+export interface IntLiteral {
 	t: 'intliteral',
 	v: number
 }
 
-export interface FloatLiteral extends TokenStruct {
+export interface FloatLiteral {
 	t: 'floatliteral',
 	v: number
 }
 
-export interface StringLiteral extends TokenStruct {
+export interface StringLiteral {
 	t: 'stringliteral',
 	v: String
 }
 
-export interface BoolLiteral extends TokenStruct {
+export interface BoolLiteral {
 	t: 'true'|'false',
 	v: Boolean
 }
@@ -118,20 +119,20 @@ export type LiteralToken = IntLiteral | FloatLiteral | StringLiteral | BoolLiter
 
 export type IdentifierTypeSigil = '%'|'#'|'?'|'$'
 
-export interface Identifier extends TokenStruct {
+export interface Identifier {
 	t: 'identifier',
-	v: String,
+	v: string,
 	s?: IdentifierTypeSigil
 }
 
-export interface LineComment extends TokenStruct {
+export interface LineComment {
 	t: 'comment',
-	v: String
+	v: string
 }
 
-export interface UnrecognisedToken extends TokenStruct {
+export interface UnrecognisedToken {
 	t: '!!',
-	v: String
+	v: string
 }
 
 export function intLiteral(v: number): IntLiteral {
@@ -141,7 +142,7 @@ export function intLiteral(v: number): IntLiteral {
 	}
 }
 
-export function identifier(name: String, sigil?: IdentifierTypeSigil): Identifier {
+export function identifier(name: string, sigil?: IdentifierTypeSigil): Identifier {
 	return {
 		t: 'identifier',
 		v: name,
@@ -149,9 +150,15 @@ export function identifier(name: String, sigil?: IdentifierTypeSigil): Identifie
 	}
 }
 
-export function lineComment(comment: String): LineComment {
+export function lineComment(comment: string): LineComment {
 	return {
 		t: 'comment',
 		v: comment
 	}
 }
+
+export type TokenStruct =
+	LiteralToken |
+	Identifier |
+	LineComment |
+	UnrecognisedToken

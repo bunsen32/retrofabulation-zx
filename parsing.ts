@@ -314,7 +314,7 @@ const sample: byte[][] = [
 	],
 ]
 
-function render(tokens: byte[]): string{
+export function render(tokens: byte[]): string{
 	let lines: string[] = []
 
 	for(let raw of sample) {
