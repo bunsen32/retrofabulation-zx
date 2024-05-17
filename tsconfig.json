@@ -7,6 +7,7 @@
     "files": [
         "fonts.ts",
         "SpecScreen.ts",
-        "tokeniser.ts"
+        "tokeniser.ts",
+        "encoding.ts"
     ]
 }

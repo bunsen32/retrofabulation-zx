@@ -4,6 +4,8 @@ import { Colour, Attr, SpecScreen } from './SpecScreen'
 import { glyphs } from './font1'
 import { Line, tokeniseLine } from './tokeniser'
 import { FloatLiteral, identifier, Identifier, IntLiteral, LineComment, StringLiteral, Token, TokenStruct } from './tokens'
+import { CharsetFromUnicode } from './encoding'
+
 const store = window.localStorage
 
 const scale = 16
@@ -153,9 +155,10 @@ function loadCurrentChar(i) {
 
 function loadChar(i) {
 	if (!i) return null
-	const data = glyphs[i]
-	if (!data) return null
-	return data
+	const data = store.getItem(`char${i}`)
+	if (data) return decode(data)
+	const obj = glyphs[i]
+	return obj || null
 }
 
 export function selectChar(i){
@@ -195,7 +198,7 @@ editor.addEventListener("click", togglePixel)
 export function saveFont() {
 	saveCurrentChar()
 	let s = ""
-	for (let c = 0x20; c < 0x7f; c++) {
+	for (let c = 0x20; c < 0xbf; c++) {
 		const char = loadChar(c)
 		if (!char) continue
 		if (s) s+= ",\n"
@@ -253,7 +256,8 @@ function renderText(left: number, top: number, str: string, attr?: Attr): number
 	const y = top
 	let x = left
 	for (let i = 0; i < str.length; i++){
-		const c = str.charCodeAt(i)
+		const u = str[i]
+		const c = CharsetFromUnicode[u]
 		const char = loadChar(c) ?? emptyChar()
 		if (attr) {
 			screen.setAttr(x>>3, y>>3, attr)
