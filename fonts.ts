@@ -223,9 +223,10 @@ export function doTestRender(){
 		'let A=[1; 7; 8; 11, 2, 3456]',
 		'print "Hello { name }"',
 		'let x_thing = 23',
+		'let y-thing = 23',
 		'THE QUICK BROWN FOX JUMPS OVER',
-		'THE LAZY DOG. \'The quick brown fox',
-		'jumps over the lazy dog\'',
+		'THE LAZY DOG. ‘The quick brown fox',
+		'jumps over the lazy dog’',
 		'01234567890',
 		'{i} {j} {f}',
 		'1234, %1010101, $5ef8',
@@ -235,7 +236,7 @@ export function doTestRender(){
 		'let s% = MAX_INT',
 		'let p@ = @something',
 		'',
-		'@1982 ZX Spectrum Research Ltd'
+		'©1982 ZX Spectrum Research Ltd'
 	]
 	let row = 1
 	for(let line of lines) {
