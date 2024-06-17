@@ -9,6 +9,18 @@ const NULx16 = [
 	NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL
 ]
 
+export const NARROW_AMP_CODE = 0x1b
+export const NARROW_QUEST_CODE = 0x1c
+export const NARROW_PERCENT_CODE = 0x1d
+export const NARROW_HASH_CODE = 0x1e
+export const NARROW_DOLLAR_CODE = 0x1f
+
+export const NARROW_AMP = String.fromCharCode(NARROW_AMP_CODE)
+export const NARROW_QUEST = String.fromCharCode(NARROW_QUEST_CODE)
+export const NARROW_PERCENT = String.fromCharCode(NARROW_PERCENT_CODE)
+export const NARROW_HASH = String.fromCharCode(NARROW_HASH_CODE)
+export const NARROW_DOLLAR = String.fromCharCode(NARROW_DOLLAR_CODE)
+
 export const Charset = [
 	...Ascii,
 	// 80 hex:
@@ -21,9 +33,15 @@ export const Charset = [
 	...NULx16,
 	'¸', '˛', NUL, NUL, 'ı', 'ˋ', '´', '¨', 'ˆ', '˜', '¯', '˘', '˙', '˚', '˝', 'ˇ'
 ]
+Charset[NARROW_AMP_CODE] = '&'
+Charset[NARROW_QUEST_CODE] = '?'
+Charset[NARROW_PERCENT_CODE] = '%'
+Charset[NARROW_HASH_CODE] = '#'
+Charset[NARROW_DOLLAR_CODE] = '$'
 
 export const CharsetFromUnicode = {}
 for (let i = 0; i < 0xc0; i++) CharsetFromUnicode[Charset[i]] = i
+for (let i = 0x1b; i <= 0x1f; i++) CharsetFromUnicode[String.fromCharCode(i)] = i
 
 const Windows1252 = [
 	...Ascii,

@@ -56,7 +56,7 @@ export const symbolLookup = {
 	'>': 1,
 	'≥': 1,    // also parsed from '>='
 	'<': 1,
-	'≤': 1,    // also parsed from '<=
+	'≤': 1,    // also parsed from '<='
 
 	'+': 1,
 	'-': 1,

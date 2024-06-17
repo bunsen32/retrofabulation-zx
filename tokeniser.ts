@@ -1,5 +1,6 @@
+import { NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from "./encoding"
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "./parsing"
-import { Token, LiteralToken, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral } from './tokens'
+import { Token, LiteralToken, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral, IdentifierTypeSigil } from './tokens'
 
 export type Line = {indent: number, tokens: Token[]}
 
@@ -306,21 +307,39 @@ export function tokeniseLine(text: string): Line {
 	function parseWord(): Token|Identifier {
 		let str = String.fromCharCode(next)
 		let possiblyKeyword = true
-		let sigil
+		let sigil: IdentifierTypeSigil
 		while (true) {
 			fetchNext()
-			if (isAlphabetic(next)) {
+			if (next == 0x24) { // $
+				fetchNext()
+				str += NARROW_DOLLAR
+				sigil = '$'
+				break;
+
+			} else if (next == 0x23) { // #
+				fetchNext()
+				str += NARROW_HASH
+				sigil = '#'
+				break;
+				
+			}else if (next == 0x25) { // %
+				fetchNext()
+				str += NARROW_PERCENT
+				sigil = '%'
+				break;
+				
+			}else if (next == 0x3f) { // ?
+				fetchNext()
+				str += NARROW_QUEST
+				sigil = '$'
+				break;
+
+			} else if (isAlphabetic(next)) {
 				str += String.fromCharCode(next)
 
 			} else if (isNumeric(next) || next == 0x5f) {
 				str += String.fromCharCode(next)
 				possiblyKeyword = false
-
-			} else if (next == 0x24 || next == 0x23 || next == 0x25 || next == 0x3f) { // $, #, %, ?
-				sigil = String.fromCharCode(next)
-				str += sigil
-				fetchNext()
-				break
 
 			} else {
 				break

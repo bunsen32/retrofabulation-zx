@@ -4,7 +4,7 @@ import { Colour, Attr, SpecScreen } from './SpecScreen'
 import { glyphs } from './font1'
 import { Line, tokeniseLine } from './tokeniser'
 import { FloatLiteral, identifier, Identifier, IntLiteral, LineComment, StringLiteral, Token, TokenStruct } from './tokens'
-import { CharsetFromUnicode } from './encoding'
+import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from './encoding'
 
 const store = window.localStorage
 
@@ -198,7 +198,7 @@ editor.addEventListener("click", togglePixel)
 export function saveFont() {
 	saveCurrentChar()
 	let s = ""
-	for (let c = 0x20; c < 0xbf; c++) {
+	for (let c = 0x1b; c <= 0xbf; c++) {
 		const char = loadChar(c)
 		if (!char) continue
 		if (s) s+= ",\n"
@@ -219,7 +219,7 @@ export function doTestRender(){
 		"  return a + a",
 		'',
 		'print "Hello mighty World!"',
-		'print "Hello minty softly?"',
+		'print "Hello minty softly? #88"',
 		'let A=[1; 7; 8; 11, 2, 3456]',
 		'print "Hello { name }"',
 		'let x_thing = 23',
@@ -229,12 +229,12 @@ export function doTestRender(){
 		'jumps over the lazy dog’',
 		'01234567890',
 		'{i} {j} {f}',
-		'1234, %1010101, $5ef8',
+		`1234, ${NARROW_PERCENT}1010101, ${NARROW_DOLLAR}5ef8`,
 		'one/two/three/four... C:\\dir.name',
-		'let v# = 3.44',
-		'let s$ = "salutation"',
-		'let s% = MAX_INT',
-		'let p@ = @something',
+		`let v${NARROW_HASH} = 3.44`,
+		`let s${NARROW_DOLLAR} = "salutation"`,
+		`let s${NARROW_PERCENT} = MAX_INT`,
+		`let p${NARROW_QUEST} = @something`,
 		'',
 		'©1982 ZX Spectrum Research Ltd'
 	]
@@ -316,11 +316,21 @@ function printTokenisedLine(col, row, line: Line) {
 					attr = theme.identifier
 					break
 				case 'stringliteral':
-					text = '"' + token.v + '"'
+					text = '“' + token.v + '”'
 					attr = theme.literal
 					break
 				case 'intliteral':
-					text = ''+token.v
+					switch (token.s) {
+						case 2:
+							text = NARROW_PERCENT + token.v.toString(2)
+							break
+						case 10: 
+							text = token.v.toString(10)
+							break
+						case 16:
+							text = NARROW_DOLLAR + token.v.toString(16)
+							break
+					}
 					attr = theme.literal
 					break
 				case 'floatliteral':
