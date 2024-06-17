@@ -196,7 +196,7 @@ export function tokeniseLine(text: string): Line {
 				throw "Syntax error. Alphabetic characters in number"
 			
 			} else {
-				return intLiteral(Number.parseInt(str))
+				return intLiteral(Number.parseInt(str), 10)
 			}
 		}
 		if (isDot) {
@@ -260,21 +260,18 @@ export function tokeniseLine(text: string): Line {
 			} else if (next >= 0x41 && next <= 0x46) { // A–F
 				str += String.fromCharCode(next)
 
-			} else if (next >= 0x61 && next <= 66) { // a–f
+			} else if (next >= 0x61 && next <= 0x66) { // a–f
 				str += String.fromCharCode(next - 0x20)
 
 			} else if (isAlphabetic(next)) {
-				throw "Syntax error: Alphabetic character in binary literal"
+				throw "Syntax error: Alphabetic character in hex literal: " + String.fromCharCode(next)
 
 			} else {
 				break
 			}
 		}
 
-		return {
-			t: 'intliteral',
-			v: Number.parseInt(str, 16)
-		}
+		return intLiteral(Number.parseInt(str, 16), 16)
 	}
 
 	function parseBinNumber(): IntLiteral|'%' {
@@ -299,10 +296,7 @@ export function tokeniseLine(text: string): Line {
 			}
 			fetchNext()
 		}
-		return {
-			t: 'intliteral',
-			v: Number.parseInt(str, 2)
-		}
+		return intLiteral(Number.parseInt(str, 2), 2)
 	}
 
 	function parseWord(): Token|Identifier {

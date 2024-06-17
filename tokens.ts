@@ -99,7 +99,8 @@ export interface Newline {
 
 export interface IntLiteral {
 	t: 'intliteral',
-	v: number
+	v: number,
+	s: 2|10|16
 }
 
 export interface FloatLiteral {
@@ -137,10 +138,11 @@ export interface UnrecognisedToken {
 	v: string
 }
 
-export function intLiteral(v: number): IntLiteral {
+export function intLiteral(v: number, base: 2|10|16): IntLiteral {
 	return {
 		t: "intliteral",
-		v: v
+		v: v,
+		s: base
 	}
 }
 
