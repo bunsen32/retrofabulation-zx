@@ -73,6 +73,7 @@ export function tokeniseLine(text: string): Line {
 				case '≤':
 				case '≥':
 				case '≠':
+				case 'π':
 					tokens.push(nextChar)
 					fetchNext()
 					break
@@ -345,6 +346,7 @@ export function tokeniseLine(text: string): Line {
 				break
 			}
 		}
+		if (str == 'pi') return 'π'
 		if (str.length > 8) possiblyKeyword = false
 		return (possiblyKeyword && keywordLookup[str])
 			? str as KeywordToken

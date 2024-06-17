@@ -82,6 +82,8 @@ export const symbolLookup = {
 	':': 1,
 	'{': 1,
 	'}': 1,
+
+	'π': 1,	// Also parsed from 'pi'
 }
 
 export type KeywordToken = keyof typeof keywordLookup
