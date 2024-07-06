@@ -337,19 +337,15 @@ function printTokenisedLine(col, row, line: Line) {
 					text = ''+token.v
 					attr = theme.literal
 					break
+				case 'boolliteral':
+					text = token.v ? 'true' : 'false'
+					attr = theme.literal
+					break
 				case 'comment':
 					const token3 = token as LineComment
 					text = '#'+token3.v
 					attr = theme.comment
 					break
-				case 'false':
-					text = 'false'
-					attr = theme.literal
-					break
-				case 'true':
-					text = 'true'
-					attr = theme.literal
-					break;
 				case '!!':
 					text = 'error'
 					attr = theme.error

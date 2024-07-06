@@ -1,6 +1,6 @@
 import { NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from "./encoding"
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "./parsing"
-import { Token, LiteralToken, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral, IdentifierTypeSigil } from './tokens'
+import { Token, LiteralToken, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral, IdentifierTypeSigil, identifier } from './tokens'
 
 export type Line = {indent: number, tokens: Token[]}
 
@@ -340,15 +340,13 @@ export function tokeniseLine(text: string): Line {
 				break
 			}
 		}
-		if (str == 'pi') return 'π'
+		if (str === 'pi') return 'π'
+		if (str === 'true') return {t:'boolliteral', v: true}
+		if (str === 'false') return {t: 'boolliteral', v: false}
 		if (str.length > 8) possiblyKeyword = false
 		return (possiblyKeyword && keywordLookup[str])
 			? str as KeywordToken
-			: {
-				t: 'identifier',
-				v: str,
-				s: sigil
-			}
+			: identifier(str, sigil)
 	}
 
 	function parseString(): StringLiteral {

@@ -114,7 +114,7 @@ export interface StringLiteral {
 }
 
 export interface BoolLiteral {
-	t: 'true'|'false',
+	t: 'boolliteral',
 	v: Boolean
 }
 
@@ -138,11 +138,18 @@ export interface UnrecognisedToken {
 	v: string
 }
 
-export function intLiteral(v: number, base: 2|10|16): IntLiteral {
+export function intLiteral(v: number, base: 2|10|16 = 10): IntLiteral {
 	return {
 		t: "intliteral",
 		v: v,
 		s: base
+	}
+}
+
+export function boolLiteral(v: boolean): BoolLiteral {
+	return {
+		t: "boolliteral",
+		v: v
 	}
 }
 
