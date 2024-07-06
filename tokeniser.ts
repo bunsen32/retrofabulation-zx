@@ -53,10 +53,13 @@ export function tokeniseLine(text: string): Line {
 				case '%':
 					tokens.push(parseBinNumber())
 					break
+				case '*':
+					tokens.push('×')
+					fetchNext()
+					break
 				case '&':
 				case '(':
 				case ')':
-				case '*':
 				case ',':
 				case '-':
 				case '/':
