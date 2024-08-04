@@ -1,15 +1,15 @@
 import {describe, expect, test} from '@jest/globals'
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "./parsing"
 
-import fs = require('node:fs')
+import {readFileSync} from 'node:fs'
 
 export const FRAME_BUFFER_SIZE = 0x6600;
-let core = null
-let memory = null
-let memoryData: Uint8Array = null
-let workerFrameData = null
-let registerPairs: Uint16Array = null
-let tapePulses = null
+let core: any = null!
+let memory: {buffer: ArrayBuffer} = null!
+let memoryData: Uint8Array = null!
+let workerFrameData: Uint8Array = null!
+let registerPairs: Uint16Array = null!
+let tapePulses: Uint16Array = null!
 
 const JSPECCY = "../jsspeccy3/dist/jsspeccy"
 const ROM = "dist/roms/neo48.rom"
@@ -31,7 +31,7 @@ type CpuSnapshot = RegisterSet & {
 }
 
 async function loadRom(filename: string, page: number) {
-	const romBytes = fs.readFileSync(filename)
+	const romBytes = readFileSync(filename)
 	const bytes = new Uint8Array(romBytes)
 	memoryData.set(bytes, core.MACHINE_MEMORY + page * 0x4000)
 }
@@ -94,7 +94,7 @@ function getStack(): number[] {
 	const reg = getRegisters()
 	let sp = reg.SP
 	if (sp > stackTop) throw "Stack underflow!"
-	const result = []
+	const result: number[] = []
 	while (sp < stackTop) {
 		const v16 = core.peek(sp++) + (core.peek(sp++) << 8)
 		result.push(v16)
@@ -126,7 +126,7 @@ function interpret(bytes: number[], forTStates: number = 200) {
 	const trace = traceInterpret(bytes, forTStates)
 	const hex = (n) => ((+n).toString(16)).padStart(4, "0")
 	console.log(expect.getState().currentConcurrentTestName)
-	const full = []
+	const full: string[] = []
 	for(const cpu of trace){
 		full.push(`${hex(cpu.PC)}: AF=${hex(cpu.AF)}, BC=${hex(cpu.BC)}, DE=${hex(cpu.DE)}, HL=${hex(cpu.HL)} [${cpu.stack}]`)
 	}
@@ -134,7 +134,7 @@ function interpret(bytes: number[], forTStates: number = 200) {
 	expect(core.getHalted()).toBe(1)
 }
 
-const emulatorWasm = fs.readFileSync(`${JSPECCY}/jsspeccy-core.wasm`)
+const emulatorWasm = readFileSync(`${JSPECCY}/jsspeccy-core.wasm`)
 const fullyLoaded = WebAssembly.instantiate(emulatorWasm).then(results => {
 	core = results.instance.exports;
 	memory = core.memory;
@@ -147,8 +147,8 @@ const fullyLoaded = WebAssembly.instantiate(emulatorWasm).then(results => {
 	core.setTapeTraps(false)
 })
 
-function makeArray(value, len) {
-	const n = []
+function makeArray<T>(value: T, len: number): T[] {
+	const n: T[] = []
 	for (let u = 0; u < len; u++) n.push(value)
 	return n
 }

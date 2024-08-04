@@ -1,0 +1,117 @@
+	ORG	$0600
+
+	; Render some text
+render_text:
+	exx			; de' := char pointer; b' := remaining characters
+
+	; get screen position into DE
+render_first_char:
+	exx
+	jp	render_common_char
+render_next_char:
+	exx			; de := char pointer; b := remaining characters
+	ld	a, -8
+	add	d
+	ld	d, a
+render_next_char_same_line:
+	; <check haven’t gone off end of 32-character line>
+
+render_common_char:
+	ld	a, (de)
+	inc	de
+	dec	b
+	ret	c
+	exx			; de := screen pointer
+	ld	hl, ($200)	; Character index table / 2
+	add	a, l
+	ld	l, a
+	add	hl, hl		; Get pointer to glyph
+	ld	b, (hl)		; <char-info> = binary <widthnybles:2><startrow:3><height:3>
+	inc	hl		; Advance to pixel data
+	ld	a, b
+	ex	af, af'		; a' := <char-info>
+	ld	a, 7
+	and	b
+	ld	c, a		; c := <height:3>
+	ld	a, b
+	rla
+	rla
+	rla
+	and	7
+	ld	b, a		; b := <startrow:3>
+
+	ld	a, 8
+	sub	b
+	sub	c
+	ex	af, af'		; a := <chr-info>; a' := (8 - startrow - height)
+	rla
+	jr	nc, render_w0w1
+render_w2w3:
+	rla
+	jr	c, render_w3
+
+render_w2:
+	xor	a
+r_w2_top:
+	ld	(de), a
+	inc	d
+	djnz	r_w2_top
+
+	ld	b, c
+r_w2_mid:
+	ld	a, (hl)
+	ld	(de), a
+	inc	hl
+	inc	d
+	djnz	r_w2_mid
+
+	ex	af, af'
+	ld	b, a
+	xor	a
+r_w2_bot:
+	ld	(de), a
+	inc	d
+	djnz	r_w2_bot
+	inc	e		; move to next column
+	jp	render_next_char
+
+render_w3:	; render wide character
+	;<do stuff>
+render_w0w1:
+	rla
+	jr	nc, render_next_char_same_line
+render_w1:
+	;<stuff>
+
+
+
+/*
+	; Alternate version where bitmask determines which rows have character data:
+	ld	a, (hl)		; <char-info> = binary <widthnybles:2><startrow:3><height:3>
+	inc	hl		; Advance to pixel data
+	ld	c, (hl)
+	inc	hl
+	rla
+	jr	nc, render_w0w1
+render_w2w3:
+	rla
+	jr	c, render_w3
+
+render_w2:
+r_w2_loop:
+	srl	c
+	jr	nc, r_w2_clear
+r_w2_data:
+	ld	a, (hl)
+	inc	hl
+	ld	(de), a
+	inc	d
+	djnz	r_w2_loop
+	jp	render_next_char
+r_w2_clear:
+	xor	a
+	ld	(de), a
+	inc d
+	djnz	r_w2_loop
+	jp	render_next_char
+*/

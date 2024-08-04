@@ -1,3 +1,5 @@
+import { NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from "./encoding"
+
 export const tokens = [
     // identifier
     // string
@@ -156,7 +158,7 @@ export function boolLiteral(v: boolean): BoolLiteral {
 export function identifier(name: string, sigil?: IdentifierTypeSigil): Identifier {
 	return {
 		t: 'identifier',
-		v: name,
+		v: name + narrowSymbolForSigil(sigil),
 		s: sigil
 	}
 }
@@ -173,3 +175,13 @@ export type TokenStruct =
 	Identifier |
 	LineComment |
 	UnrecognisedToken
+
+function narrowSymbolForSigil(sigil?: IdentifierTypeSigil): string|undefined {
+	switch (sigil){
+		case '$': return NARROW_DOLLAR
+		case '%': return NARROW_PERCENT
+		case '?': return NARROW_QUEST
+		case '#': return NARROW_HASH
+		default: return undefined
+	}
+}

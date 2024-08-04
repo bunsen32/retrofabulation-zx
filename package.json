@@ -2,11 +2,11 @@
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "jest": "^29.7.0",
-    "ts-jest": "^29.1.2"
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.5.4"
   },
   "scripts": {
-    "test": "jest *.test.js",
-    "assemble":
-      "sjasmplus --outprefix=dist/roms/ -Wno-fwdref interpreter.z80"
+    "test": "ts-jest *.test.ts",
+    "assemble": "sjasmplus --outprefix=dist/roms/ -Wno-fwdref rom/root.z80"
   }
 }

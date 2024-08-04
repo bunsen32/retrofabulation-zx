@@ -1,6 +1,4 @@
-import { NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from "./encoding"
-import {literal16, Op, BoolOp, NumPres, load16, store16} from "./parsing"
-import { Token, LiteralToken, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral, IdentifierTypeSigil, identifier } from './tokens'
+import { Token, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral, IdentifierTypeSigil, identifier } from './tokens'
 
 export type Line = {indent: number, tokens: Token[]}
 
@@ -310,25 +308,21 @@ export function tokeniseLine(text: string): Line {
 			fetchNext()
 			if (next == 0x24) { // $
 				fetchNext()
-				str += NARROW_DOLLAR
 				sigil = '$'
 				break;
 
 			} else if (next == 0x23) { // #
 				fetchNext()
-				str += NARROW_HASH
 				sigil = '#'
 				break;
 				
 			}else if (next == 0x25) { // %
 				fetchNext()
-				str += NARROW_PERCENT
 				sigil = '%'
 				break;
 				
 			}else if (next == 0x3f) { // ?
 				fetchNext()
-				str += NARROW_QUEST
 				sigil = '$'
 				break;
 

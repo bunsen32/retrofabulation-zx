@@ -36,7 +36,7 @@ describe('Tokeniser', () => {
 	test('Tokenises "identifier"', () => {
 		const result = tokeniseLine('a$')
 
-		expect(result.tokens).toEqual([identifier('a$', '$')])
+		expect(result.tokens).toEqual([identifier('a', '$')])
 	})
 
 	test('Tokenises "%"', () => {
@@ -58,7 +58,7 @@ describe('Tokeniser', () => {
 		const result = tokeniseLine(input)
 
 		expect(result.tokens).toEqual(
-			['if', identifier('a%', '%'), '%', intLiteral(7), '≤', intLiteral(3), ':', lineComment(' test for condition')]
+			['if', identifier('a', '%'), '%', intLiteral(7), '≤', intLiteral(3), ':', lineComment(' test for condition')]
 		)
 	})
 })
