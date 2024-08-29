@@ -1,4 +1,10 @@
-export const glyphs =
+
+export interface Glyph {
+	width: 'h'|'n'|'w'
+	bytes: Array<number>
+}
+
+export const glyphs: Record<number, Glyph> =
 {
 	27: {"width": "h", "bytes": [96,0,160,0,128,0,96,0,176,0,128,0,96,0,0,0]},
 	28: {"width": "h", "bytes": [64,0,160,0,32,0,64,0,0,0,64,0,0,0,0,0]},

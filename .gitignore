@@ -3,3 +3,4 @@ resources
 *.js
 node_modules
 dist
+testout/*_actual.png

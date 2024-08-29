@@ -1,2 +1,15 @@
-	INCLUDE "interpreter.z80"
-	INCLUDE "textrender.z80"
+	MACRO PADTO addr ; z80asm "FORG" replacement
+		; add padding + display warning
+		IF $ > addr
+			; no padding
+			DISPLAY /L, "Warning! PADTO failed! ", $, " is more than ", addr
+		ELSE
+			; add padding
+			BLOCK addr-$
+		ENDIF
+		ORG	addr
+	ENDM
+
+	INCLUDE "interpreter.z80"	; 0100 to 05FF
+	INCLUDE "textrender.z80"	; 0600 to 06FF
+	INCLUDE "generated/font.z80"	; 0700 to 09FF

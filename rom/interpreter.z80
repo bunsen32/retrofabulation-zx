@@ -1,18 +1,6 @@
 	OUTPUT	neo48.rom
 	SIZE	4000H
 
-	MACRO PADTO addr ; z80asm "FORG" replacement
-		; add padding + display warning
-		IF $ > addr
-			; no padding
-			DISPLAY /L, "Warning! PADTO failed! ", $, " is more than ", addr
-		ELSE
-			; add padding
-			BLOCK addr-$
-		ENDIF
-		ORG	addr
-	ENDM
-
 	DEFINE	R_RESET	$00
 	DEFINE	R_1	$08
 	DEFINE	R_2	$10
@@ -683,14 +671,9 @@ true_statement_continue:
 	or	$f0
 	jp	common_jump
 
-	ORG	$ffe0
 selfmodifying_load16:
 
 selfmodifying_store16:
-	pop	bc
-	ld	(ix+6), c
-	ld	(ix+7), b
-	jp	interpret_next
 selfmodifying_store16_frame:
 
 /*

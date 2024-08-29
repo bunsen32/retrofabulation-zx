@@ -2,8 +2,9 @@
     "compilerOptions": {
         "target": "es6",
         "module": "ES6",
-        "outDir": "dist"
+        "outDir": "dist",
+        "esModuleInterop": true
     },
-    "include": [ "*.ts" ],
-    "exclude": [ "*.test.ts", "node_modules" ],
+    "include": [ "*.ts", "rom/textrender.test.ts", "rom/interpreter.test.ts", "rom/testutils/testvm.ts" ],
+    "exclude": [ "*.test.ts", "node_modules", "rom/testutils/testvm.ts" ],
 }

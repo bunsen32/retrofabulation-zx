@@ -1,3 +1,9 @@
 {
+	"compilerOptions": {
+		"moduleResolution": "NodeNext",
+		"paths": {
+			"@jest/globals": ["node_modules/@jest/globals/build"]
+		}
+	},
 	"include": [ "*.test.ts" ]
 }

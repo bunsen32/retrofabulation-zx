@@ -1,31 +1,59 @@
-	ORG	$0600
+	PADTO	$0600
 
 	; Render some text
+	; de	= pointer to characters
+	; b	= count of characters
+	; hl	= row/column (h = row 0–23; l = column 0–63)
 render_text:
-	exx			; de' := char pointer; b' := remaining characters
-
-	; get screen position into DE
-render_first_char:
-	exx
+	push	hl
+	exx			; de' := char pointer; b' := remaining character count
+	pop	hl		; hl := row/column
+	; get screen position pointer into BC from HL coordinates
+	ld	bc, $4000	; (FAKE)
 	jp	render_common_char
+
 render_next_char:
-	exx			; de := char pointer; b := remaining characters
 	ld	a, -8
 	add	d
-	ld	d, a
+	ld	b, a
+	ld	c, e
 render_next_char_same_line:
 	; <check haven’t gone off end of 32-character line>
 
 render_common_char:
-	ld	a, (de)
-	inc	de
+	exx			; de := char pointer; b := remaining characters; bc' := screen pointer
 	dec	b
-	ret	c
-	exx			; de := screen pointer
-	ld	hl, ($200)	; Character index table / 2
-	add	a, l
-	ld	l, a
-	add	hl, hl		; Get pointer to glyph
+	ret	pe
+	ld	a, (de)		; a := next character to render
+	inc	de
+
+	exx			; bc := screen pointer
+	ld	hl, FONT_LOOKUP	; Character index table
+
+	; Force character (in A) to be in range of glyphs:
+	sub	(hl)		; First character represented
+	jr	nc, rep1
+	xor	a
+rep1:	inc	hl
+	cp	(hl)		; #number characters represented
+	jr	c, rep2
+	xor	a
+rep2:	inc hl
+
+	; Look up glyph data:
+	ld	e, a
+	ld	d, 0
+	add	hl, de
+	add	hl, de
+	ld	a, (hl)		; LOW byte of character data pointer
+	inc	hl
+	ld	h, (hl)		; HIGH byte of character data pointer
+	ld	l, a		; hl := character pointer
+
+	ld	d, b
+	ld	e, c		; de := screen pointer
+
+	; Decode character info:
 	ld	b, (hl)		; <char-info> = binary <widthnybles:2><startrow:3><height:3>
 	inc	hl		; Advance to pixel data
 	ld	a, b
@@ -34,9 +62,9 @@ render_common_char:
 	and	b
 	ld	c, a		; c := <height:3>
 	ld	a, b
-	rla
-	rla
-	rla
+	rra
+	rra
+	rra
 	and	7
 	ld	b, a		; b := <startrow:3>
 
@@ -52,11 +80,13 @@ render_w2w3:
 
 render_w2:
 	xor	a
+	cp	b
+	jr	z, r_w2_top_end
 r_w2_top:
 	ld	(de), a
 	inc	d
 	djnz	r_w2_top
-
+r_w2_top_end:
 	ld	b, c
 r_w2_mid:
 	ld	a, (hl)
@@ -66,12 +96,15 @@ r_w2_mid:
 	djnz	r_w2_mid
 
 	ex	af, af'
+	or	a
+	jr	z, r_w2_bot_end
 	ld	b, a
 	xor	a
 r_w2_bot:
 	ld	(de), a
 	inc	d
 	djnz	r_w2_bot
+r_w2_bot_end:
 	inc	e		; move to next column
 	jp	render_next_char
 
@@ -98,20 +131,17 @@ render_w2w3:
 	jr	c, render_w3
 
 render_w2:
+	xor	a
+	ld	b, 4
 r_w2_loop:
 	srl	c
-	jr	nc, r_w2_clear
-r_w2_data:
+	jr	nc, r_w2_cont
 	ld	a, (hl)
 	inc	hl
+r_w2_cont:
 	ld	(de), a
 	inc	d
 	djnz	r_w2_loop
 	jp	render_next_char
-r_w2_clear:
-	xor	a
-	ld	(de), a
-	inc d
-	djnz	r_w2_loop
-	jp	render_next_char
 */
+

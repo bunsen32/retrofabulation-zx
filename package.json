@@ -1,12 +1,16 @@
 {
   "devDependencies": {
-    "@jest/globals": "^29.7.0",
-    "jest": "^29.7.0",
+    "@jest/globals": "^29.1.2",
+    "@types/node": "^22.4.0",
+    "jest": "29.1.2",
+    "pureimage": "^0.4.13",
     "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
   "scripts": {
-    "test": "ts-jest *.test.ts",
+    "test": "jest",
+    "genfont": "ts-node --project tsconfig.generation.json rom/makefont.ts rom/generated/font.z80",
     "assemble": "sjasmplus --outprefix=dist/roms/ -Wno-fwdref rom/root.z80"
   }
 }
