@@ -6,6 +6,7 @@
 	; hl	= row/column (h = row 0–23; l = column 0–63)
 render_text:
 	push	hl
+	inc	b		; b := characters to print + 1
 	exx			; de' := char pointer; b' := remaining character count
 	pop	hl		; hl := row/column
 	; get screen position pointer into BC from HL coordinates
@@ -21,9 +22,9 @@ render_next_char_same_line:
 	; <check haven’t gone off end of 32-character line>
 
 render_common_char:
-	exx			; de := char pointer; b := remaining characters; bc' := screen pointer
+	exx			; de := char pointer; b := remaining characters + 1; bc' := screen pointer
 	dec	b
-	ret	pe
+	ret	z
 	ld	a, (de)		; a := next character to render
 	inc	de
 
@@ -71,6 +72,7 @@ rep2:	inc hl
 	ld	a, 8
 	sub	b
 	sub	c
+	sub	c
 	ex	af, af'		; a := <chr-info>; a' := (8 - startrow - height)
 	rla
 	jr	nc, render_w0w1
@@ -78,6 +80,7 @@ render_w2w3:
 	rla
 	jr	c, render_w3
 
+	; RENDER 8-BIT GLYPH AT NO OFFSET
 render_w2:
 	xor	a
 	cp	b
@@ -93,10 +96,13 @@ r_w2_mid:
 	ld	(de), a
 	inc	hl
 	inc	d
+	ld	a, (hl)
+	ld	(de), a
+	inc	hl
+	inc	d
 	djnz	r_w2_mid
 
-	ex	af, af'
-	or	a
+	ex	af, af'		; a := remaining blank rows (flags should also be set appropriately)
 	jr	z, r_w2_bot_end
 	ld	b, a
 	xor	a
@@ -108,13 +114,98 @@ r_w2_bot_end:
 	inc	e		; move to next column
 	jp	render_next_char
 
-render_w3:	; render wide character
-	;<do stuff>
+	; RENDER 12-BIT GLYPH AT NO OFFSET
+render_w3:
+	xor	a
+	cp	b
+	jr	z, r_w3_top_end
+r_w3_top:
+	ld	(de), a
+	inc	e
+	ld	(de), a
+	dec	e
+	inc	d
+	djnz	r_w3_top
+r_w3_top_end:
+	ld	b, c
+r_w3_mid:
+	ld	a, (hl)
+	inc	hl
+	ld	c, (hl)
+	inc	hl
+	ld	(de), a
+	inc	e
+	ld	a, c
+	ld	(de), a
+	inc	d
+	ld	c, (hl)
+	inc	hl
+	ld	a, (hl)
+	inc	hl
+	ld	(de), a
+	dec	e
+	ld	a, c
+	ld	(de), a
+	inc	d
+	djnz	r_w3_mid
+
+	ex	af, af'		; a := remaining blank rows (flags should also be set appropriately)
+	jr	z, r_w3_bot_end
+	ld	b, a
+	xor	a
+r_w3_bot:
+	ld	(de), a
+	inc	e
+	ld	(de), a
+	dec	e
+	inc	d
+	djnz	r_w3_bot
+r_w3_bot_end:
+	inc	e		; move to next column
+	inc	e
+	jp	render_next_char
+
 render_w0w1:
 	rla
-	jr	nc, render_next_char_same_line
+	jp	nc, render_next_char_same_line
+
+	; RENDER 4-BIT GLYPH AT NO OFFSET
 render_w1:
-	;<stuff>
+	xor	a
+	cp	b
+	jr	z, r_w1_top_end
+r_w1_top:
+	ld	(de), a
+	inc	d
+	djnz	r_w1_top
+r_w1_top_end:
+	ld	b, c
+	ld	c, $f0
+r_w1_mid:
+	ld	a, (hl)
+	and	c
+	ld	(de), a
+	inc	hl
+	inc	d
+	ld	a, (hl)
+	and	c
+	ld	(de), a
+	inc	hl
+	inc	d
+	djnz	r_w1_mid
+
+	ex	af, af'
+	or	a
+	jr	z, r_w1_bot_end
+	ld	b, a
+	xor	a
+r_w1_bot:
+	ld	(de), a
+	inc	d
+	djnz	r_w1_bot
+r_w1_bot_end:
+	inc	e		; move to next column
+	jp	render_next_char
 
 
 
@@ -145,3 +236,17 @@ r_w2_cont:
 	jp	render_next_char
 */
 
+/*
+	ld	a, (bc)	; Get bits of glyph
+	inc	bc	; Next bits
+	ld	e, a	; Prepare to look up rotation
+	ld	a, (de)	; Grab shifted-right bits
+	or	(hl)
+	ld	(hl), a	; Merge shifted glyph into screen
+	inc	l
+	inc	d
+	ld	a, (de)
+	ld	(hl), a
+	inc	h
+	dec	d
+*/

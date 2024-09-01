@@ -1,7 +1,7 @@
 // Test the interpreter:
 import {describe, expect, test} from '@jest/globals'
 import {byte, emulatorWasm, logSnapshots, stackTop, Vm} from './testutils/testvm'
-import {writeClip, getScreenMono, cls, Bitmap, readClip} from "./testutils/screen"
+import {writeClip, getScreenMono, cls, Bitmap, readClip, cls1} from "./testutils/screen"
 import {CharsetFromUnicode} from '../encoding'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
@@ -9,6 +9,7 @@ const loadedVm = WebAssembly.instantiate(emulatorWasm)
 		new Vm(results.instance.exports))
 
 describe("Text rendering", () => {
+
 	test("Can write a screen", async () => {
 		const vm = await loadedVm
 		cls(vm)
@@ -27,14 +28,34 @@ describe("Text rendering", () => {
 		await assertBitmapImageMatches("testout/shapes.png", actual)
 	})
 
-	test("Render a single character", async () => {
+	test("Render 8-pixel characters", async () => {
 		const vm = await loadedVm
-		cls(vm)
+		cls1(vm)
 
 		renderAt(vm, 'ReTro…', 0, 0)
 
 		const actual = getScreenMono(vm)
 		await assertBitmapImageMatches("testout/singlechar.png", actual)
+	})
+
+	test("Render 4-pixel characters", async () => {
+		const vm = await loadedVm
+		cls1(vm)
+
+		renderAt(vm, '‘tf;i’', 0, 0)
+
+		const actual = getScreenMono(vm)
+		await assertBitmapImageMatches("testout/half-width.png", actual)
+	})
+
+	test("Render 12-pixel characters", async () => {
+		const vm = await loadedVm
+		cls1(vm)
+
+		renderAt(vm, 'wm\x7f', 0, 0)
+
+		const actual = getScreenMono(vm)
+		await assertBitmapImageMatches("testout/extra-width.png", actual)
 	})
 })
 
@@ -42,18 +63,16 @@ function renderAt(vm: Vm, text: string, x: number, y: number) {
 	const charBytes: byte[] = []
 	const textLength = text.length
 	for(let i = 0; i < textLength; i++) {
-		const c = CharsetFromUnicode[text.charCodeAt(i)]
+		const c = CharsetFromUnicode[text.charAt(i)]
 		charBytes[i] = c
 	}
-	vm.setRam(0x9000, [
-		0x52, 0x65, 0x54, 0x72, 0x6f, 0x85
-	])
+	vm.setRam(0x9000, charBytes)
 	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), HL: ((x << 8) | y)})
 	vm.setRam(0x8000, [
 		0xCD, 0x00, 0x06, // call $0600
 		0x76, // HALT
 	])
-	vm.runPcAt(0x8000, 4500)
+	vm.runPcAt(0x8000, 6000)
 }
 
 async function assertBitmapImageMatches(expectedOutputImageFilename: string, actualOutput: Bitmap): Promise<void> {

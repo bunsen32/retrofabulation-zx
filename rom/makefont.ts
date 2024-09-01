@@ -87,18 +87,28 @@ function encodedChar(codepoint: number, glyph: Glyph): EncodedGlyph {
 			lastPixelLine = Math.max(i, lastPixelLine)
 		}
 	}
+	if (firstPixelLine > lastPixelLine) return { codepoint, bytes: [0] }
 
-	const leading = Math.min(Math.max(firstPixelLine, 0), 7)
-	const height = Math.min(Math.max(lastPixelLine - firstPixelLine + 1, 0), 7)
-	const charInfo = (nWidth << 6) | (leading << 3) | (height << 0)
+	const originalLeading = firstPixelLine
+	const originalHeight = (lastPixelLine - firstPixelLine + 1)
+	const height = originalHeight + (originalHeight & 1)
+	const leading = Math.min(originalLeading, 8 - height)
+
+	const charInfo = (nWidth << 6) | (leading << 3) | ((height / 2) << 0)
 	encoded.push(charInfo)
 	switch (nWidth) {
 		case 1:
-		case 2:
 			const mask = nWidth == 1 ? 0xf0 : 0xff
 			for(let r = 0; r < height; r++) {
 				const ix = (r + leading) * 2
-				encoded.push(raw[ix] & mask)
+				const b = raw[ix] & 0xf0
+				encoded.push(b | (b >> 4))
+			}
+			break;
+		case 2:
+			for(let r = 0; r < height; r++) {
+				const ix = (r + leading) * 2
+				encoded.push(raw[ix] & 0xff)
 			}
 			break;
 		case 3:

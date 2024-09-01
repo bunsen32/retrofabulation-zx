@@ -9,6 +9,13 @@ export function cls(vm: Vm) {
 	}
 }
 
+export function cls1(vm: Vm) {
+	const core = vm.core
+	for(let p = 0x4000, n = 32 * 192; n > 0; p ++, n --) {
+		core.poke(p, 255)
+	}
+}
+
 export type Bitmap = PImage.Bitmap
 
 export function getScreenMono(vm: Vm, xStart: number = 0, yStart: number = 0, w: number = 256, h: number = 192): Bitmap {
