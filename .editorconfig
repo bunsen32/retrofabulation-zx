@@ -1,3 +1,8 @@
 root = true
 
+[*]
 indent_style = tab
+
+[*.z80]
+indent_size = 18
+tab_size = 18
