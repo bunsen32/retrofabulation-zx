@@ -30,7 +30,7 @@ describe("Text rendering", () => {
 
 	test("Render 8-pixel characters", async () => {
 		const vm = await loadedVm
-		cls1(vm)
+		cls(vm)
 
 		renderAt(vm, 'ReTro…', 0, 0)
 
@@ -40,7 +40,7 @@ describe("Text rendering", () => {
 
 	test("Render 4-pixel characters", async () => {
 		const vm = await loadedVm
-		cls1(vm)
+		cls(vm)
 
 		renderAt(vm, '‘tf;i’', 0, 0)
 
@@ -50,12 +50,22 @@ describe("Text rendering", () => {
 
 	test("Render 12-pixel characters", async () => {
 		const vm = await loadedVm
-		cls1(vm)
+		cls(vm)
 
-		renderAt(vm, 'wm\x7f', 0, 0)
+		renderAt(vm, 'wm\x7f™', 0, 0)
 
 		const actual = getScreenMono(vm)
 		await assertBitmapImageMatches("testout/extra-width.png", actual)
+	})
+
+	test("Render mix of characters", async () => {
+		const vm = await loadedVm
+		cls(vm)
+
+		renderAt(vm, '‘The Long, Dark Tea-Time of The Soul’, by Douglas Adams', 0, 0)
+
+		const actual = getScreenMono(vm)
+		await assertBitmapImageMatches("testout/mix-width.png", actual)
 	})
 })
 
@@ -72,7 +82,7 @@ function renderAt(vm: Vm, text: string, x: number, y: number) {
 		0xCD, 0x00, 0x06, // call $0600
 		0x76, // HALT
 	])
-	vm.runPcAt(0x8000, 6000)
+	vm.runPcAt(0x8000, 20000)
 }
 
 async function assertBitmapImageMatches(expectedOutputImageFilename: string, actualOutput: Bitmap): Promise<void> {

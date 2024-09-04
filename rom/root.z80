@@ -12,4 +12,6 @@
 
 	INCLUDE "interpreter.z80"	; 0100 to 05FF
 	INCLUDE "textrender.z80"	; 0600 to 06FF
-	INCLUDE "generated/font.z80"	; 0700 to 09FF
+	INCLUDE "four-shift-lookup.z80"	; 0800 to 09FF
+	PADTO $0a00
+	INCLUDE "generated/font.z80"	; 0a00 to 0fFF

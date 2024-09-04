@@ -15,9 +15,9 @@ render_text:
 
 render_next_char:
 	ld	a, -8
-	add	d
+	add	h
 	ld	b, a
-	ld	c, e
+	ld	c, l		; bc := screen pointer
 render_next_char_same_line:
 	; <check haven’t gone off end of 32-character line>
 
@@ -68,185 +68,391 @@ rep2:	inc hl
 	rra
 	and	7
 	ld	b, a		; b := <startrow:3>
+	ex	de, hl		; hl := screen pointer; de := glyph pixel data
+	bit	5, h
+	jp	nz, render_o4
 
-	ld	a, 8
-	sub	b
-	sub	c
-	sub	c
+
+	; RENDER AT OFFSET ZERO
+render_o0:
 	ex	af, af'		; a := <chr-info>; a' := (8 - startrow - height)
 	rla
-	jr	nc, render_w0w1
-render_w2w3:
+	jr	nc, render_w0w1_o0
+render_w2w3_o0:
 	rla
-	jr	c, render_w3
+	jr	c, render_w3_o0
 
-	; RENDER 8-BIT GLYPH AT NO OFFSET
-render_w2:
+
+	; RENDER 8-BIT GLYPH AT OFFSET ZERO
+render_w2_o0:
 	xor	a
 	cp	b
-	jr	z, r_w2_top_end
-r_w2_top:
-	ld	(de), a
-	inc	d
-	djnz	r_w2_top
-r_w2_top_end:
-	ld	b, c
-r_w2_mid:
-	ld	a, (hl)
-	ld	(de), a
-	inc	hl
-	inc	d
-	ld	a, (hl)
-	ld	(de), a
-	inc	hl
-	inc	d
-	djnz	r_w2_mid
+	jr	z, r_w2_top_end_o0
+r_w2_top_o0:
+	ld	(hl), a
+	inc	h
+	djnz	r_w2_top_o0
+r_w2_top_end_o0:
+	or	c
+	jr	z, r_w2_bot_o0_init
+	inc	a
+	rra
+	ld	b, a
+	jr	nc, r_w2_mid_o0_row2
+r_w2_mid_o0_row1:
+	ld	a, (de)
+	ld	(hl), a
+	inc	de
+	inc	h
+r_w2_mid_o0_row2:
+	ld	a, (de)
+	ld	(hl), a
+	inc	de
+	inc	h
+	djnz	r_w2_mid_o0_row1
 
-	ex	af, af'		; a := remaining blank rows (flags should also be set appropriately)
-	jr	z, r_w2_bot_end
+r_w2_bot_o0_init:
+	xor	a
+	sub	h
+	and	7
+	jr	z, r_w2_bot_end_o0
 	ld	b, a
 	xor	a
-r_w2_bot:
-	ld	(de), a
-	inc	d
-	djnz	r_w2_bot
-r_w2_bot_end:
-	inc	e		; move to next column
+r_w2_bot_o0:
+	ld	(hl), a
+	inc	h
+	djnz	r_w2_bot_o0
+r_w2_bot_end_o0:
+	inc	l		; move to next column
 	jp	render_next_char
 
-	; RENDER 12-BIT GLYPH AT NO OFFSET
-render_w3:
+
+	; RENDER 12-BIT GLYPH AT OFFSET ZERO
+render_w3_o0:
 	xor	a
 	cp	b
-	jr	z, r_w3_top_end
-r_w3_top:
-	ld	(de), a
-	inc	e
-	ld	(de), a
-	dec	e
-	inc	d
-	djnz	r_w3_top
-r_w3_top_end:
-	ld	b, c
-r_w3_mid:
-	ld	a, (hl)
-	inc	hl
-	ld	c, (hl)
-	inc	hl
-	ld	(de), a
-	inc	e
-	ld	a, c
-	ld	(de), a
-	inc	d
-	ld	c, (hl)
-	inc	hl
-	ld	a, (hl)
-	inc	hl
-	ld	(de), a
-	dec	e
-	ld	a, c
-	ld	(de), a
-	inc	d
-	djnz	r_w3_mid
+	jr	z, r_w3_top_end_o0
+r_w3_top_o0:
+	ld	(hl), a
+	inc	l
+	ld	(hl), a
+	dec	l
+	inc	h
+	djnz	r_w3_top_o0
+r_w3_top_end_o0:
+	inc	l
+	or	c
+	jr	z, r_w3_bot_o0_init
+	inc	a
+	rra
+	ld	b, a
+	jr	nc, r_w3_mid_o0_row2
+	dec	l
 
-	ex	af, af'		; a := remaining blank rows (flags should also be set appropriately)
-	jr	z, r_w3_bot_end
+r_w3_mid_o0_row1:	; ROW ONE
+	ld	a, (de)		; First byte of glyph pixels
+	inc	de
+	ld	(hl), a		; Write first byte
+	inc	l
+	ld	a, (de)		; Second byte of glyph pixels
+	inc	de
+	ld	(hl), a		; Write second byte
+	inc	h
+
+r_w3_mid_o0_row2:	; ROW TWO
+	ld	a, (de)		; First byte of glyph pixels
+	inc	de
+	ld	c, a
+	ld	a, (de)		; Second byte of glyph pixels
+	inc	de
+	ld	(hl), a		; Write second (rightmost) byte
+	dec	l
+	ld	(hl), c		; Write first (leftmost) byte
+	inc	h
+	djnz	r_w3_mid_o0_row1
+
+	inc	l		; move to next column
+r_w3_bot_o0_init:
+	xor	a
+	sub	h
+	and	7
+	jr	z, r_w3_bot_end_o0
 	ld	b, a
 	xor	a
-r_w3_bot:
-	ld	(de), a
-	inc	e
-	ld	(de), a
-	dec	e
-	inc	d
-	djnz	r_w3_bot
-r_w3_bot_end:
-	inc	e		; move to next column
-	inc	e
+r_w3_bot_o0:
+	ld	(hl), a
+	dec	l
+	ld	(hl), a
+	inc	l
+	inc	h
+	djnz	r_w3_bot_o0
+r_w3_bot_end_o0:
+	set	5, h		; offset next char by 4 pixels
 	jp	render_next_char
 
-render_w0w1:
+render_w0w1_o0:
 	rla
 	jp	nc, render_next_char_same_line
 
-	; RENDER 4-BIT GLYPH AT NO OFFSET
-render_w1:
+
+	; RENDER 4-BIT GLYPH AT OFFSET ZERO
+render_w1_o0:
 	xor	a
 	cp	b
-	jr	z, r_w1_top_end
-r_w1_top:
-	ld	(de), a
-	inc	d
-	djnz	r_w1_top
-r_w1_top_end:
-	ld	b, c
-	ld	c, $f0
-r_w1_mid:
-	ld	a, (hl)
-	and	c
-	ld	(de), a
-	inc	hl
-	inc	d
-	ld	a, (hl)
-	and	c
-	ld	(de), a
-	inc	hl
-	inc	d
-	djnz	r_w1_mid
-
-	ex	af, af'
-	or	a
-	jr	z, r_w1_bot_end
-	ld	b, a
-	xor	a
-r_w1_bot:
-	ld	(de), a
-	inc	d
-	djnz	r_w1_bot
-r_w1_bot_end:
-	inc	e		; move to next column
-	jp	render_next_char
-
-
-
-/*
-	; Alternate version where bitmask determines which rows have character data:
-	ld	a, (hl)		; <char-info> = binary <widthnybles:2><startrow:3><height:3>
-	inc	hl		; Advance to pixel data
-	ld	c, (hl)
-	inc	hl
-	rla
-	jr	nc, render_w0w1
-render_w2w3:
-	rla
-	jr	c, render_w3
-
-render_w2:
-	xor	a
-	ld	b, 4
-r_w2_loop:
-	srl	c
-	jr	nc, r_w2_cont
-	ld	a, (hl)
-	inc	hl
-r_w2_cont:
-	ld	(de), a
-	inc	d
-	djnz	r_w2_loop
-	jp	render_next_char
-*/
-
-/*
-	ld	a, (bc)	; Get bits of glyph
-	inc	bc	; Next bits
-	ld	e, a	; Prepare to look up rotation
-	ld	a, (de)	; Grab shifted-right bits
-	or	(hl)
-	ld	(hl), a	; Merge shifted glyph into screen
-	inc	l
-	inc	d
-	ld	a, (de)
+	jr	z, r_w1_top_end_o0
+r_w1_top_o0:
 	ld	(hl), a
 	inc	h
-	dec	d
-*/
+	djnz	r_w1_top_o0
+r_w1_top_end_o0:
+	or	c
+	ld	c, $f0
+	jr	z, r_w1_bot_o0_init
+	inc	a
+	rra
+	ld	b, a
+	jr	nc, r_w1_mid_o0_row2
+r_w1_mid_o0_row1:
+	ld	a, (de)
+	inc	de
+	and	c
+	ld	(hl), a
+	inc	h
+r_w1_mid_o0_row2:
+	ld	a, (de)
+	inc	de
+	and	c
+	ld	(hl), a
+	inc	h
+	djnz	r_w1_mid_o0_row1
+
+r_w1_bot_o0_init:
+	xor	a
+	sub	h
+	and	7
+	jr	z, r_w1_bot_end_o0
+	ld	b, a
+	xor	a
+r_w1_bot_o0:
+	ld	(hl), a
+	inc	h
+	djnz	r_w1_bot_o0
+r_w1_bot_end_o0:
+	set	5, h		; offset next char by 4 pixels
+	jp	render_next_char
+
+
+
+
+	; RENDER AT OFFSET 4
+render_o4:
+	res	5, h
+	ex	af, af'		; a := <chr-info>; a' := (8 - startrow - height)
+	rla
+	jp	nc, render_w0w1_o4
+render_w2w3_o4:
+	rla
+	jr	c, render_w3_o4
+
+
+	; RENDER 8-BIT GLYPH AT OFFSET4
+render_w2_o4:
+	exx
+	ld	h, $8	; 4-shift lookup thing
+	exx
+	inc	l
+	xor	a
+	cp	b
+	jr	z, r_w2_top_end_o4
+	; Clear only 2nd column:
+r_w2_top_o4:
+	ld	(hl), a
+	inc	h
+	djnz	r_w2_top_o4
+r_w2_top_end_o4:
+	or	c
+	jr	z, r_w2_bot_o4_init
+	inc	a
+	rra
+	ld	b, a
+	jr	nc, r_w2_mid_o4_row2
+	; Render both columns:
+
+	dec	l
+r_w2_mid_o4_row1:	; ROW 1
+	ld	a, (de)		; Next byte of glyph pixels
+	inc	de
+	exx			; Access HL' for look-up of shift.
+	ld	l, a
+	ld	a, (hl)		; shift left 4 & mask
+	ex	af, af'
+	inc	h
+	ld	a, (hl)		; shift right 5 & mask
+	dec	h
+	exx
+	or	(hl)
+	ld	(hl), a		; merge first (shifted) byte onto screen
+	inc	l
+	ex	af, af'
+	ld	(hl), a		; copy second (shifted) byte onto screen
+	inc	h
+
+r_w2_mid_o4_row2:	; ROW 2
+	ld	a, (de)		; Next byte of glyph pixels
+	inc	de
+	exx			; Access HL' for look-up of shift.
+	ld	l, a
+	inc	h
+	ld	a, (hl)		; shift right 4 & mask
+	dec	h
+	ex	af, af'
+	ld	a, (hl)		; shift left 5 & mask
+	exx
+	ld	(hl), a		; copy second (shifted) byte onto screen
+	dec	l
+	ex	af, af'
+	or	(hl)
+	ld	(hl), a		; merge first (shifted) byte onto screen
+	inc	h
+	djnz	r_w2_mid_o4_row1
+
+	inc	l		; move to second column
+r_w2_bot_o4_init:
+	xor	a
+	sub	h
+	and	7
+	jr	z, r_w2_bot_end_o4
+	ld	b, a
+	xor	a
+	; Clear only 2nd column:
+r_w2_bot_o4:
+	ld	(hl), a
+	inc	h
+	djnz	r_w2_bot_o4
+r_w2_bot_end_o4:
+	set	5, h		; offset next char by 4 pixels
+	jp	render_next_char
+
+
+	; RENDER 12-BIT GLYPH AT OFFSET4
+render_w3_o4:
+	inc	l
+	xor	a
+	cp	b
+	jr	z, r_w3_top_end_o4
+r_w3_top_o4:
+	ld	(hl), a
+	inc	h
+	djnz	r_w3_top_o4
+r_w3_top_end_o4:
+	or	c
+	jr	z, r_w3_bot_o4_init
+	inc	a
+	rra
+	ld	b, a
+	jr	nc, r_w3_mid_o4_row2
+	dec	l
+
+r_w3_mid_o4_row1:
+	ld	a, (de)
+	inc	de
+	ld	c, a		; C := leftmost byte of glyph pixels
+	ld	a, (de)		; A := rightmost byte of glyph pixels
+	inc	de
+	add	a
+	rl	c
+	adc	a
+	rl	c
+	adc	a
+	rl	c
+	adc	a
+	rl	c
+	adc	a
+	or	(hl)
+	ld	(hl), a		; merge first (shifted) byte onto screen
+	inc	l
+	ld	(hl), c		; copy second (shifted) byte onto screen
+	inc	h
+
+r_w3_mid_o4_row2:
+	ld	a, (de)
+	inc	de
+	ld	c, a		; C := leftmost byte of glyph pixels
+	ld	a, (de)		; A := rightmost byte of glyph pixels
+	inc	de
+	srl	c
+	rra
+	srl	c
+	rra
+	srl	c
+	rra
+	srl	c
+	rra
+	ld	(hl), a		; copy second (shifted) byte onto screen
+	dec	l
+	ld	a, c
+	or	(hl)
+	ld	(hl), a		; merge first (shifted) byte onto screen
+	inc	h
+
+	djnz	r_w3_mid_o4_row1
+
+	inc	l
+r_w3_bot_o4_init:
+	xor	a
+	sub	h
+	and	7
+	jr	z, r_w3_bot_end_o4
+	ld	b, a
+	xor	a
+r_w3_bot_o4:
+	ld	(hl), a
+	inc	h
+	djnz	r_w3_bot_o4
+r_w3_bot_end_o4:
+	inc	l		; move to next column
+	jp	render_next_char
+
+render_w0w1_o4:
+	rla
+	jp	nc, render_next_char_same_line
+
+
+	; RENDER 4-BIT GLYPH AT OFFSET4
+render_w1_o4:
+	ld	a, h
+	add	b
+	ld	h, a
+
+	xor	a
+	or	c
+	ld	c, $0f
+	jr	z, r_w1_bot_o4_init
+	inc	a
+	rra
+	ld	b, a
+	jr	nc, r_w1_mid_o4_half
+r_w1_mid_o4:
+	ld	a, (de)
+	inc	de
+	and	c
+	or	(hl)
+	ld	(hl), a
+	inc	h
+r_w1_mid_o4_half:
+	ld	a, (de)
+	inc	de
+	and	c
+	or	(hl)
+	ld	(hl), a
+	inc	h
+	djnz	r_w1_mid_o4
+
+r_w1_bot_o4_init:
+	ld	a, h
+	add	7
+	and	$f8
+	ld	h, a
+	inc	l		; move to next column
+	jp	render_next_char
+
