@@ -30,7 +30,7 @@ describe("Text rendering", () => {
 
 	test("Render 8-pixel characters", async () => {
 		const vm = await loadedVm
-		cls(vm)
+		cls1(vm)
 
 		renderAt(vm, 'ReTro…', 0, 0)
 
@@ -40,7 +40,7 @@ describe("Text rendering", () => {
 
 	test("Render 4-pixel characters", async () => {
 		const vm = await loadedVm
-		cls(vm)
+		cls1(vm)
 
 		renderAt(vm, '‘tf;i’', 0, 0)
 
@@ -50,7 +50,7 @@ describe("Text rendering", () => {
 
 	test("Render 12-pixel characters", async () => {
 		const vm = await loadedVm
-		cls(vm)
+		cls1(vm)
 
 		renderAt(vm, 'wm\x7f™', 0, 0)
 
@@ -60,7 +60,7 @@ describe("Text rendering", () => {
 
 	test("Render mix of characters", async () => {
 		const vm = await loadedVm
-		cls(vm)
+		cls1(vm)
 
 		renderAt(vm, '‘The Long, Dark Tea-Time of The Soul’, by Douglas Adams', 0, 0)
 

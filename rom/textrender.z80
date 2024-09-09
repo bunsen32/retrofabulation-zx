@@ -10,14 +10,14 @@ render_text:
 	exx			; de' := char pointer; b' := remaining character count
 	pop	hl		; hl := row/column
 	; get screen position pointer into BC from HL coordinates
-	ld	bc, $4000	; (FAKE)
+	ld	de, $4000	; (FAKE)
 	jp	render_common_char
 
 render_next_char:
 	ld	a, -8
 	add	h
-	ld	b, a
-	ld	c, l		; bc := screen pointer
+	ld	d, a
+	ld	e, l		; de := screen pointer
 render_next_char_same_line:
 	; <check haven’t gone off end of 32-character line>
 
@@ -42,17 +42,14 @@ rep1:	inc	hl
 rep2:	inc hl
 
 	; Look up glyph data:
-	ld	e, a
-	ld	d, 0
-	add	hl, de
-	add	hl, de
+	ld	c, a
+	ld	b, 0
+	add	hl, bc
+	add	hl, bc
 	ld	a, (hl)		; LOW byte of character data pointer
 	inc	hl
 	ld	h, (hl)		; HIGH byte of character data pointer
 	ld	l, a		; hl := character pointer
-
-	ld	d, b
-	ld	e, c		; de := screen pointer
 
 	; Decode character info:
 	ld	b, (hl)		; <char-info> = binary <widthnybles:2><startrow:3><height:3>
@@ -69,13 +66,13 @@ rep2:	inc hl
 	and	7
 	ld	b, a		; b := <startrow:3>
 	ex	de, hl		; hl := screen pointer; de := glyph pixel data
+	ex	af, af'		; a := <chr-info>; a' := (8 - startrow - height)
 	bit	5, h
 	jp	nz, render_o4
 
 
 	; RENDER AT OFFSET ZERO
 render_o0:
-	ex	af, af'		; a := <chr-info>; a' := (8 - startrow - height)
 	rla
 	jr	nc, render_w0w1_o0
 render_w2w3_o0:
@@ -247,7 +244,6 @@ r_w1_bot_end_o0:
 	; RENDER AT OFFSET 4
 render_o4:
 	res	5, h
-	ex	af, af'		; a := <chr-info>; a' := (8 - startrow - height)
 	rla
 	jp	nc, render_w0w1_o4
 render_w2w3_o4:
