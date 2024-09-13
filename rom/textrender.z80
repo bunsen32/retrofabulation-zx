@@ -9,8 +9,8 @@ render_text:
 	inc	b		; b := characters to print + 1
 	exx			; de' := char pointer; b' := remaining character count
 	pop	hl		; hl := row/column
-	; get screen position pointer into BC from HL coordinates
-	ld	de, $4000	; (FAKE)
+	; get screen position pointer into DE from HL coordinates
+	call	ROWCOL_ADDR
 	jp	render_common_char
 
 render_next_char:
@@ -22,7 +22,7 @@ render_next_char_same_line:
 	; <check haven’t gone off end of 32-character line>
 
 render_common_char:
-	exx			; de := char pointer; b := remaining characters + 1; bc' := screen pointer
+	exx			; de := char pointer; b := remaining characters + 1; de' := screen pointer
 	dec	b
 	ret	z
 	ld	a, (de)		; a := next character to render
@@ -353,7 +353,7 @@ r_w3_mid_o4_row1:
 	ld	a, (de)
 	inc	de
 	ld	c, a		; C := leftmost byte of glyph pixels
-	ld	a, (de)		; A := rightmost byte of glyph pixels
+	ld	a, (de)		; A  := rightmost byte of glyph pixels
 	inc	de
 	add	a
 	rl	c
@@ -374,7 +374,7 @@ r_w3_mid_o4_row2:
 	ld	a, (de)
 	inc	de
 	ld	c, a		; C := leftmost byte of glyph pixels
-	ld	a, (de)		; A := rightmost byte of glyph pixels
+	ld	a, (de)		; A  := rightmost byte of glyph pixels
 	inc	de
 	srl	c
 	rra
@@ -452,3 +452,44 @@ r_w1_bot_o4_init:
 	inc	l		; move to next column
 	jp	render_next_char
 
+
+	; row/column (HL) to screen address (DE)
+ROWCOL_ADDR:
+	ld	a, 63
+	cp	l
+	jr	c, rowcol_out_of_range
+	ld	a, 23
+	cp	h
+	jr	c, rowcol_out_of_range
+	srl	l
+	adc	(%01011111 - 23)
+	and	%11100000
+	or	h
+	and	%11111000
+	ld	d, a
+	
+	ld	a, h
+	rrca
+	rrca
+	rrca
+	and	%11100000
+	or	l
+	ld	e, a
+
+	ret
+
+rowcol_out_of_range:
+	xor	a
+	ld	d, a
+	ld	e, a
+	ret
+
+
+/*
+Some of the most useful commands for golfing in Z80 assembly language are sbc and adc. They often allow you to interact with the flag C in ways that are absolutely amazing. Here are some cool examples:
+
+How to create a decreasing counter in A that stops at 0? or a : jr nz,$+3 : dec a is ugly. sub 1 : adc 0 is faster, runs in constant time and can often be size-optimized, if you have handy 0s or 1s in one of your other registers. Have to stop at a non-zero value N? No problem: sub N : adc N-1. This also works for incrementing counter that is clamped at 255: add 1 : sbc 0. This also works for a incrementing counter clamped at an arbitrary value N: add 256-N : sbc 256-N-1.
+How to load an arbitrary value N to A when flag C is up (or zero otherwise)? ld a,N : jr c,$+3 : xor a is not the way. sbc a : and N usually is (it is faster and shorter by 2 bytes).
+How about loading into A value N if flag C is up or value M if flag C is down? Don't mess with conditional jumps! Use sbc a : and N-M : add M. (This last trick I believe is invented by GriV).
+https://codegolf.stackexchange.com/a/230574
+*/

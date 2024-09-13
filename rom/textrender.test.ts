@@ -42,7 +42,7 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		renderAt(vm, '‘tf;i’', 0, 0)
+		renderAt(vm, '‘tf;i’', 1, 1)
 
 		const actual = getScreenMono(vm)
 		await assertBitmapImageMatches("testout/half-width.png", actual)
@@ -77,7 +77,7 @@ function renderAt(vm: Vm, text: string, x: number, y: number) {
 		charBytes[i] = c
 	}
 	vm.setRam(0x9000, charBytes)
-	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), HL: ((x << 8) | y)})
+	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), HL: ((y << 8) | x)})
 	vm.setRam(0x8000, [
 		0xCD, 0x00, 0x06, // call $0600
 		0x76, // HALT
