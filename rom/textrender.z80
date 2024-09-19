@@ -11,7 +11,20 @@ render_text:
 	pop	hl		; hl := row/column
 	; get screen position pointer into DE from HL coordinates
 	call	ROWCOL_ADDR
-	jp	render_common_char
+	bit	5, d
+	jr	z, render_common_char
+			; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
+	ld	h, d
+	ld	l, e
+	res	5, h
+	ld	bc, $08f0	; b := count of cell lines, c := char-cell mask (to clear rhs of cell)
+clr_half_cell:
+	ld	a, (hl)
+	and	c
+	ld	(hl), a
+	inc	h
+	djnz	clr_half_cell
+	jr	render_common_char
 
 render_next_char:
 	ld	a, -8
