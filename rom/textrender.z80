@@ -9,15 +9,25 @@ render_text:
 	inc	b		; b := characters to print + 1
 	exx			; de' := char pointer; b' := remaining character count
 	pop	hl		; hl := row/column
-	; get screen position pointer into DE from HL coordinates
+	; get screen position pointer into DE from HL coordinates (and attr pointer in HL)
 	call	ROWCOL_ADDR
 	bit	5, d
 	jr	z, render_common_char
 			; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
+	ld	a, (hl)	; a := starting attribute
+	rra
+	rra
+	rra
+	xor	(hl)	; Want to check if paper==ink; in which case, clear the *whole* cell
+	and	7
+	jr	z, clr_half_cell0
+	ld	a, $f0
+clr_half_cell0:
 	ld	h, d
 	ld	l, e
 	res	5, h
-	ld	bc, $08f0	; b := count of cell lines, c := char-cell mask (to clear rhs of cell)
+	ld	c, a	; c := char-cell mask (to clear rhs of cell)
+	ld	b, $08	; b := count of cell lines
 clr_half_cell:
 	ld	a, (hl)
 	and	c
@@ -466,7 +476,7 @@ r_w1_bot_o4_init:
 	jp	render_next_char
 
 
-	; row/column (HL) to screen address (DE)
+	; row/column (HL) to screen address (DE) and attr pointer (HL)
 ROWCOL_ADDR:
 	ld	a, 63
 	cp	l
@@ -485,9 +495,16 @@ ROWCOL_ADDR:
 	rrca
 	rrca
 	rrca
+	ld	h, a
 	and	%11100000
 	or	l
-	ld	e, a
+	ld	e, a	; de := pixel cell pointer
+	
+	ld	a, %00000011
+	and	h
+	or	$58	; %01011000 Start of screen attributes
+	ld	h, a
+	ld	l, e	; hl := attribute cell pointer
 
 	ret
 
@@ -495,6 +512,8 @@ rowcol_out_of_range:
 	xor	a
 	ld	d, a
 	ld	e, a
+	ld	h, a
+	ld	l, a
 	ret
 
 

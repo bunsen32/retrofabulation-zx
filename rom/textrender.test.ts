@@ -38,6 +38,28 @@ describe("Text rendering", () => {
 		await assertBitmapImageMatches("testout/singlechar.png", actual)
 	})
 
+	test("Render at half-cell offset", async () => {
+		const vm = await loadedVm
+		cls1(vm)
+		vm.setRam(0x5820, [7])
+
+		renderAt(vm, 'ReTro…', 1, 1)
+
+		const actual = getScreenMono(vm)
+		await assertBitmapImageMatches("testout/half-cell-offset.png", actual)
+	})
+
+	test("Render at half-cell offset onto hidden cell", async () => {
+		const vm = await loadedVm
+		cls1(vm)
+		vm.setRam(0x5820, [0])
+
+		renderAt(vm, 'ReTro…', 1, 1)
+
+		const actual = getScreenMono(vm)
+		await assertBitmapImageMatches("testout/half-cell-offset-hidden.png", actual)
+	})
+
 	test("Render 4-pixel characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
