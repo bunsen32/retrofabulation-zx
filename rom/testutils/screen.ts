@@ -26,6 +26,16 @@ export function cls1(vm: Vm) {
 	}
 }
 
+export function clsObscured(vm: Vm) {
+	const core = vm.core
+	for(let p = 0x4000, n = 32 * 192; n > 0; p ++, n --) {
+		core.poke(p, 0xAA)
+	}
+	for(let p = 0x5800, n = 32 * 24; n > 0; p ++, n --) {
+		core.poke(p, 0b00000000) // Black-on-black
+	}
+}
+
 export type Bitmap = PImage.Bitmap
 
 export function getScreenMono(vm: Vm, xStart: number = 0, yStart: number = 0, w: number = 256, h: number = 192): Bitmap {

@@ -1,7 +1,7 @@
 // Test the interpreter:
 import {describe, expect, test} from '@jest/globals'
 import {byte, emulatorWasm, logSnapshots, stackTop, Vm} from './testutils/testvm'
-import {writeClip, getScreenMono, cls, Bitmap, readClip, cls1, assertSamePixels, getScreenColour} from "./testutils/screen"
+import {writeClip, getScreenMono, cls, Bitmap, readClip, cls1, assertSamePixels, getScreenColour, clsObscured} from "./testutils/screen"
 import {CharsetFromUnicode} from '../encoding'
 
 const rootExpectedFiles = "./rom"
@@ -74,12 +74,11 @@ describe("Text rendering", () => {
 
 	test("Render at half-cell offset onto hidden cell", async () => {
 		const vm = await loadedVm
-		cls1(vm)
-		vm.setRam(0x5820, [0])
+		clsObscured(vm)
 
-		renderAt(vm, 'ReTro…', 1, 1)
+		renderAt(vm, 'ReTro…', 1, 1, 0b01111000) // Bright white paper
 
-		const actual = getScreenMono(vm)
+		const actual = getScreenColour(vm)
 		await assertBitmapImageMatches("half-cell-offset-hidden", actual)
 	})
 
