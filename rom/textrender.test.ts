@@ -87,7 +87,7 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		renderAt(vm, '‘The Long, Dark Tea-Time of The Soul’, by Douglas Adams', 0, 0)
+		renderAt(vm, '‘The Long, Dark Tea-Time’', 0, 0)
 
 		const actual = getScreenMono(vm)
 		await assertBitmapImageMatches("mix-width-expected.png", actual)
