@@ -1,7 +1,7 @@
 // Test the interpreter:
 import {describe, expect, test} from '@jest/globals'
 import {byte, emulatorWasm, logSnapshots, stackTop, Vm} from './testutils/testvm'
-import {writeClip, getScreenMono, cls, Bitmap, readClip, cls1, assertSamePixels} from "./testutils/screen"
+import {writeClip, getScreenMono, cls, Bitmap, readClip, cls1, assertSamePixels, getScreenColour} from "./testutils/screen"
 import {CharsetFromUnicode} from '../encoding'
 
 const rootExpectedFiles = "./rom"

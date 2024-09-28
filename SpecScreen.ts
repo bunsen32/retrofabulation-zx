@@ -74,6 +74,12 @@ const paperColours = {
 
 
 type InkAndPaper = [ink: string, paper: string]
+export function coloursFromAttr(attr: number): InkAndPaper {
+	return [
+		inkColours[attr & inkMask],
+		paperColours[attr & paperMask]
+	]
+}
 
 export class SpecScreen {
 	public readonly width: number
@@ -98,7 +104,7 @@ export class SpecScreen {
 
 	public cls(paper: Attr){
 		const attrBits = this.bitsFromAttr(paper)
-		this.cx.fillStyle = this.coloursFromAttr(attrBits)[1]
+		this.cx.fillStyle = coloursFromAttr(attrBits)[1]
 		this.cx.fillRect(0, 0, this.width, this.height)
 		this.pixelData.fill(0)
 		this.attrData.fill(attrBits)
@@ -166,7 +172,7 @@ export class SpecScreen {
 		this.attrData[row * this.columns + col] = v
 
 		// Redraw the cell with new attributes:
-		const inkAndPaper = this.coloursFromAttr(v)
+		const inkAndPaper = coloursFromAttr(v)
 		let y = row << 3
 		for (let i = 0; i < 8; i ++) {
 			const byte = this.pixelData[this.pixelByteIndex(col, y)]
@@ -196,25 +202,18 @@ export class SpecScreen {
 
 	private coloursForPixel(x: number, y: number): InkAndPaper {
 		if (x < 0 || y < 0 || x >= this.width || y >= this.height) throw `out of range ${x},${y}`
-		return this.coloursFromAttr(
+		return coloursFromAttr(
 			this.attrForCell(x>>3, y>>3))
 	}
 
 	private coloursForCell(col: number, row: number): InkAndPaper {
-		return this.coloursFromAttr(
+		return coloursFromAttr(
 			this.attrForCell(col, row))
 	}
 
 	private attrForCell(col: number, row: number): number {
 		if (col < 0 || row < 0 || col >= this.columns || row >= this.rows) throw "out of range"
 		return this.attrData[row * this.columns + col]
-	}
-
-	private coloursFromAttr(attr: number): InkAndPaper {
-		return [
-			inkColours[attr & inkMask],
-			paperColours[attr & paperMask]
-		]
 	}
 
 	private pixelByteIndex(col: number, y: number): number {
