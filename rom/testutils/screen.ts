@@ -1,6 +1,9 @@
 import {Vm} from './testvm'
 import * as PImage from 'pureimage'
-import { createWriteStream, createReadStream } from 'fs'
+import { createWriteStream, createReadStream, existsSync } from 'fs'
+import * as fs from 'fs'
+import * as path from 'path'
+import { expect } from '@jest/globals'
 
 export function cls(vm: Vm) {
 	const core = vm.core
@@ -52,15 +55,26 @@ export function getScreenMono(vm: Vm, xStart: number = 0, yStart: number = 0, w:
 }
 
 export async function writeClip(clipImage: Bitmap, filename: string) {
+	await fs.promises.mkdir(path.dirname(filename), { recursive: true })
 	await PImage.encodePNGToStream(clipImage, createWriteStream(filename))
 }
 
-export async function readClip(filename: string): Promise<Bitmap> {
+export async function readClip(filename: string): Promise<Bitmap|null> {
+	if (!existsSync(filename)) return Promise.resolve(null)
 	return await PImage.decodePNGFromStream(createReadStream(filename))
 }
 
 export function assertSamePixels(expected: Bitmap, actual: Bitmap) {
-
+	const w = expected.width
+	const h = expected.height
+	expect(actual.width).toBe(w)
+	expect(actual.height).toBe(h)
+	const expectedData = expected.getContext("2d").getImageData(0, 0, w, h).data
+	const actualData = actual.getContext("2d").getImageData(0, 0, w, h).data
+	for(let i = 0; i < expectedData.length; i++) {
+		if (actualData[i] != expectedData[i])
+			throw "Mismatch at byte "+i
+	}
 }
 
 function lineAddressFromY(y: number) {

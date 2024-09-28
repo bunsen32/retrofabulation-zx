@@ -1,8 +1,11 @@
 // Test the interpreter:
 import {describe, expect, test} from '@jest/globals'
 import {byte, emulatorWasm, logSnapshots, stackTop, Vm} from './testutils/testvm'
-import {writeClip, getScreenMono, cls, Bitmap, readClip, cls1} from "./testutils/screen"
+import {writeClip, getScreenMono, cls, Bitmap, readClip, cls1, assertSamePixels} from "./testutils/screen"
 import {CharsetFromUnicode} from '../encoding'
+
+const rootExpectedFiles = "./rom"
+const rootActualMismatchFiles = "./testout"
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>
@@ -25,7 +28,7 @@ describe("Text rendering", () => {
 		vm.core.poke(0x4700, 0x80)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("testout/shapes.png", actual)
+		await assertBitmapImageMatches("shapes-expected.png", actual)
 	})
 
 	test("Render 8-pixel characters", async () => {
@@ -35,7 +38,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 0, 0)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("testout/singlechar.png", actual)
+		await assertBitmapImageMatches("singlechar-expected.png", actual)
 	})
 
 	test("Render at half-cell offset", async () => {
@@ -46,7 +49,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 1, 1)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("testout/half-cell-offset.png", actual)
+		await assertBitmapImageMatches("half-cell-offset-expected.png", actual)
 	})
 
 	test("Render at half-cell offset onto hidden cell", async () => {
@@ -57,7 +60,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 1, 1)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("testout/half-cell-offset-hidden.png", actual)
+		await assertBitmapImageMatches("half-cell-offset-hidden-expected.png", actual)
 	})
 
 	test("Render 4-pixel characters", async () => {
@@ -67,7 +70,7 @@ describe("Text rendering", () => {
 		renderAt(vm, '‘tf;i’', 1, 1)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("testout/half-width.png", actual)
+		await assertBitmapImageMatches("half-width-expected.png", actual)
 	})
 
 	test("Render 12-pixel characters", async () => {
@@ -77,7 +80,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'wm\x7f™', 0, 0)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("testout/extra-width.png", actual)
+		await assertBitmapImageMatches("extra-width-expected.png", actual)
 	})
 
 	test("Render mix of characters", async () => {
@@ -87,7 +90,7 @@ describe("Text rendering", () => {
 		renderAt(vm, '‘The Long, Dark Tea-Time of The Soul’, by Douglas Adams', 0, 0)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("testout/mix-width.png", actual)
+		await assertBitmapImageMatches("mix-width-expected.png", actual)
 	})
 })
 
@@ -101,14 +104,25 @@ function renderAt(vm: Vm, text: string, x: number, y: number) {
 	vm.setRam(0x9000, charBytes)
 	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), HL: ((y << 8) | x)})
 	vm.setRam(0x8000, [
-		0xCD, 0x00, 0x06, // call $0600
+		0xCD, 0x00, 0x08, // call $0600
 		0x76, // HALT
 	])
 	vm.runPcAt(0x8000, 20000)
 }
 
-async function assertBitmapImageMatches(expectedOutputImageFilename: string, actualOutput: Bitmap): Promise<void> {
-	const expected = await readClip(expectedOutputImageFilename)
-	// Compare the two
-	await writeClip(actualOutput, `${expectedOutputImageFilename}_actual.png`)
+async function assertBitmapImageMatches(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
+	expect(expectedPngFilename).toMatch(/-expected\.png$/)
+	const expectFilePath = `textrender.test/${expectedPngFilename}`
+
+	const expected = await readClip(`${rootExpectedFiles}/${expectFilePath}`)
+	try {
+		if (!expected) throw `Cannot find file: ${expectFilePath}`
+		assertSamePixels(expected, actualOutput)
+
+	} catch(problem) {
+		const actualFilePath = expectFilePath.replace('-expected.', '-actual.')
+		const actualFullPath = `${rootActualMismatchFiles}/${actualFilePath}`
+		await writeClip(actualOutput, actualFullPath)
+		throw problem
+	}
 }
