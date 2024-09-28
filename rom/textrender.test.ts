@@ -28,7 +28,7 @@ describe("Text rendering", () => {
 		vm.core.poke(0x4700, 0x80)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("shapes-expected.png", actual)
+		await assertBitmapImageMatches("shapes", actual)
 	})
 
 	test("Render 8-pixel characters", async () => {
@@ -38,7 +38,27 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 0, 0)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("singlechar-expected.png", actual)
+		await assertBitmapImageMatches("singlechar", actual)
+	})
+
+	test("Render 4-pixel characters", async () => {
+		const vm = await loadedVm
+		cls1(vm)
+
+		renderAt(vm, '‘tf;i’', 1, 1)
+
+		const actual = getScreenMono(vm)
+		await assertBitmapImageMatches("half-width", actual)
+	})
+
+	test("Render 12-pixel characters", async () => {
+		const vm = await loadedVm
+		cls1(vm)
+
+		renderAt(vm, 'wm\x7f™', 0, 0)
+
+		const actual = getScreenMono(vm)
+		await assertBitmapImageMatches("extra-width", actual)
 	})
 
 	test("Render at half-cell offset", async () => {
@@ -49,7 +69,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 1, 1)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("half-cell-offset-expected.png", actual)
+		await assertBitmapImageMatches("half-cell-offset", actual)
 	})
 
 	test("Render at half-cell offset onto hidden cell", async () => {
@@ -60,27 +80,37 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 1, 1)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("half-cell-offset-hidden-expected.png", actual)
+		await assertBitmapImageMatches("half-cell-offset-hidden", actual)
 	})
 
-	test("Render 4-pixel characters", async () => {
+	test("Colours text 0.5 cells wide", async () => {
 		const vm = await loadedVm
-		cls1(vm)
+		cls(vm)
 
-		renderAt(vm, '‘tf;i’', 1, 1)
+		renderAt(vm, '.', 4, 4, 0b01110001)
 
-		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("half-width-expected.png", actual)
+		const actual = getScreenColour(vm)
+		await assertBitmapImageMatches("applies-attrs-0_5", actual)
 	})
 
-	test("Render 12-pixel characters", async () => {
+	test("Colours text 1 cell wide", async () => {
 		const vm = await loadedVm
-		cls1(vm)
+		cls(vm)
 
-		renderAt(vm, 'wm\x7f™', 0, 0)
+		renderAt(vm, 'R', 4, 4, 0b01110001)
 
-		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("extra-width-expected.png", actual)
+		const actual = getScreenColour(vm)
+		await assertBitmapImageMatches("applies-attrs-1", actual)
+	})
+
+	test("Colours text 1.5 cells wide", async () => {
+		const vm = await loadedVm
+		cls(vm)
+
+		renderAt(vm, 'R!', 4, 4, 0b01110001)
+
+		const actual = getScreenColour(vm)
+		await assertBitmapImageMatches("applies-attrs-1_5", actual)
 	})
 
 	test("Render mix of characters", async () => {
@@ -90,11 +120,11 @@ describe("Text rendering", () => {
 		renderAt(vm, '‘The Long, Dark Tea-Time’', 0, 0)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("mix-width-expected.png", actual)
+		await assertBitmapImageMatches("mix-width", actual)
 	})
 })
 
-function renderAt(vm: Vm, text: string, x: number, y: number) {
+function renderAt(vm: Vm, text: string, x: number, y: number, attr: byte = 0b00111000) {
 	const charBytes: byte[] = []
 	const textLength = text.length
 	for(let i = 0; i < textLength; i++) {
@@ -102,7 +132,7 @@ function renderAt(vm: Vm, text: string, x: number, y: number) {
 		charBytes[i] = c
 	}
 	vm.setRam(0x9000, charBytes)
-	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), HL: ((y << 8) | x)})
+	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), AF: (attr << 8), HL: ((y << 8) | x)})
 	vm.setRam(0x8000, [
 		0xCD, 0x00, 0x08, // call $0600
 		0x76, // HALT
@@ -111,8 +141,7 @@ function renderAt(vm: Vm, text: string, x: number, y: number) {
 }
 
 async function assertBitmapImageMatches(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
-	expect(expectedPngFilename).toMatch(/-expected\.png$/)
-	const expectFilePath = `textrender.test/${expectedPngFilename}`
+	const expectFilePath = `textrender.test/${expectedPngFilename}-expected.png`
 
 	const expected = await readClip(`${rootExpectedFiles}/${expectFilePath}`)
 	try {

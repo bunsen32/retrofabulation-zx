@@ -2,13 +2,20 @@
 	; de	= pointer to characters
 	; b	= count of characters
 	; hl	= row/column (h = row 0–23; l = column 0–63)
+	; a	= attrs for the text
 render_text:
-	push	hl
+	inc	b
+	dec	b
+	ret	z		; Return if no characters to render.
+
 	inc	b		; b := characters to print + 1
+	push	af		; push attrs value
+	push	hl
 	exx			; de' := char pointer; b' := remaining character count
 	pop	hl		; hl := row/column
 	; get screen position pointer into DE from HL coordinates (and attr pointer in HL)
 	call	ROWCOL_ADDR
+	push	hl		; push address of attr block
 	bit	5, d
 	jr	z, render_common_char
 			; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
@@ -45,7 +52,7 @@ render_next_char_same_line:
 render_common_char:
 	exx			; de := char pointer; b := remaining characters + 1; de' := screen pointer
 	dec	b
-	ret	z
+	jr	z, colour_it_in
 	ld	a, (de)		; a := next character to render
 	inc	de
 
@@ -143,6 +150,26 @@ r_w2_bot_o0:
 r_w2_bot_end_o0:
 	inc	l		; move to next column
 	jp	render_next_char
+
+colour_it_in:
+	exx		; de := screen pointer
+	ld	a, e
+	bit	5, d
+	jr	z, colour_to_prev_cell
+	inc	a
+colour_to_prev_cell:
+	pop	hl	; hl := pointer to attribute block (of FIRST char)
+	sub	l
+	ld	c, a	; Counter is BC. But we know that B is 0 when we get here.
+	pop	af	; a  := attrs
+	ld	(hl), a
+	dec	c
+	ret	z
+	ld	d, h
+	ld	e, l
+	inc	e
+	ldir
+	ret
 
 
 	; RENDER 12-BIT GLYPH AT OFFSET ZERO
