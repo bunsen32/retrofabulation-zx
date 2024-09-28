@@ -1,5 +1,3 @@
-	PADTO	$0600
-
 	; Render some text
 	; de	= pointer to characters
 	; b	= count of characters
@@ -277,7 +275,7 @@ render_w2w3_o4:
 	; RENDER 8-BIT GLYPH AT OFFSET4
 render_w2_o4:
 	exx
-	ld	h, $8	; 4-shift lookup thing
+	ld	h, (SHIFT_LEFT_4_LOOKUP >> 8)	; 4-shift lookup thing
 	exx
 	inc	l
 	xor	a

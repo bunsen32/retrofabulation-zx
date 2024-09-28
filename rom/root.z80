@@ -1,8 +1,14 @@
+	LUA
+	function hex(num)
+		return string.format("0x%x", num)
+	end
+	ENDLUA
 	MACRO PADTO addr ; z80asm "FORG" replacement
 		; add padding + display warning
 		IF $ > addr
-			; no padding
-			DISPLAY /L, "Warning! PADTO failed! ", $, " is more than ", addr
+			LUA
+			sj.error("PADTO failed! "..hex(_c("addr")).." is less than current position "..hex(_c("$")))
+			ENDLUA
 		ELSE
 			; add padding
 			BLOCK addr-$
@@ -11,7 +17,7 @@
 	ENDM
 
 	INCLUDE "interpreter.z80"	; 0100 to 05FF
-	INCLUDE "textrender.z80"	; 0600 to 06FF
-	INCLUDE "four-shift-lookup.z80"	; 0800 to 09FF
-	PADTO $0a00
+	INCLUDE "four-shift-lookup.z80"	; 0600 to 07FF
+	PADTO $0800
+	INCLUDE "textrender.z80"	; 0800 to 0a0F
 	INCLUDE "generated/font.z80"	; 0a00 to 0fFF

@@ -1,11 +1,13 @@
-	PADTO	$0800
+	PADTO	$0600
+SHIFT_LEFT_4_LOOKUP:
 ix = 0
 	WHILE ix < $100
 	  DB	(ix << 4) & 0xf0
 ix = ix + 1
 	ENDW
 
-	PADTO	$0900
+	PADTO	$0700
+SHIFT_RIGHT_4_LOOKUP:
 ix = 0
 	WHILE ix < $100
 	  DB	(ix >> 4) & 0x0f
