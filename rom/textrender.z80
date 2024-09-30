@@ -160,15 +160,14 @@ colour_it_in:
 colour_to_prev_cell:
 	pop	hl	; hl := pointer to attribute block (of FIRST char)
 	sub	l
-	ld	c, a	; Counter is BC. But we know that B is 0 when we get here.
+	ld	b, a
 	pop	af	; a  := attrs
+colour_loop:
 	ld	(hl), a
-	dec	c
-	ret	z
-	ld	d, h
-	ld	e, l
-	inc	e
-	ldir
+	inc	l
+	djnz	colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
+			; For short runs, up to 10 characters, djnz is faster. For 32 characters, ldir is 10% faster.
+			; For VERY short runs (1–2 characters), djnz is twice as fast.
 	ret
 
 
