@@ -1,3 +1,6 @@
+	OUTPUT	neo48.rom
+	SIZE	4000H
+
 	LUA
 	function hex(num)
 		return string.format("0x%x", num)
@@ -16,7 +19,7 @@
 		ORG	addr
 	ENDM
 
-	INCLUDE "interpreter.z80"	; 0100 to 05FF
+	INCLUDE "interpreter.z80"	; 00D0 to 05FF
 	INCLUDE "four-shift-lookup.z80"	; 0600 to 07FF
 	PADTO $0800
 	INCLUDE "textrender.z80"	; 0800 to 0a0F

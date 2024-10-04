@@ -114,7 +114,7 @@ export class Vm {
 		const address = 0x8000
 		this.setRam(address, bytes)
 		this.setRegisters({ HL: address, SP: stackTop })
-		this.runPcAt(0x0080, forTStates)
+		this.runPcAt(0x00D0, forTStates)
 		if (this.core.getHalted()) return
 	
 		const trace = this.traceInterpret(bytes, forTStates)
