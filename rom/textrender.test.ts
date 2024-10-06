@@ -1,11 +1,8 @@
 // Test the interpreter:
-import {describe, expect, test} from '@jest/globals'
-import {byte, emulatorWasm, logSnapshots, stackTop, Vm} from './testutils/testvm'
-import {writeClip, getScreenMono, cls, Bitmap, readClip, cls1, assertSamePixels, getScreenColour, clsObscured} from "./testutils/screen"
+import {describe, test} from '@jest/globals'
+import {byte, emulatorWasm, stackTop, Vm} from './testutils/testvm'
+import {getScreenMono, cls, Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen"
 import {CharsetFromUnicode} from '../encoding'
-
-const rootExpectedFiles = "./rom"
-const rootActualMismatchFiles = "./testout"
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>
@@ -28,7 +25,7 @@ describe("Text rendering", () => {
 		vm.core.poke(0x4700, 0x80)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("shapes", actual)
+		await assertExpectedImage("shapes", actual)
 	})
 
 	test("Render 8-pixel characters", async () => {
@@ -38,7 +35,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 0, 0)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("singlechar", actual)
+		await assertExpectedImage("singlechar", actual)
 	})
 
 	test("Render 4-pixel characters", async () => {
@@ -48,7 +45,7 @@ describe("Text rendering", () => {
 		renderAt(vm, '‘tf;i’', 1, 1)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("half-width", actual)
+		await assertExpectedImage("half-width", actual)
 	})
 
 	test("Render 12-pixel characters", async () => {
@@ -58,7 +55,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'wm\x7f™', 0, 0)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("extra-width", actual)
+		await assertExpectedImage("extra-width", actual)
 	})
 
 	test("Render at half-cell offset", async () => {
@@ -69,7 +66,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 1, 1)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("half-cell-offset", actual)
+		await assertExpectedImage("half-cell-offset", actual)
 	})
 
 	test("Render at half-cell offset onto hidden cell", async () => {
@@ -79,7 +76,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'ReTro…', 1, 1, 0b01111000) // Bright white paper
 
 		const actual = getScreenColour(vm)
-		await assertBitmapImageMatches("half-cell-offset-hidden", actual)
+		await assertExpectedImage("half-cell-offset-hidden", actual)
 	})
 
 	test("Colours text 0.5 cells wide", async () => {
@@ -89,7 +86,7 @@ describe("Text rendering", () => {
 		renderAt(vm, '.', 4, 4, 0b01110001)
 
 		const actual = getScreenColour(vm)
-		await assertBitmapImageMatches("applies-attrs-0_5", actual)
+		await assertExpectedImage("applies-attrs-0_5", actual)
 	})
 
 	test("Colours text 1 cell wide", async () => {
@@ -99,7 +96,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'R', 4, 4, 0b01110001)
 
 		const actual = getScreenColour(vm)
-		await assertBitmapImageMatches("applies-attrs-1", actual)
+		await assertExpectedImage("applies-attrs-1", actual)
 	})
 
 	test("Colours text 1.5 cells wide", async () => {
@@ -109,7 +106,7 @@ describe("Text rendering", () => {
 		renderAt(vm, 'R!', 4, 4, 0b01110001)
 
 		const actual = getScreenColour(vm)
-		await assertBitmapImageMatches("applies-attrs-1_5", actual)
+		await assertExpectedImage("applies-attrs-1_5", actual)
 	})
 
 	test("Render mix of characters", async () => {
@@ -119,7 +116,7 @@ describe("Text rendering", () => {
 		renderAt(vm, '‘The Long, Dark Tea-Time’', 0, 0)
 
 		const actual = getScreenMono(vm)
-		await assertBitmapImageMatches("mix-width", actual)
+		await assertExpectedImage("mix-width", actual)
 	})
 })
 
@@ -133,24 +130,12 @@ function renderAt(vm: Vm, text: string, x: number, y: number, attr: byte = 0b001
 	vm.setRam(0x9000, charBytes)
 	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), AF: (attr << 8), HL: ((y << 8) | x)})
 	vm.setRam(0x8000, [
-		0xCD, 0x00, 0x08, // call $0600
+		0xCD, 0x00, 0x08, // call $0800
 		0x76, // HALT
 	])
 	vm.runPcAt(0x8000, 20000)
 }
 
-async function assertBitmapImageMatches(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
-	const expectFilePath = `textrender.test/${expectedPngFilename}-expected.png`
-
-	const expected = await readClip(`${rootExpectedFiles}/${expectFilePath}`)
-	try {
-		if (!expected) throw `Cannot find file: ${expectFilePath}`
-		assertSamePixels(expected, actualOutput)
-
-	} catch(problem) {
-		const actualFilePath = expectFilePath.replace('-expected.', '-actual.')
-		const actualFullPath = `${rootActualMismatchFiles}/${actualFilePath}`
-		await writeClip(actualOutput, actualFullPath)
-		throw problem
-	}
+async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
+	assertBitmapImageMatches('textrender.test', expectedPngFilename, actualOutput)
 }

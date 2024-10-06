@@ -1,0 +1,115 @@
+	PADTO	$0000
+INT_00:
+	di
+	jr	RAM_TEST
+
+	PADTO	$0008
+INT_08:
+	PADTO	$0010
+INT_10:
+	PADTO	$0018
+INT_18:
+	PADTO	$0020
+INT_20:
+	PADTO	$0028
+INT_28:
+	PADTO	$0030
+INT_30:
+	PADTO	$0038
+INT_38:
+	; stuff
+
+	; Slightly weird routine for wiping memory downwards, from SP
+	; CB: is count of 4-byte blocks to clear; A is value to clear with.
+	; HL is the return address. HL & A are preserved. DE is destroyed. BC is zeroed
+	MACRO WIPE_SP_BC bytecount
+.blockcount	=	bytecount / 4
+.lsb	=	.blockcount & $ff
+.msb	=	(.blockcount + $ff) >> 8
+	ld	bc, (.lsb << 8) | (.msb)
+	ENDM
+WIPE_SP_32
+	ld	d, a
+	ld	e, a
+fast_clear_loop:
+	push	de
+	push	de
+	djnz	fast_clear_loop
+	dec	c
+	jr	nz, fast_clear_loop
+	jp	(hl)
+
+RAM_TEST
+	ld	hl, .test_bytes
+	ld	a, 2
+.set_bytes:
+	ld	sp, $0000
+	WIPE_SP_BC	(48 * 1024)
+	jr	WIPE_SP_32
+.test_bytes:
+	WIPE_SP_BC	(48 * 1024 * 2)
+.loop:
+	pop	de
+	cp	d
+	jr	nz, RAM_TEST_FAIL
+	cp	e
+	jr	nz, RAM_TEST_FAIL
+	djnz	.loop
+	dec	c
+	jr	nz, .loop
+
+	sub	1
+	jr	nc, .set_bytes
+	jr	SPLASH
+
+RAM_TEST_FAIL:
+	; TBD
+	HALT
+
+SPLASH:
+	ld	sp,$5B00
+	ld	b, (24 * 32) / 4
+	ld	de, $0909	; No bright, paper = blue, ink = blue
+.cls_blue:	push	de
+	push	de
+	djnz	.cls_blue
+
+	ld	h,3	; Loop over 3 screen-thirds
+.loop_screen_thirds:
+	ld	de,$0f0f
+	exx
+	ld	de,$ffff
+	ld	l,4	; 4 pattern repeats in screen-third (loop counter)
+.loop_lines_in_cell:
+	ld	a,16	; 16 pairs of identical pixel bytes in screen third (loop counter)
+.loop_cells_in_third:
+	ld	b,32/4
+.loop_words_in_line:
+	push	de
+	push	de
+	djnz	.loop_words_in_line
+.next_pixel_row:	exx
+	dec	a
+	jr	nz,.loop_cells_in_third
+	srl	e
+	ld	d,e
+	exx
+	srl	e
+	ld	d,e
+	exx
+	dec	l
+	jr	nz,.loop_lines_in_cell
+	dec	h
+	jr	nz,.loop_screen_thirds
+
+	halt
+COPYRIGHT:
+	ld	sp, $f000	; Placeholder stack top.
+	ld	de, .text
+	ld	b, 27
+	ld	a, %00111000
+	ld	hl, $1601
+	call	$800
+	halt
+
+.text	db	$a9,' 1982 RetroXZ Research Ltd'

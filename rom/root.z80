@@ -19,6 +19,7 @@
 		ORG	addr
 	ENDM
 
+	INCLUDE "startup.z80"	; 0000 to 00CF
 	INCLUDE "interpreter.z80"	; 00D0 to 05FF
 	INCLUDE "four-shift-lookup.z80"	; 0600 to 07FF
 	PADTO $0800

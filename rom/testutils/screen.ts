@@ -6,6 +6,9 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { expect } from '@jest/globals'
 
+const rootExpectedFiles = "./rom"
+const rootActualMismatchFiles = "./testout"
+
 export function cls(vm: Vm) {
 	const core = vm.core
 	for(let p = 0x4000, n = 32 * 192; n > 0; p ++, n --) {
@@ -106,6 +109,22 @@ export function getScreenColour(vm: Vm, xStart: number = 0, yStart: number = 0, 
 
 	context.putImageData(pixels, 0, 0)
 	return clip
+}
+
+export async function assertBitmapImageMatches(subdir: string, expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
+	const expectFilePath = `${subdir}/${expectedPngFilename}-expected.png`
+
+	const expected = await readClip(`${rootExpectedFiles}/${expectFilePath}`)
+	try {
+		if (!expected) throw `Cannot find file: ${expectFilePath}`
+		assertSamePixels(expected, actualOutput)
+
+	} catch(problem) {
+		const actualFilePath = expectFilePath.replace('-expected.', '-actual.')
+		const actualFullPath = `${rootActualMismatchFiles}/${actualFilePath}`
+		await writeClip(actualOutput, actualFullPath)
+		throw problem
+	}
 }
 
 export async function writeClip(clipImage: Bitmap, filename: string) {
