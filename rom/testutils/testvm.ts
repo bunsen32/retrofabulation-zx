@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs'
 
 export const FRAME_BUFFER_SIZE = 0x6600;
 
-export type byte = number
+import {byte} from '../../Byte'
 export type word = number
 
 export class Vm {

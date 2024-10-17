@@ -1,8 +1,9 @@
 // Test the interpreter:
 import {describe, test} from '@jest/globals'
-import {byte, emulatorWasm, stackTop, Vm} from './testutils/testvm'
+import {emulatorWasm, stackTop, Vm} from './testutils/testvm'
 import {getScreenMono, cls, Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen"
 import {CharsetFromUnicode} from '../encoding'
+import {byte} from '../Byte'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>

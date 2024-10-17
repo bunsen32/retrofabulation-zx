@@ -1,4 +1,4 @@
-export type byte = number
+import {byte} from './Byte'
 export type RGB = [red: byte, green: byte, blue: byte]
 
 export const black: RGB = [0, 0, 0]

@@ -1,6 +1,7 @@
 import {describe, expect, test} from '@jest/globals'
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "../parsing"
 import {emulatorWasm, Vm} from './testutils/testvm'
+import {byte} from '../Byte'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>
@@ -174,7 +175,7 @@ describe('New ROM!', () => {
 
 		vm.interpret([
 			Op.LiteralFalse,
-			BoolOp.If | 0x0f, 0x02,
+			(BoolOp.If | 0x0f)as byte, 0x02,
 			Op.HALT,
 			...makeArray(Op.HALT, 15 * 256),
 			literal16(NumPres.Hex), 0x10, 0x32,
@@ -192,12 +193,12 @@ describe('New ROM!', () => {
 			load16(0),
 			Op.Literal16IntDec, 0x0a, 0x00,
 			Op.IntLt,
-			BoolOp.While | 0x00, 0x07, // = 7
+			(BoolOp.While | 0x00) as byte, 0x07, // = 7
 			load16(0),
 			Op.LiteralInt1,
 			Op.IntAdd,
 			store16(0),
-			Op.EndLoop | 0x0f, 0xf4, // = -12
+			(Op.EndLoop | 0x0f) as byte, 0xf4, // = -12
 			Op.HALT
 		], 7985)
 	})

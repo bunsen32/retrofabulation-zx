@@ -1,4 +1,4 @@
-type byte = number
+import {byte} from './Byte'
 
 // OP-code: 0b_JUMP_DATA
 
@@ -283,23 +283,25 @@ function parse(text: string): byte[] {
 	return out
 }
 
-export function literal16(pres: NumPres) {
-	return Op.Literal16IntBin + pres
+export function literal16(pres: NumPres): byte {
+	return Op.Literal16IntBin + pres as byte
 }
 
-export function load16(slotNumber) {
+export function load16(slotNumber): byte {
 	if (slotNumber < 8) {
-		return Op.LocalLoadsNear | (slotNumber << 1) | 0
+		return (Op.LocalLoadsNear | (slotNumber << 1) | 0) as byte
 	}
 	throw "Unsupported load16 "+slotNumber
 }
 
-export function store16(slotNumber) {
+export function store16(slotNumber): byte {
 	if (slotNumber < 8) {
-		return Op.LocalStoresNear | (slotNumber << 1) | 0
+		return (Op.LocalStoresNear | (slotNumber << 1) | 0) as byte
 	}
 	throw "Unsupported store16 "+slotNumber
 }
+
+
 
 const sample: byte[][] = [
 	[
