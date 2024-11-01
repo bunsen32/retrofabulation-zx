@@ -11,6 +11,7 @@
   "scripts": {
     "test": "jest",
     "genfont": "ts-node --project tsconfig.generation.json rom/makefont.ts rom/generated/font.z80",
-    "assemble": "sjasmplus --outprefix=dist/roms/ --sym=rom/generated/symbols.txt -Wno-fwdref rom/root.z80"
+		"symtojs": "ts-node --project tsconfig.generation.json rom/build/symbolstojs <rom/generated/symbols.txt >rom/generated/symbols.ts",
+    "assemble": "sjasmplus --outprefix=dist/roms/ --sym=rom/generated/symbols.txt -Wno-fwdref rom/root.z80; yarn symtojs"
   }
 }

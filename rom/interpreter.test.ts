@@ -22,7 +22,7 @@ describe('New ROM!', () => {
 			0x32, 0xff, 0x7f, // ld ($7fff), a
 			0x76, // HALT
 		])
-		vm.runPcAt(0x8000)
+		vm.runPcAt({addr:0x8000})
 
 		expect(vm.core.getHalted()).toBe(1)
 		expect(vm.core.peek(0x7fff)).toBe(0x3e)

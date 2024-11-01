@@ -2,6 +2,7 @@
 import {describe, test} from '@jest/globals'
 import {emulatorWasm, Vm} from './testutils/testvm'
 import {getScreenMono, Bitmap, cls1, getScreenColour, assertBitmapImageMatches} from "./testutils/screen"
+import {rom} from './generated/symbols'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>
@@ -13,7 +14,7 @@ describe("Startup sequence", () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		vm.runPcAt(0x65, 20000)
+		vm.runPcAt(rom.SPLASH, 20000)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("splash-colour", actual)
@@ -23,7 +24,7 @@ describe("Startup sequence", () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		vm.runPcAt(0x65, 200000)
+		vm.runPcAt(rom.SPLASH, 200000)
 
 		const actual = getScreenMono(vm)
 		await assertExpectedImage("splash-pixels", actual)

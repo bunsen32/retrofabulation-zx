@@ -134,7 +134,7 @@ function renderAt(vm: Vm, text: string, x: number, y: number, attr: byte = 0b001
 		0xCD, 0x00, 0x08, // call $0800
 		0x76, // HALT
 	])
-	vm.runPcAt(0x8000, 20000)
+	vm.runPcAt({addr:0x8000}, 20000)
 }
 
 async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {

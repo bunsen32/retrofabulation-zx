@@ -4,7 +4,10 @@ import {readFileSync} from 'node:fs'
 export const FRAME_BUFFER_SIZE = 0x6600;
 
 import {byte} from '../../Byte'
+import {rom} from '../generated/symbols'
 export type word = number
+
+export type Z80Address = { addr: number }
 
 export class Vm {
 	memory: {buffer: ArrayBuffer}
@@ -78,16 +81,16 @@ export class Vm {
 		this.memoryData.set(bytes, p)
 	}
 	
-	runPcAt(address: number, forTStates: number = 100){
+	runPcAt(address: Z80Address, forTStates: number = 100){
 		this.core.reset()
-		this.core.setPC(address)
+		this.core.setPC(address.addr)
 		const result = this.core.runUntil(forTStates)
 		expect(result).toBe(0)
 	}
 	
-	tracePcAt(address: number, forTStates: number): CpuSnapshot[] {
+	tracePcAt(address: Z80Address, forTStates: number): CpuSnapshot[] {
 		this.core.reset()
-		this.core.setPC(address)
+		this.core.setPC(address.addr)
 		const trace: CpuSnapshot[] = []
 		while (1) {
 			const cpu = this.getRegisters() as any
@@ -107,14 +110,14 @@ export class Vm {
 		const address = 0x8000
 		this.setRam(address, bytes)
 		this.setRegisters({ HL: address, SP: stackTop })
-		return this.tracePcAt(0x0080, forTStates)
+		return this.tracePcAt(rom.interpreter, forTStates)
 	}
 	
 	interpret(bytes: byte[], forTStates: number = 200) {
 		const address = 0x8000
 		this.setRam(address, bytes)
 		this.setRegisters({ HL: address, SP: stackTop })
-		this.runPcAt(0x00D0, forTStates)
+		this.runPcAt(rom.interpreter, forTStates)
 		if (this.core.getHalted()) return
 	
 		const trace = this.traceInterpret(bytes, forTStates)
