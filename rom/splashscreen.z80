@@ -46,33 +46,46 @@ COPYRIGHT:
 	halt
 
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,
-	; A: x-position (0–45); B: attribute for rightmost cells; C: attribute for trailing cells
+	; A: x-position (0–45); C: attribute to paint
 STRIPE:
+	ld	de, 32
+	ld	h, $58	; HL := attribute pointer
 	ld	l, a
-	sub	32
+	sub	e
 	jr	nc, .stripe_rightoff	; Stripe position is beyond edge of screen
 	ld	a, l
-	cp	15	; 12 (half of screen height) + 3 (width of pattern)
+	cp	12	; half of screen height
 	jr	nc, .stripe_mid	; pattern is uninterrupted, and does not cross off screen
-	cp	3
-	jr	nc, .stripe_leftoff
-.stripe_tiny:
-	ret	;  TODO
 .stripe_leftoff:
-	ret	; TODO
+	ld	l, a
+	ld	b, a
+	inc	b
+	jr	.stripe_mid_loop
 .stripe_mid:
-	ret	; TODO
-.stripe_rightoff:
-	ret	; TODO
-
-	ld	h, $58
-	ld	l, a	; HL := attribute pointer
-	ld	(hl),b
+	ld	l, a
+	ld	a, b
+	ld	b, 12
+.stripe_mid_loop:
+	ld	(hl), c
+	add	hl, de
+	ld	(hl), c
+	add	hl, de
 	dec	l
-	
-
-
-.stripe_left:	ret
+	djnz	.stripe_mid_loop
+	ret
+.stripe_rightoff:
+	inc	a	; a := distance past last column + 1
+	add	a	; a := double that (so row to start painting on)
+	ld	b, a	; b := same thing (but in B, to use as counter)
+	ld	a, 32+12
+	sub	l	; a := height (in double cells) of stripe to paint
+	ld	l, e	; l := 32
+	dec	l	; l := 31 (last column)
+.drop_down:
+	add	hl, de
+	djnz	.drop_down
+	ld	b, a
+	jr	.stripe_mid_loop
 
 COPYRIGHT_TEXT:
 	db	$a9,' 1982 RetroXZ Research Ltd'
