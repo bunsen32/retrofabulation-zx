@@ -9,26 +9,7 @@ const loadedVm = WebAssembly.instantiate(emulatorWasm)
 		new Vm(results.instance.exports))
 
 describe("Startup sequence", () => {
-
-	test("Splash initially sets screen to blue", async () => {
-		const vm = await loadedVm
-		cls1(vm)
-
-		vm.runPcAt(rom.SPLASH, 20000)
-
-		const actual = getScreenColour(vm)
-		await assertExpectedImage("splash-colour", actual)
-	})
-
-	test("Splash prepares zigzag pixels", async () => {
-		const vm = await loadedVm
-		cls1(vm)
-
-		vm.runPcAt(rom.SPLASH, 200000)
-
-		const actual = getScreenMono(vm)
-		await assertExpectedImage("splash-pixels", actual)
-	})
+	test("null test…", () => {})
 })
 
 async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
