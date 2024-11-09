@@ -5,6 +5,7 @@ import { createWriteStream, createReadStream, existsSync } from 'fs'
 import * as fs from 'fs'
 import * as path from 'path'
 import { expect } from '@jest/globals'
+import { byte } from '../../Byte'
 
 const rootExpectedFiles = "./rom"
 const rootActualMismatchFiles = "./testout"
@@ -14,9 +15,7 @@ export function cls(vm: Vm) {
 	for(let p = 0x4000, n = 32 * 192; n > 0; p ++, n --) {
 		core.poke(p, 0)
 	}
-	for(let p = 0x5800, n = 32 * 24; n > 0; p ++, n --) {
-		core.poke(p, 0b00111000) // Standard blank ink on white paper
-	}
+	clearAttrs(vm, 0b00111000) // Standard black ink on white paper
 }
 
 export function cls1(vm: Vm) {
@@ -24,8 +23,13 @@ export function cls1(vm: Vm) {
 	for(let p = 0x4000, n = 32 * 192; n > 0; p ++, n --) {
 		core.poke(p, 255)
 	}
+	clearAttrs(vm, 0b00111000) // Standard black ink on white paper
+}
+
+export function clearAttrs(vm: Vm, attr: byte) {
+	const core = vm.core
 	for(let p = 0x5800, n = 32 * 24; n > 0; p ++, n --) {
-		core.poke(p, 0b00111000) // Standard blank ink on white paper
+		core.poke(p, attr)
 	}
 }
 
