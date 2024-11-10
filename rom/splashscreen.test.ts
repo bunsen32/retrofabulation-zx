@@ -101,7 +101,7 @@ describe("Splash-screen", () => {
 })
 
 async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
-	assertBitmapImageMatches('splashscreen.test', expectedPngFilename, actualOutput)
+	await assertBitmapImageMatches('splashscreen.test', expectedPngFilename, actualOutput)
 }
 
 function writeZigzags(vm: Vm) {

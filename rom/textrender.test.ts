@@ -138,5 +138,5 @@ function renderAt(vm: Vm, text: string, x: number, y: number, attr: byte = 0b001
 }
 
 async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
-	assertBitmapImageMatches('textrender.test', expectedPngFilename, actualOutput)
+	await assertBitmapImageMatches('textrender.test', expectedPngFilename, actualOutput)
 }

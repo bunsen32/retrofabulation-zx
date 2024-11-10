@@ -13,5 +13,5 @@ describe("Startup sequence", () => {
 })
 
 async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
-	assertBitmapImageMatches('startup.test', expectedPngFilename, actualOutput)
+	await assertBitmapImageMatches('startup.test', expectedPngFilename, actualOutput)
 }
