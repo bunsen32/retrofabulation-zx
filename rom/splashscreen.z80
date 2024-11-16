@@ -1,9 +1,11 @@
 
 SPLASH:
 	ld	sp,$5B00
-	ld	b, (24 * 32) / 4
+	ld	b, (24 * 32) / 8
 	ld	de, $0909	; No bright, paper = blue, ink = blue
 .cls_blue:	push	de
+	push	de
+	push	de
 	push	de
 	djnz	.cls_blue
 
