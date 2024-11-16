@@ -37,19 +37,141 @@ SPLASH:
 	dec	h
 	jr	nz,.loop_screen_thirds
 
-	halt
-COPYRIGHT:
+.start
 	ld	sp, $f000	; Placeholder stack top.
-	ld	de, COPYRIGHT_TEXT
-	ld	b, 27
-	ld	a, %00111000
-	ld	hl, $1601
-	call	$800
+	ei
+
+.cyan_cyan	=	%00101101
+.cyan_blue	=	%00101001
+.cyan_white	=	%00101111
+.green_cyan	=	%00100101
+.green_green	=	%00100100
+.green_blue	=	%00100001
+.yellow_yellow	=	%00110110
+.yellow_green	=	%00110100
+.red_red	=	%00010010
+.red_yellow	=	%00010110
+.white_white	=	%00111111
+.white_red	=	%00111010
+
+	ld	a, %000	; black
+	out	($fe), a	; set border
+
+	; WIPE CYAN
+	ld	de, (.cyan_cyan << 8) | .cyan_blue
+	ld	b, 20
+	xor	a
+	ld	c, d
+	call	STRIPE
+.phase0:
 	halt
+	call	STRIPE3
+	dec	a
+	djnz	.phase0
+
+	; TURN BLUE INTO CYAN
+	ld	a, 42
+	ld	c, .cyan_white
+	call	STRIPE
+	dec	a
+	ld	c, .cyan_cyan
+	call	STRIPE
+
+	; WIPE GREEN
+	ld	de, (.green_green << 8) | .green_cyan
+	ld	b, 19
+	ld	c, .green_green
+	xor	a
+	call	STRIPE
+	inc	a
+	call	STRIPE
+	inc	a
+.phase1:
+	halt
+	call	STRIPE3
+	dec	a
+	djnz	.phase1
+
+	; WIPE YELLOW
+	ld	de, (.yellow_yellow << 8) | .yellow_green
+	ld	b, 19
+	xor	a
+	ld	c, d
+	call	STRIPE
+	inc	a
+.phase2:
+	halt
+	call	STRIPE3
+	dec	a
+	djnz	.phase2
+
+	; WIPE RED
+	ld	de, (.red_red << 8) | .red_yellow
+	ld	b, 19
+	ld	a, 0
+.phase3:
+	halt
+	call	STRIPE3
+	dec	a
+	djnz	.phase3
+
+	xor	a
+	ld	c, .white_white
+	call	STRIPE
+
+	; WIPE WHITE
+	ld	de, (.white_white << 8) | .white_red
+	ld	b, 18
+	ld	a, 1
+.phase4:
+	halt
+	call	STRIPE3
+	dec	a
+	djnz	.phase4
+
+	ld	a, %111	; white
+	out	($fe), a	; set border
+
+
+COPYRIGHT:
+	ld	de, COPYRIGHT_TEXT
+	ld	b, COPYRIGHT_TEXT.length
+	ld	a, %00111000	; Black ink on white paper
+	ld	hl, $1603	; x := 2 (half-cells), y := 22
+	call	render_text
+	halt
+
+.pause_forever:
+	halt
+	jr	.pause_forever
+
+
+STRIPE3:
+	; Draw a steep diagonal section of rainbow down the screen, from given x position,
+	; A: x-position (0–45); D: trailing attribute; E: leading attribute
+	; B,C,D,E preserved; A,F,H,L trashed; A incremented by 4
+	push	de
+	push	bc
+	ld	c, d
+	call	STRIPE
+	inc	a
+	call	STRIPE
+	inc	a
+	call	STRIPE
+	inc	a
+	ld	c, e
+	call	STRIPE
+	pop	bc
+	pop	de
+	ret
 
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,
 	; A: x-position (0–45); C: attribute to paint
+	; A,F,B,C,D,E preserved; H,L trashed
 STRIPE:
+	push	af
+	push	bc
+	push	de
 	ld	de, 32
 	ld	h, $58	; HL := attribute pointer
 	ld	l, a
@@ -74,6 +196,9 @@ STRIPE:
 	add	hl, de
 	dec	l
 	djnz	.stripe_mid_loop
+	pop	de
+	pop	bc
+	pop	af
 	ret
 .stripe_rightoff:
 	inc	a	; a := distance past last column + 1
@@ -90,4 +215,5 @@ STRIPE:
 	jr	.stripe_mid_loop
 
 COPYRIGHT_TEXT:
-	db	$a9,' 1982 RetroXZ Research Ltd'
+	db	$a9,' 1982 Sinclair Research Ltd.'
+.length	= $ - COPYRIGHT_TEXT

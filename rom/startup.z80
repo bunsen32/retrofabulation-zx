@@ -1,6 +1,8 @@
 	PADTO	$0000
 INT_00:
 	di
+	ld	a, %000	; black
+	out	($fe), a	; set border
 	jr	RAM_TEST
 
 	PADTO	$0008
@@ -18,6 +20,8 @@ INT_30:
 	PADTO	$0038
 INT_38:
 	; stuff
+	ei
+	ret
 
 	; Slightly weird routine for wiping memory downwards, from SP
 	; CB: is count of 4-byte blocks to clear; A is value to clear with.
