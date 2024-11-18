@@ -54,8 +54,7 @@ SPLASH:
 .white_white	=	%00111111
 .white_red	=	%00111010
 
-	ld	a, %000	; black
-	out	($fe), a	; set border
+	halt
 
 	; WIPE CYAN
 	ld	de, (.cyan_cyan << 8) | .cyan_blue

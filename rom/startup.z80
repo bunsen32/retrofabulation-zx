@@ -1,8 +1,9 @@
 	PADTO	$0000
 INT_00:
 	di
-	ld	a, %000	; black
-	out	($fe), a	; set border
+	im	1
+	xor	a
+	ld	i, a	; Avoid ULA ‘snow’ when I in (40, 7F]
 	jr	RAM_TEST
 
 	PADTO	$0008
@@ -46,6 +47,9 @@ fast_clear_loop:
 	jp	(hl)
 
 RAM_TEST
+	ld	a, %000	; black
+	out	($fe), a	; set border
+
 	ld	hl, .test_bytes
 	ld	a, 2
 .set_bytes:
@@ -73,5 +77,5 @@ RAM_TEST_SUCCESS:
 RAM_TEST_FAIL:
 	; TBD
 	HALT
-
+	
 
