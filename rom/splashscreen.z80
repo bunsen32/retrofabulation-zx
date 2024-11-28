@@ -109,9 +109,11 @@ SPLASH:
 	; END
 	DB	0
 .end
-	ld	a, %111	; white
-	out	($fe), a	; set border
-
+	ld	b, 8	; We could save two bytes here by rearranging data a bit, and assigning B in the loop…
+.border_loop	halt 
+	out	($fe), a	; set border, in spectrum from black to white. Makes transition softer & less jarring.
+	inc	a
+	djnz	.border_loop
 
 COPYRIGHT:
 	ld	de, COPYRIGHT_TEXT
