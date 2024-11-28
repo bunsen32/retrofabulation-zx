@@ -2,12 +2,12 @@
 SPLASH:
 	ld	sp,$5B00
 	ld	b, (24 * 32) / 8
-	ld	de, $0909	; No bright, paper = blue, ink = blue
-.cls_blue:	push	de
+	ld	de, $0000	; No bright, paper = black, ink = black
+.cls_black:	push	de
 	push	de
 	push	de
 	push	de
-	djnz	.cls_blue
+	djnz	.cls_black
 
 	ld	h,3	; Loop over 3 screen-thirds
 .loop_screen_thirds:
@@ -43,6 +43,7 @@ SPLASH:
 
 .cyan_cyan	=	%00101101
 .cyan_blue	=	%00101001
+.cyan_black	=	%00101000
 .cyan_white	=	%00101111
 .green_cyan	=	%00100101
 .green_green	=	%00100100
@@ -54,80 +55,60 @@ SPLASH:
 .white_white	=	%00111111
 .white_red	=	%00111010
 
-	halt
+	ld	hl, .data
+.next_phase	ld	a, (hl)
+	or	a
+	jr	z, .end
+	ld	b, a	; b := width of trailing colour stripe
+	inc	hl
+	ld	a, (hl)	; a := starting x position
+	inc	hl
+	ld	c, (hl)	; c := loop counter: steps across the screen
+	inc	hl
+	ld	d, (hl)	; d := trailing colour
+	inc	hl
+	ld	e, (hl)	; e := leading colour
+	inc	hl
+.phase_loop:	halt
+	call	STRIPE_n
+	dec	c
+	jr	nz, .phase_loop
+	jr	.next_phase
 
+.data:
 	; WIPE CYAN
-	ld	de, (.cyan_cyan << 8) | .cyan_blue
-	ld	b, 20
-	xor	a
-	ld	c, d
-	call	STRIPE
-.phase0:
-	halt
-	call	STRIPE3
-	dec	a
-	djnz	.phase0
+	db	2, 0	; width, startx
+	db	22	; iterations
+	db	.cyan_cyan, .cyan_black
 
 	; TURN BLUE INTO CYAN
-	ld	a, 42
-	ld	c, .cyan_white
-	call	STRIPE
-	dec	a
-	ld	c, .cyan_cyan
-	call	STRIPE
+	db	1, 43	; width, startx
+	db	1	; iterations
+	db	.cyan_white, .white_white
 
 	; WIPE GREEN
-	ld	de, (.green_green << 8) | .green_cyan
-	ld	b, 19
-	ld	c, .green_green
-	xor	a
-	call	STRIPE
-	inc	a
-	call	STRIPE
-	inc	a
-.phase1:
-	halt
-	call	STRIPE3
-	dec	a
-	djnz	.phase1
+	db	2, 1	; width, startx
+	db	21	; iterations
+	db	.green_green, .green_cyan
 
 	; WIPE YELLOW
-	ld	de, (.yellow_yellow << 8) | .yellow_green
-	ld	b, 19
-	xor	a
-	ld	c, d
-	call	STRIPE
-	inc	a
-.phase2:
-	halt
-	call	STRIPE3
-	dec	a
-	djnz	.phase2
+	db	4, 0	; width, startx
+	db	11	; iterations
+	db	.yellow_yellow, .yellow_green
 
 	; WIPE RED
-	ld	de, (.red_red << 8) | .red_yellow
-	ld	b, 19
-	ld	a, 0
-.phase3:
-	halt
-	call	STRIPE3
-	dec	a
-	djnz	.phase3
-
-	xor	a
-	ld	c, .white_white
-	call	STRIPE
+	db	4, -1	; width, startx
+	db	11	; iterations
+	db	.red_red, .red_yellow
 
 	; WIPE WHITE
-	ld	de, (.white_white << 8) | .white_red
-	ld	b, 18
-	ld	a, 1
-.phase4:
-	halt
-	call	STRIPE3
-	dec	a
-	djnz	.phase4
+	db	4, -2	; width, startx
+	db	11	; iterations
+	db	.white_white, .white_red
 
+	; END
+	DB	0
+.end
 	ld	a, %111	; white
 	out	($fe), a	; set border
 
@@ -136,7 +117,7 @@ COPYRIGHT:
 	ld	de, COPYRIGHT_TEXT
 	ld	b, COPYRIGHT_TEXT.length
 	ld	a, %00111000	; Black ink on white paper
-	ld	hl, $1603	; x := 2 (half-cells), y := 22
+	ld	hl, $1602	; x := 2 (half-cells), y := 22
 	call	render_text
 	halt
 
@@ -144,24 +125,23 @@ COPYRIGHT:
 	halt
 	jr	.pause_forever
 
-
-STRIPE3:
+STRIPE_n:
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,
-	; A: x-position (0–45); D: trailing attribute; E: leading attribute
-	; B,C,D,E preserved; A,F,H,L trashed; A incremented by 4
-	push	de
+	; A: x-position (0–45); D: trailing attribute; E: leading attribute; B: number of trailing cells (1+)
+	; B,C,D,E,H,L preserved; A incremented by B
+	push	hl
 	push	bc
-	ld	c, d
-	call	STRIPE
-	inc	a
-	call	STRIPE
-	inc	a
-	call	STRIPE
-	inc	a
 	ld	c, e
 	call	STRIPE
+	ld	c, d
+
+.trail_loop:	dec	a
+	call	STRIPE
+	djnz	.trail_loop
 	pop	bc
-	pop	de
+	pop	hl
+	add	b
+	add	b
 	ret
 
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,
