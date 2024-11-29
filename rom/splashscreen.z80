@@ -159,24 +159,20 @@ STRIPE:
 	sub	e
 	jr	nc, .stripe_rightoff	; Stripe position is beyond edge of screen
 	ld	a, l
-	cp	12	; half of screen height
-	jr	nc, .stripe_mid	; pattern is uninterrupted, and does not cross off screen
-.stripe_leftoff:
-	ld	l, a
-	ld	b, a
-	inc	b
-	jr	.stripe_mid_loop
-.stripe_mid:
-	ld	l, a
-	ld	a, b
 	ld	b, 12
-.stripe_mid_loop:
+	cp	b	; half of screen height
+	jr	nc, .loop	; pattern is uninterrupted, and does not cross off screen
+.stripe_leftoff:
+	inc	a
+.counter_is_in_a
+	ld	b, a
+.loop:
 	ld	(hl), c
 	add	hl, de
 	ld	(hl), c
 	add	hl, de
 	dec	l
-	djnz	.stripe_mid_loop
+	djnz	.loop
 	pop	de
 	pop	bc
 	pop	af
@@ -187,13 +183,11 @@ STRIPE:
 	ld	b, a	; b := same thing (but in B, to use as counter)
 	ld	a, 32+12
 	sub	l	; a := height (in double cells) of stripe to paint
-	ld	l, e	; l := 32
-	dec	l	; l := 31 (last column)
+	ld	l, 31	; l := 31 (last column)
 .drop_down:
 	add	hl, de
 	djnz	.drop_down
-	ld	b, a
-	jr	.stripe_mid_loop
+	jr	.counter_is_in_a
 
 COPYRIGHT_TEXT:
 	db	$a9,' 1982 Sinclair Research Ltd.'
