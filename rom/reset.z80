@@ -1,0 +1,81 @@
+	PADTO	$0000
+INT_00:
+	di
+	im	1
+	xor	a
+	ld	i, a	; Avoid ULA ‘snow’ when I in (40, 7F]
+	jr	RAM_TEST
+
+	PADTO	$0008
+INT_08:
+	PADTO	$0010
+INT_10:
+	PADTO	$0018
+INT_18:
+	PADTO	$0020
+INT_20:
+	PADTO	$0028
+INT_28:
+	PADTO	$0030
+INT_30:
+	PADTO	$0038
+INT_38:
+	; stuff
+	ei
+	ret
+
+	; Slightly weird routine for wiping memory downwards, from SP
+	; CB: is count of 4-byte blocks to clear; A is value to clear with.
+	; HL is the return address. HL & A are preserved. DE is destroyed. BC is zeroed
+	MACRO WIPE_SP_BC bytecount
+.blockcount	=	bytecount / 8
+.lsb	=	.blockcount & $ff
+.msb	=	(.blockcount + $ff) >> 8
+	ld	bc, (.lsb << 8) | (.msb)
+	ENDM
+WIPE_SP_32
+	ld	d, a
+	ld	e, a
+fast_clear_loop:
+	push	de
+	push	de
+	push	de
+	push	de
+	djnz	fast_clear_loop
+	dec	c
+	jr	nz, fast_clear_loop
+	jp	(hl)
+
+RAM_TEST
+	ld	a, %000	; black
+	out	($fe), a	; set border
+
+	ld	hl, .test_bytes
+	ld	a, 2
+.set_bytes:
+	ld	sp, $0000
+	WIPE_SP_BC	(48 * 1024)
+	jr	WIPE_SP_32
+.test_bytes:
+	ld	bc, (48 * 1024 / 2 / 256)
+.loop:
+	pop	de
+	cp	d
+	jr	nz, RAM_TEST_FAIL
+	cp	e
+	jr	nz, RAM_TEST_FAIL
+	djnz	.loop
+	dec	c
+	jr	nz, .loop
+
+	sub	1
+	jr	nc, .set_bytes
+
+RAM_TEST_SUCCESS:
+	jp	SPLASH
+
+RAM_TEST_FAIL:
+	; TBD
+	HALT
+	
+

@@ -19,10 +19,10 @@
 		ORG	addr
 	ENDM
 
-	INCLUDE "startup.z80"	; 0000 to 00CF
+	INCLUDE "reset.z80"	; 0000 to 00CF
 	INCLUDE "interpreter.z80"	; 00D0 to 05FF
 	INCLUDE "four-shift-lookup.z80"	; 0600 to 07FF
 	PADTO $0800
 	INCLUDE "textrender.z80"	; 0800 to 0a00
 	INCLUDE "generated/font.z80"	; 0a00 to 0fFF
-	INCLUDE "splashscreen.z80"
+	INCLUDE "startup.z80"
