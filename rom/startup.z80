@@ -1,5 +1,5 @@
-
-SPLASH:
+INIT:
+SPLASH_INIT:
 	ld	sp,$5B00
 	ld	b, (24 * 32) / 8
 	ld	de, $0000	; No bright, paper = black, ink = black
@@ -37,9 +37,17 @@ SPLASH:
 	dec	h
 	jr	nz,.loop_screen_thirds
 
-.start
+GLOBALS_INIT:
+	ld	hl, INITIAL_GLOBAL_VALUES
+	ld	de, I_HANDLER
+	ld	bc, INITIAL_GLOBAL_VALUES.length
+	ldir
+
 	ld	sp, $f000	; Placeholder stack top.
+	im	1	; This appears to enable interrupts too (maybe just in certain emulators?)
 	ei
+
+SPLASH_ANIM:
 
 .cyan_cyan	=	%00101101
 .cyan_blue	=	%00101001
@@ -192,3 +200,7 @@ STRIPE:
 COPYRIGHT_TEXT:
 	db	$a9,' 1982 Sinclair Research Ltd.'
 .length	= $ - COPYRIGHT_TEXT
+
+INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
+	jp	DEFAULT_INTERRUPT_HANDLER
+.length

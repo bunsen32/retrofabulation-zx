@@ -1,0 +1,5 @@
+	; The RAM-based global variables
+
+	ORG	$5B00
+CLOCK_TICKS	db	0, 0, 0
+I_HANDLER	db	0, 0, 0, 0, 0	; Enough for CALL XXXX, EI, RET	

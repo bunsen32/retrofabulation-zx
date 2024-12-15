@@ -1,7 +1,6 @@
 	PADTO	$0000
 INT_00:
 	di
-	im	1
 	xor	a
 	ld	i, a	; Avoid ULA ‘snow’ when I in (40, 7F]
 	jr	RAM_TEST
@@ -21,8 +20,7 @@ INT_30:
 	PADTO	$0038
 INT_38:
 	; stuff
-	ei
-	ret
+	jp	I_HANDLER	; Interrupt handler is in RAM to allow overrides.
 
 	; Slightly weird routine for wiping memory downwards, from SP
 	; CB: is count of 4-byte blocks to clear; A is value to clear with.
@@ -72,7 +70,7 @@ RAM_TEST
 	jr	nc, .set_bytes
 
 RAM_TEST_SUCCESS:
-	jp	SPLASH
+	jp	INIT
 
 RAM_TEST_FAIL:
 	; TBD

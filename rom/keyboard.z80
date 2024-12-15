@@ -1,0 +1,5 @@
+	; Keyboard & default interrupt handler
+DEFAULT_INTERRUPT_HANDLER:
+	ei
+	ret
+
