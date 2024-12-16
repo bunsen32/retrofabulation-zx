@@ -88,11 +88,6 @@ SPLASH_ANIM:
 	db	22	; iterations
 	db	.cyan_cyan, .cyan_black
 
-	; TURN BLUE INTO CYAN
-	db	1, 43	; width, startx
-	db	1	; iterations
-	db	.cyan_white, .white_white
-
 	; WIPE GREEN
 	db	2, 1	; width, startx
 	db	21	; iterations
@@ -112,6 +107,11 @@ SPLASH_ANIM:
 	db	4, -2	; width, startx
 	db	11	; iterations
 	db	.white_white, .white_red
+
+	; PAINT CORNER WHITE
+	db	1, 43	; width, startx
+	db	1	; iterations
+	db	.cyan_white, .white_white
 
 	; END
 	DB	0
