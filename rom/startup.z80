@@ -108,17 +108,17 @@ SPLASH_ANIM:
 	db	11	; iterations
 	db	.white_white, .white_red
 
-	; PAINT CORNER WHITE
-	db	1, 43	; width, startx
-	db	1	; iterations
-	db	.cyan_white, .white_white
-
 	; END
 	DB	0
 .end
 	ld	b, 8	; We could save two bytes here by rearranging data a bit, and assigning B in the loop…
+	ld	c, 0b00101000 ; Cyan paper
 .border_loop	halt 
 	out	($fe), a	; set border, in spectrum from black to white. Makes transition softer & less jarring.
+	xor	c	; Add in paper colour.
+	ld	($5aff), a	; bottom-right screen cell
+	ld	($5adf), a	; (bottom-1)-right screen cell
+	xor	c	; Remove paper colour again.
 	inc	a
 	djnz	.border_loop
 
