@@ -44,7 +44,6 @@ GLOBALS_INIT:
 	ldir
 
 	ld	sp, $f000	; Placeholder stack top.
-	im	1	; This appears to enable interrupts too (maybe just in certain emulators?)
 	ei
 
 SPLASH_ANIM:
