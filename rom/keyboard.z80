@@ -1,5 +1,166 @@
 	; Keyboard & default interrupt handler
 DEFAULT_INTERRUPT_HANDLER:
+	push	hl
+	push	af
+	ld	hl, (CLOCK_TICKS)
+	inc	hl
+	ld	(CLOCK_TICKS), hl
+	ld	a,l
+	or	h
+	jr	nz, .low_bits_only
+	;;inc	(IY+CLOCK_TICKS+2)	; TODO! 
+.low_bits_only:	push	bc
+	push	de
+	call	KEYBOARD
+	pop	de
+	pop	bc
+	pop	af
+	pop	hl
 	ei
 	ret
 
+KEYMAP:
+	db	' ', 'A', 'Q', '1', '0', 'P', $0a, ' '
+	db	'Z', 'S', 'W', '2', '9', 'O', 'L', $05
+	db	'X', 'D', 'E', '3', '8', 'I', 'K', 'M'
+	db	'C', 'F', 'R', '4', '7', 'U', 'J', 'N'
+	db	'V', 'G', 'T', '5', '6', 'Y', 'H', 'B'
+
+KEYMAP_SYM:
+	db	' ', '~', '≤', '!', '_', '"', $0a, ' '
+	db	':', '|', '≠', '@', ')', ';', '=', $05
+	db	'£','\\', '≥', '#', '(', 'I', '+', '.'
+	db	'?', '{', '<', '$','\'', ']', '-', ','
+	db	'/', '}', '>', '%', '&', '[', '^', '*'
+
+KCODE_CAPS	equ	0	; TODO:check
+KCODE_SYM	equ	15	; TODO:check
+
+
+; Interrogate the hardware for the current keyboard state
+; Collects state of both shift keys (in A), and 0, 1, or 2 other keys (in D & E)
+; Returns:
+; B: 000000<sym><caps>
+; D: non-shift key code or zero (second key, if any)
+; E: non-shift key code or zero (first key)
+; HL, C: trashed
+KEY_SCAN:
+	ld	bc, $fefe
+	ld	de, $0000
+	ld	l, -8
+	push	de	; Push zeros (current shift state) onto stack.
+.next_line:
+	in	a,(c)
+	cpl
+	and	$1f
+.start_keys:	jr	z, .end_line
+	ld	h, a
+	ld	a, l
+.each_bit:
+	add	8	; Key code += 8
+.each_bit_next:
+	sll	h
+	jr	nc, .each_bit
+	or	a	; Does ‘key code’ == KCODE_CAPS (0)?
+	jr	z, .caps_shift
+	cp	KCODE_SYM
+	jr	z, .sym_shift
+.non_shift:	inc	d
+	dec	d
+	jr	nz, .too_many_keys
+	ld	d, e
+	ld	e, a
+
+.end_line:	inc	l
+	rlc	b
+	jr	c, .next_line
+.end_success:
+	cp	a	; Set zero flag
+.too_many_keys:
+	pop	bc	; Pop shift state
+	ret
+.sym_shift:
+	pop	af
+	add	2	; Set bit 1
+	push	af
+	ld	a, KCODE_SYM + 8
+	jr	.each_bit_next
+.caps_shift:
+	pop	af
+	inc	a	; Set bit 0
+	push	af
+	ld	a, KCODE_CAPS + 8
+	jr	.each_bit_next
+
+
+; Scan the keyboard, then turn it into the next keyboard character:
+KEYBOARD:
+	call	KEY_SCAN
+	ret	nz	; Return if too many keys
+
+	ld	hl, KEY_SUPERSEDED
+	xor	a
+	cp	e
+	jr	z,.keyup
+	ld	c, a	; Indicator of ‘no key’
+	cp	d	; Two keys pressed at once?
+	jr	nz,.disambiguate
+.end_superseded:
+	ld	(hl),c	; KEY_SUPERSEDED := <none>
+.keypress:			; We’ve removed any ‘superseded’ key. Now deal with press, or repeat:
+	inc	l	; Points now to ‘KEY_RPT_CODE’
+	ld	a,e
+	cp	(hl)	; Is this a repeating key?
+	jr	z,.try_repeat
+.new_key:
+	ld	(hl),a	; KEY_RPT_CODE := <new key code>
+	inc	l	; Points now to ‘KEY_RPT_NEXT’
+	ld	a,(REPDEL)	; Repeat delay
+	ld	(hl),a	; KEY_RPT_NEXT := (REPDEL)
+.decode
+	ld	d,c	; d := <zero>
+	push	hl
+	ld	hl,KEYMAP
+	add	hl,de
+	ld	a,(hl)
+	pop	hl
+	inc	l	; hl := KEY_CHAR
+	ld	(hl),a	; KEY_CHAR := <decoded character>
+	inc	l
+	ld	(hl),b	; KEY_SHIFTS := <shift flags>
+	ret
+	
+.try_repeat:
+	inc	l	; Points now to ‘KEY_RPT_NEXT’
+	dec	(hl)	; Count down the frames to next repetition
+	jr	nz,.repeat_wait	; Not reached zero count yet, so mark character as <none>
+	ld	a,(REPPER)
+	ld	(hl),a	; KEY_RPT_NEXT := (REPPER)
+	jr	.decode
+.keyup:
+	ld	(hl),a	; KEY_SUPERSEDED := 0
+	inc	l	; Points now to ‘KEY_RPT_CODE’
+	ld	(hl),a	; KEY_RPT_CODE := 0
+	inc	l
+.repeat_wait:
+	inc	l	; Points now to ‘KEY_CHAR’
+	ld	(hl),a	; KEY_CHAR := 0
+	inc	l
+	ld	(hl),b	; KEY_SHIFTS := <shift flags>
+	ret
+
+.disambiguate:	; Two keys are pressed at once… so deal with that!
+	ld	a,(hl)	; a := <The key to ignore, if two pressed at once>
+	or	a
+	jr	nz,.has_superseded
+.decide_superseded:
+	inc	l	; hl := KEY_RPT_CODE
+	ld	a,(hl)	; a := (KEY_RPT_CODE)
+	dec	l
+	ld	(hl),a	; KEY_SUPERSEDED := KEY_RPT_CODE
+.has_superseded:
+	cp	d
+	jr	nz, .keypress	; If it’s not the first key, just skip
+			; We favour the first one anyway, so there’s no need to explicitly ignore the second one.
+	ld	d, e
+	jr	.keypress
