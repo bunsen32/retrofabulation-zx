@@ -30,8 +30,8 @@ KEYMAP_SYM:
 	db	' ', '~', '≤', '!', '_', '"', $0a, ' '
 	db	':', '|', '≠', '@', ')', ';', '=', $05
 	db	'£','\\', '≥', '#', '(', 'I', '+', '.'
-	db	'?', '{', '<', '$','\'', ']', '-', ','
-	db	'/', '}', '>', '%', '&', '[', '^', '*'
+	db	'?', '{', '<', '$', "'", '\]', '-', ','
+	db	'/', '}', '>', '%', '&','\[', '^', '*'
 
 KCODE_CAPS	equ	0	; TODO:check
 KCODE_SYM	equ	15	; TODO:check
@@ -49,48 +49,55 @@ KEY_SCAN:
 	ld	de, $0000
 	ld	l, -8
 	push	de	; Push zeros (current shift state) onto stack.
-.next_line:
+.each_line:
 	in	a,(c)
 	cpl
 	and	$1f
-.start_keys:	jr	z, .end_line
-	ld	h, a
-	ld	a, l
-.each_bit:
-	add	8	; Key code += 8
-.each_bit_next:
-	sll	h
-	jr	nc, .each_bit
-	or	a	; Does ‘key code’ == KCODE_CAPS (0)?
-	jr	z, .caps_shift
-	cp	KCODE_SYM
-	jr	z, .sym_shift
-.non_shift:	inc	d
-	dec	d
-	jr	nz, .too_many_keys
-	ld	d, e
-	ld	e, a
-
-.end_line:	inc	l
+	jr	nz, .line_has_bits
+.next_line:	inc	l
 	rlc	b
-	jr	c, .next_line
+	jr	c, .each_line
 .end_success:
 	cp	a	; Set zero flag
 .too_many_keys:
 	pop	bc	; Pop shift state
 	ret
+
+.line_has_bits:
+	ld	h, a
+	ld	a, l
+.each_bit:
+	add	8	; Key code += 8
+	srl	h
+	jr	nc, .each_bit
+.key_is_down
+	or	a	; Does ‘key code’ == KCODE_CAPS (0)?
+	jr	z, .caps_shift
+	cp	KCODE_SYM
+	jr	z, .sym_shift
+	inc	d
+	dec	d
+	jr	nz, .too_many_keys
+	ld	d, e
+	ld	e, a
+	add	8
+.maybe_last:
+	srl	h
+	jr	c,.key_is_down
+	jr	nz,.each_bit
+	jr	.next_line
 .sym_shift:
 	pop	af
 	add	2	; Set bit 1
 	push	af
 	ld	a, KCODE_SYM + 8
-	jr	.each_bit_next
+	jr	.maybe_last
 .caps_shift:
 	pop	af
 	inc	a	; Set bit 0
 	push	af
 	ld	a, KCODE_CAPS + 8
-	jr	.each_bit_next
+	jr	.maybe_last
 
 
 ; Scan the keyboard, then turn it into the next keyboard character:

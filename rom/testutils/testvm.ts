@@ -73,6 +73,19 @@ export class Vm {
 			}
 		)
 	}
+
+	keyDown(row: number, mask: byte) {
+		this.keysDown([{row, mask}])
+	}
+		
+	keysDown(keys: {row: number, mask: byte}[]) {
+		for(let row = 0; row < 8; row ++) {
+			this.core.keyUp(row, 0x1f)
+		}
+		for(let k of keys) {
+			this.core.keyDown(k.row, k.mask)
+		}
+	}
 		
 	setRam(pos: number, bytes: ArrayLike<byte>) {
 		const page = memoryPageWriteMap[Math.floor(pos / 0x4000)]
@@ -122,6 +135,18 @@ export class Vm {
 	
 		const trace = this.traceInterpret(bytes, forTStates)
 		logSnapshots(trace)
+		expect(this.core.getHalted()).toBe(1)
+	}
+
+	callSubroutine(address: Z80Address, forTStates: number) {
+		const sub = address.addr
+		this.setRam(0x8000, [
+			0xCD, (sub & 0xff) as byte, (sub >> 8) as byte, // call sub
+			0x76, // HALT
+		])
+		this.setRegisters({SP: stackTop})
+		this.runPcAt({addr:0x8000}, forTStates)
+
 		expect(this.core.getHalted()).toBe(1)
 	}
 }
