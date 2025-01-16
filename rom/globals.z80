@@ -3,11 +3,17 @@
 	ORG	$5B00
 GLOBALS
 CLOCK_TICKS	db	0, 0, 0
+
+	; Global variables which need initised (to something other than zero)
+	; Initial values are copied from ‘INITIAL_GLOBAL_VALUES’ in startup ‘GLOBALS_INIT’ code.
+NEED_INIT:
+REPDEL	db	0
+REPPER	db	0
 I_HANDLER	db	0, 0, 0, 0, 0	; Enough for CALL XXXX, EI, RET	
+
+END_NEED_INIT:
 KEY_SUPERSEDED	db	0
 KEY_RPT_CODE	db	0
 KEY_RPT_NEXT	db	0
 KEY_CHAR	db	0
 KEY_SHIFTS	db	0	; 000000<sym><caps>
-REPDEL	db	0
-REPPER	db	0

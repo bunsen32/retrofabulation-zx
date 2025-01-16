@@ -39,7 +39,7 @@ SPLASH_INIT:
 
 GLOBALS_INIT:
 	ld	hl, INITIAL_GLOBAL_VALUES
-	ld	de, I_HANDLER
+	ld	de, NEED_INIT
 	ld	bc, INITIAL_GLOBAL_VALUES.length
 	ldir
 
@@ -201,5 +201,7 @@ COPYRIGHT_TEXT:
 .length	= $ - COPYRIGHT_TEXT
 
 INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
-	jp	DEFAULT_INTERRUPT_HANDLER
+.repdel:	db	10
+.repper:	db	5
+.i_handler:	jp	DEFAULT_INTERRUPT_HANDLER
 .length
