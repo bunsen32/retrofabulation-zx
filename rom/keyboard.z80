@@ -105,11 +105,13 @@ KEYBOARD:
 	call	KEY_SCAN
 	ret	nz	; Return if too many keys
 
+.after_scan:			; Label here so we can run the decode logic in tests.
 	ld	hl, KEY_SUPERSEDED
 	xor	a
-	cp	e
-	jr	z,.keyup
 	ld	c, a	; Indicator of ‘no key’
+	cp	e
+	jr	z,.keyup	; No keys (or only shift keys) pressed.
+
 	cp	d	; Two keys pressed at once?
 	jr	nz,.disambiguate
 .end_superseded:
@@ -145,13 +147,13 @@ KEYBOARD:
 	ld	(hl),a	; KEY_RPT_NEXT := (REPPER)
 	jr	.decode
 .keyup:
-	ld	(hl),a	; KEY_SUPERSEDED := 0
+	ld	(hl),c	; KEY_SUPERSEDED := 0
 	inc	l	; Points now to ‘KEY_RPT_CODE’
-	ld	(hl),a	; KEY_RPT_CODE := 0
+	ld	(hl),c	; KEY_RPT_CODE := 0
 	inc	l
 .repeat_wait:
 	inc	l	; Points now to ‘KEY_CHAR’
-	ld	(hl),a	; KEY_CHAR := 0
+	ld	(hl),c	; KEY_CHAR := 0
 	inc	l
 	ld	(hl),b	; KEY_SHIFTS := <shift flags>
 	ret

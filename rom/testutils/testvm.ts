@@ -69,7 +69,8 @@ export class Vm {
 	setRegisters(registerValues: PartialRegisterSet) {
 		['AF', 'BC', 'DE', 'HL', 'AF_', 'BC_', 'DE_', 'HL_', 'IX', 'IY', 'SP', 'IR'].forEach(
 			(r, i) => {
-				this.registerPairs[i] = registerValues[r]
+				const v = registerValues[r]
+				if (v != undefined) this.registerPairs[i] = v
 			}
 		)
 	}
@@ -92,6 +93,24 @@ export class Vm {
 		const offset = pos % 0x4000
 		const p = this.core.MACHINE_MEMORY + page * 0x4000 + offset
 		this.memoryData.set(bytes, p)
+	}
+
+	peekByte(pos: Z80Address): byte {
+		return this.core.peek(pos.addr) as byte
+	}
+	
+	peekWord(pos: Z80Address): number {
+		return this.core.peek(pos.addr) +
+			(this.core.peek(pos.addr + 1) << 8)
+	}
+
+	pokeByte(pos: Z80Address, v: byte) {
+		this.core.poke(pos.addr, v)
+	}
+	
+	pokeWord(pos: Z80Address, v: number) {
+		this.core.poke(pos.addr + 0, v & 0xff)
+		this.core.poke(pos.addr + 1, v >> 8)
 	}
 	
 	runPcAt(address: Z80Address, forTStates: number = 100){
