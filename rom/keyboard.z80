@@ -169,7 +169,9 @@ KEYBOARD:
 	ld	(hl),a	; KEY_SUPERSEDED := KEY_RPT_CODE
 .has_superseded:
 	cp	d
-	jr	nz, .keypress	; If it’s not the first key, just skip
-			; We favour the first one anyway, so there’s no need to explicitly ignore the second one.
-	ld	d, e
+	jr	z, .keypress	; Supersede the secondary key?
+			; We favour the primary one anyway, so there’s no need to explicitly ignore the second one.
+	cp	e
+	jr	nz, .end_superseded	; Doesn’t match either primary or secondary? Clear superseded state.
+	ld	e, d	; Replace primary key with secondary one.
 	jr	.keypress

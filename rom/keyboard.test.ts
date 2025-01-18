@@ -3,7 +3,7 @@ import {describe, expect, test} from '@jest/globals'
 import {emulatorWasm, PartialRegisterSet, Vm, Z80Address} from './testutils/testvm'
 import {rom} from './generated/symbols'
 import { byte } from '../Byte'
-import { Charset } from '../encoding'
+import { Charset, CharsetFromUnicode } from '../encoding'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>
@@ -15,13 +15,37 @@ interface KeyPressState {
 	tooManyPressed?: boolean
 }
 const NO_KEYS: KeyPressState = {primary: 0, secondary: 0}
+const ASSUMED_KEY_DELAY = 100
+const ASSUMED_REPEAT_DELAY = 10
+const KEYS = {
+	CAPS: 0x00 as byte,
+	A: 0x01 as byte,
+	Q: 0x02 as byte,
+	ONE: 0x03 as byte,
+	ZERO: 0x04 as byte,
+	P: 0x05 as byte,
+	ENTER: 0x06 as byte,
+	SPACE: 0x07 as byte,
+
+	B: 0x27 as byte,
+}
 
 interface KeyboardState {
-	suspendedKeyCode: byte,
+	supersededKeyCode: byte,
 	repeatKeyCode: byte,
 	repeatCountdown: byte,
 	currentChar: byte,
-	currentShifts: byte
+	currentShifts: byte,
+	currentCharUnicode: string,
+}
+
+const ZEROED: KeyboardState = {
+	supersededKeyCode: 0,
+	repeatCountdown: 0,
+	repeatKeyCode: 0,
+	currentChar: 0,
+	currentShifts: 0,
+	currentCharUnicode: '\0'
 }
 
 describe("Keyboard scan", () => {
@@ -89,13 +113,159 @@ describe("Keyboard scan", () => {
 describe("Keyboard state changes", () => {
 
 	test("Person press button, character gets input", async () => {
-		const vm = await loadedVmWithZeroedKeyboardState()
-		const aKeyPressed: KeyPressState = {primary: 0x01} // "A" key pressed
+		const vm = await loadedVmWithKeyboardState(ZEROED)
 
-		callKeyboardWith(vm, aKeyPressed)
+		callKeyboardWith(vm, {primary: KEYS.A})
 
 		const r = getKeyboardState(vm)
-		expect(Charset[r.currentChar]).toEqual('A')
+		expect(r.currentCharUnicode).toEqual('A')
+	})
+
+	test("On keypress, repeat key is set", async () => {
+		const vm = await loadedVmWithKeyboardState(ZEROED)
+		vm.pokeByte(rom.REPDEL, 99)
+
+		callKeyboardWith(vm, {primary: KEYS.A})
+
+		const r = getKeyboardState(vm)
+		expect(r.repeatKeyCode).toEqual(KEYS.A)
+		expect(r.repeatCountdown).toEqual(99)
+	})
+
+	test("Person keep hold button, pause count decrease, but no keypress", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			currentCharUnicode: 'A',
+			repeatKeyCode: KEYS.A,
+			repeatCountdown: 17,
+		})
+
+		callKeyboardWith(vm, {primary: KEYS.A})
+
+		const r = getKeyboardState(vm)
+		expect(r.currentChar).toEqual(0)
+		expect(r.repeatCountdown).toEqual(16)
+		expect(r.repeatKeyCode).toEqual(KEYS.A)
+	})
+
+	test("Person hold button, repeat counter is one, presses key", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			currentCharUnicode: 'A',
+			repeatKeyCode: KEYS.A,
+			repeatCountdown: 1,
+		})
+
+		callKeyboardWith(vm, {primary: KEYS.A})
+
+		const r = getKeyboardState(vm)
+		expect(r.currentCharUnicode).toEqual('A')
+	})
+
+	test("Person hold button, repeat counter is one, sets counter to REPER", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			currentCharUnicode: 'A',
+			repeatKeyCode: KEYS.A,
+			repeatCountdown: 1,
+		})
+		vm.pokeByte(rom.REPPER, 42)
+
+		callKeyboardWith(vm, {primary: KEYS.A})
+
+		const r = getKeyboardState(vm)
+		expect(r.repeatKeyCode).toEqual(KEYS.A)
+		expect(r.repeatCountdown).toEqual(42)
+	})
+
+	test("If I press two buttons, and one already has been superseded, suppress it and issue second one", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			currentCharUnicode: 'X',
+			repeatKeyCode: KEYS.Q,
+			repeatCountdown: 13,
+			supersededKeyCode: KEYS.B,
+		})
+
+		callKeyboardWith(vm, {primary: KEYS.B, secondary: KEYS.A})
+
+		const r = getKeyboardState(vm)
+		expect(r.supersededKeyCode).toEqual(KEYS.B)
+		expect(r.repeatKeyCode).toEqual(KEYS.A)
+		expect(r.currentCharUnicode).toEqual('A')
+	})
+
+	test("If I WAS pressing one button, and press a different one (primary), suppress the first one, and issue second one", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			currentCharUnicode: 'A',
+			repeatKeyCode: KEYS.A,
+			repeatCountdown: 13,
+			supersededKeyCode: 0,
+		})
+
+		callKeyboardWith(vm, {primary: KEYS.B, secondary: KEYS.A})
+
+		const r = getKeyboardState(vm)
+		expect(r.supersededKeyCode).toEqual(KEYS.A)
+		expect(r.repeatKeyCode).toEqual(KEYS.B)
+		expect(r.currentCharUnicode).toEqual('B')
+	})
+
+	test("If I WAS pressing one button, and press a different one (secondary), suppress the first one, and issue second one", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			currentCharUnicode: 'A',
+			repeatKeyCode: KEYS.A,
+			repeatCountdown: 13,
+			supersededKeyCode: 0,
+		})
+
+		callKeyboardWith(vm, {primary: KEYS.A, secondary: KEYS.B})
+
+		const r = getKeyboardState(vm)
+		expect(r.supersededKeyCode).toEqual(KEYS.A)
+		expect(r.repeatKeyCode).toEqual(KEYS.B)
+		expect(r.currentCharUnicode).toEqual('B')
+	})
+
+	test("If one key had been superseded, and a single key pressed, clear superseded state and issue that key", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			repeatKeyCode: KEYS.B,
+			repeatCountdown: 13,
+			supersededKeyCode: KEYS.SPACE,
+		})
+
+		callKeyboardWith(vm, {primary: KEYS.A})
+
+		const r = getKeyboardState(vm)
+		expect(r.supersededKeyCode).toEqual(0)
+		expect(r.repeatKeyCode).toEqual(KEYS.A)
+		expect(r.currentCharUnicode).toEqual('A')
+	})
+
+	test("If one key had been superseded, and two keys pressed (neither of which is it), clear superseded state and issue primary key", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			repeatKeyCode: KEYS.ENTER,
+			repeatCountdown: 13,
+			supersededKeyCode: KEYS.SPACE,
+		})
+
+		callKeyboardWith(vm, {primary: KEYS.A, secondary: KEYS.B})
+
+		const r = getKeyboardState(vm)
+		expect(r.supersededKeyCode).toEqual(0)
+		expect(r.repeatKeyCode).toEqual(KEYS.A)
+		expect(r.currentCharUnicode).toEqual('A')
+	})
+
+	test("After release button, no character issued", async () => {
+		const vm = await loadedVmWithKeyboardState({
+			repeatKeyCode: KEYS.ENTER,
+			repeatCountdown: 1,
+			supersededKeyCode: KEYS.SPACE,
+		})
+
+		callKeyboardWith(vm, {primary: 0, secondary: 0})
+
+		const r = getKeyboardState(vm)
+		expect(r.supersededKeyCode).toEqual(0)
+		expect(r.repeatKeyCode).toEqual(0)
+		expect(r.currentChar).toEqual(0)
 	})
 })
 
@@ -111,11 +281,13 @@ function keyScanResults(vm: Vm) {
 }
 
 function getKeyboardState(vm: Vm): KeyboardState {
+	var charByte = vm.peekByte(rom.KEY_CHAR)
 	return {
-		suspendedKeyCode: vm.peekByte(rom.KEY_SUPERSEDED),
+		supersededKeyCode: vm.peekByte(rom.KEY_SUPERSEDED),
 		repeatKeyCode: vm.peekByte(rom.KEY_RPT_CODE),
 		repeatCountdown: vm.peekByte(rom.KEY_RPT_NEXT),
-		currentChar: vm.peekByte(rom.KEY_CHAR),
+		currentChar: charByte,
+		currentCharUnicode: Charset[charByte],
 		currentShifts: vm.peekByte(rom.KEY_SHIFTS)
 	}
 }
@@ -126,11 +298,13 @@ function setKeyboardState(vm: Vm, state: Partial<KeyboardState>) {
 			vm.pokeByte(addr, maybe)
 	}
 
-	tryPoke(rom.KEY_SUPERSEDED, state.suspendedKeyCode)
+	tryPoke(rom.KEY_SUPERSEDED, state.supersededKeyCode)
 	tryPoke(rom.KEY_RPT_CODE, state.repeatKeyCode)
 	tryPoke(rom.KEY_RPT_NEXT, state.repeatCountdown)
 	tryPoke(rom.KEY_CHAR, state.currentChar)
 	tryPoke(rom.KEY_SHIFTS, state.currentShifts)
+	if (state.currentCharUnicode != undefined)
+		tryPoke(rom.KEY_CHAR, CharsetFromUnicode[state.currentCharUnicode])
 }
 
 function callKeyboardWith(vm: Vm, pressed: KeyPressState, tooManyPressed?: boolean) {
@@ -141,15 +315,8 @@ function callKeyboardWith(vm: Vm, pressed: KeyPressState, tooManyPressed?: boole
 	vm.callSubroutine(rom.KEYBOARD.after_scan, 300)
 }
 
-async function loadedVmWithZeroedKeyboardState(): Promise<Vm> {
+async function loadedVmWithKeyboardState(keyboardState: Partial<KeyboardState>): Promise<Vm> {
 	const vm = await loadedVm
-	setKeyboardState(vm, {
-		suspendedKeyCode: 0,
-		repeatCountdown: 0,
-		repeatKeyCode: 0,
-		currentChar: 0,
-		currentShifts: 0,
-	})
-
+	setKeyboardState(vm, {...ZEROED, ...keyboardState})
 	return vm
 }
