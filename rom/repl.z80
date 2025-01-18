@@ -1,0 +1,25 @@
+	; Read-Execute-Print Loop
+REPL:
+	ld	de, $5B80
+	ld	b, 0
+	ld	hl, $0300
+.await
+	halt	; Wait for some potential keyboard input.
+	ld	a, (KEY_CHAR)
+	or	a
+	jr	z, .await
+
+	ld	(de), a
+	inc	de
+	inc	b
+.print_it:
+	push	de
+	push	hl
+	push	bc
+	ld	de, $5B80
+	ld	a, 0b01111000
+	call	render_text
+	pop	bc
+	pop	hl
+	pop	de
+	jr	.await

@@ -27,5 +27,6 @@
 	INCLUDE "generated/font.z80"	; 0a00 to 0fFF
 	INCLUDE "startup.z80"
 	INCLUDE "keyboard.z80"
+	INCLUDE "repl.z80"
 
 	INCLUDE "globals.z80"	; Global variable table in RAM

@@ -128,11 +128,8 @@ COPYRIGHT:
 	ld	a, %00111000	; Black ink on white paper
 	ld	hl, $1602	; x := 2 (half-cells), y := 22
 	call	render_text
-	halt
 
-.pause_forever:
-	halt
-	jr	.pause_forever
+	jp	REPL
 
 STRIPE_n:
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,
@@ -201,7 +198,7 @@ COPYRIGHT_TEXT:
 .length	= $ - COPYRIGHT_TEXT
 
 INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
-.repdel:	db	10
+.repdel:	db	35
 .repper:	db	5
 .i_handler:	jp	DEFAULT_INTERRUPT_HANDLER
 .length
