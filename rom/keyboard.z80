@@ -27,9 +27,9 @@ KEYMAP:
 	db	'V', 'G', 'T', '5', '6', 'Y', 'H', 'B'
 
 KEYMAP_SYM:
-	db	' ', '~', '≤', '!', '_', '"', $0a, ' '
-	db	':', '|', '≠', '@', ')', ';', '=', $05
-	db	'£','\\', '≥', '#', '(', 'I', '+', '.'
+	db	' ', '~', $a8, '!', '_', '"', $0a, ' '
+	db	':', '|', $81, '@', ')', ';', '=', $05
+	db	$a3,'\\', $b8, '#', '(', 'I', '+', '.'
 	db	'?', '{', '<', '$', "'", '\]', '-', ','
 	db	'/', '}', '>', '%', '&','\[', '^', '*'
 
@@ -130,7 +130,10 @@ KEYBOARD:
 	ld	d,c	; d := <zero>
 	push	hl
 	ld	hl,KEYMAP
-	add	hl,de
+	bit	1,b
+	jr	z,.look_up
+	ld	hl,KEYMAP_SYM	; Override with the symbol shift lookup.
+.look_up	add	hl,de
 	ld	a,(hl)
 	pop	hl
 	inc	l	; hl := KEY_CHAR

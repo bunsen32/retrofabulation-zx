@@ -30,6 +30,11 @@ const KEYS = {
 	B: 0x27 as byte,
 }
 
+const SHIFT_NONE = 0
+const SHIFT_CAPS = 0b01
+const SHIFT_SYM = 0b10
+const SHIFT_BOTH = 0b11
+
 interface KeyboardState {
 	supersededKeyCode: byte,
 	repeatKeyCode: byte,
@@ -269,6 +274,27 @@ describe("Keyboard state changes", () => {
 	})
 })
 
+describe("Keyboard decoding", () => {
+	test("UNshifted character returns main symbol", async () => {
+		const vm = await loadedVmWithKeyboardState(ZEROED)
+
+		callKeyboardWith(vm, {primary: KEYS.ONE}, SHIFT_NONE)
+
+		const r = getKeyboardState(vm)
+		expect(r.currentCharUnicode).toEqual('1')
+	})
+
+	test("Press symbol shift, get symbol character from key", async () => {
+		const vm = await loadedVmWithKeyboardState(ZEROED)
+
+		callKeyboardWith(vm, {primary: KEYS.ONE}, SHIFT_SYM)
+
+		const r = getKeyboardState(vm)
+		expect(r.currentChar).toEqual(33)
+		expect(r.currentCharUnicode).toEqual('!')
+	})
+})
+
 function keyScanResults(vm: Vm) {
 	const r = vm.getRegisters()
 	return {
@@ -307,10 +333,11 @@ function setKeyboardState(vm: Vm, state: Partial<KeyboardState>) {
 		tryPoke(rom.KEY_CHAR, CharsetFromUnicode[state.currentCharUnicode])
 }
 
-function callKeyboardWith(vm: Vm, pressed: KeyPressState, tooManyPressed?: boolean) {
+function callKeyboardWith(vm: Vm, pressed: KeyPressState, shiftState?: 0|1|2|3) {
 	vm.setRegisters({
 		DE: ((pressed.secondary || 0) << 8) | (pressed.primary & 0xff),
-		AF: tooManyPressed ? 0x00 : 0xff,
+		BC: (shiftState || 0) << 8,
+		AF: pressed.tooManyPressed ? 0x00 : 0xff,
 	})
 	vm.callSubroutine(rom.KEYBOARD.after_scan, 300)
 }
