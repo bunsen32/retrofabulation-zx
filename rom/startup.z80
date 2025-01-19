@@ -76,7 +76,8 @@ SPLASH_ANIM:
 	inc	hl
 	ld	e, (hl)	; e := leading colour
 	inc	hl
-.phase_loop:	halt
+.phase_loop:
+	call	FRAME_CHECK	; Wait a frame & exit if keyboard input
 	call	STRIPE_n
 	dec	c
 	jr	nz, .phase_loop
@@ -112,8 +113,8 @@ SPLASH_ANIM:
 	DB	0
 .end
 	ld	b, 8	; We could save two bytes here by rearranging data a bit, and assigning B in the loop…
-	ld	c, 0b00101000 ; Cyan paper
-.border_loop	halt 
+	ld	c, 0b00101000	; Cyan paper
+.border_loop	call	FRAME_CHECK	; Wait a frame & exit if keyboard input
 	out	($fe), a	; set border, in spectrum from black to white. Makes transition softer & less jarring.
 	xor	c	; Add in paper colour.
 	ld	($5aff), a	; bottom-right screen cell
@@ -129,7 +130,17 @@ COPYRIGHT:
 	ld	hl, $1602	; x := 2 (half-cells), y := 22
 	call	render_text
 
-	jp	REPL
+.wait_for_key:	call	FRAME_CHECK
+	jr	.wait_for_key
+
+	; Wait a frame, check for (keyboard) input, and quit to REPL as soon as that happens.
+FRAME_CHECK:	halt
+	ex	af,af'
+	ld	a, (KEY_CHAR)
+	or	a
+	jp	nz,POP_AND_REPL
+	ex	af,af'
+	ret
 
 STRIPE_n:
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,
