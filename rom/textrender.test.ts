@@ -1,5 +1,5 @@
 // Test the interpreter:
-import {describe, test} from '@jest/globals'
+import {describe, test, expect} from '@jest/globals'
 import {emulatorWasm, stackTop, Vm} from './testutils/testvm'
 import {getScreenMono, cls, Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen"
 import {CharsetFromUnicode} from '../encoding'
@@ -8,6 +8,11 @@ import {byte} from '../Byte'
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>
 		new Vm(results.instance.exports))
+
+interface TextCoords {
+	row: byte,
+	column: byte
+}
 
 describe("Text rendering", () => {
 
@@ -33,30 +38,60 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		renderAt(vm, 'ReTro…', 0, 0)
+		renderAt(vm, 'ReTro…', {row: 0, column: 0})
 
 		const actual = getScreenMono(vm)
 		await assertExpectedImage("singlechar", actual)
+	})
+
+	test("Render 8-pixel characters advances column", async () => {
+		const vm = await loadedVm
+
+		renderAt(vm, 'ReTro…', {row: 20, column: 10})
+		const expectedWidth = 12
+
+		const p = getCoordsAfterRendering(vm)
+		expect(p.column).toEqual(10 + expectedWidth)
 	})
 
 	test("Render 4-pixel characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		renderAt(vm, '‘tf;i’', 1, 1)
+		renderAt(vm, '‘tf;i’', {row: 1, column: 1})
 
 		const actual = getScreenMono(vm)
 		await assertExpectedImage("half-width", actual)
+	})
+
+	test("Render 4-pixel characters advances column", async () => {
+		const vm = await loadedVm
+
+		renderAt(vm, '‘tf;i’', {row: 20, column: 10})
+		const expectedWidth = 6
+
+		const p = getCoordsAfterRendering(vm)
+		expect(p.column).toEqual(10 + expectedWidth)
 	})
 
 	test("Render 12-pixel characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		renderAt(vm, 'wm\x7f™', 0, 0)
+		renderAt(vm, 'wm\x7f™', {row: 0, column: 0})
 
 		const actual = getScreenMono(vm)
 		await assertExpectedImage("extra-width", actual)
+	})
+
+	test("Render 12-pixel characters advances column", async () => {
+		const vm = await loadedVm
+
+		renderAt(vm, 'wm\x7f™', {row: 20, column: 10})
+		const expectedWidth = 12
+
+		const p = getCoordsAfterRendering(vm)
+		expect(p.column).toEqual(10 + expectedWidth)
 	})
 
 	test("Render at half-cell offset", async () => {
@@ -64,7 +99,7 @@ describe("Text rendering", () => {
 		cls1(vm)
 		vm.setRam(0x5820, [7])
 
-		renderAt(vm, 'ReTro…', 1, 1)
+		renderAt(vm, 'ReTro…', {row: 1, column: 1})
 
 		const actual = getScreenMono(vm)
 		await assertExpectedImage("half-cell-offset", actual)
@@ -74,7 +109,7 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		clsObscured(vm)
 
-		renderAt(vm, 'ReTro…', 1, 1, 0b01111000) // Bright white paper
+		renderAt(vm, 'ReTro…', {row: 1, column: 1}, 0b01111000) // Bright white paper
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("half-cell-offset-hidden", actual)
@@ -84,7 +119,7 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		cls(vm)
 
-		renderAt(vm, '.', 4, 4, 0b01110001)
+		renderAt(vm, '.', {row: 4, column: 4}, 0b01110001)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("applies-attrs-0_5", actual)
@@ -94,7 +129,7 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		cls(vm)
 
-		renderAt(vm, 'R', 4, 4, 0b01110001)
+		renderAt(vm, 'R', {row: 4, column: 4}, 0b01110001)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("applies-attrs-1", actual)
@@ -104,7 +139,7 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		cls(vm)
 
-		renderAt(vm, 'R!', 4, 4, 0b01110001)
+		renderAt(vm, 'R!', {row: 4, column: 4}, 0b01110001)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("applies-attrs-1_5", actual)
@@ -114,14 +149,14 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		renderAt(vm, '‘The Long, Dark Tea-Time’', 0, 0)
+		renderAt(vm, '‘The Long, Dark Tea-Time’', {row: 0, column: 0})
 
 		const actual = getScreenMono(vm)
 		await assertExpectedImage("mix-width", actual)
 	})
 })
 
-function renderAt(vm: Vm, text: string, x: number, y: number, attr: byte = 0b00111000) {
+function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000) {
 	const charBytes: byte[] = []
 	const textLength = text.length
 	for(let i = 0; i < textLength; i++) {
@@ -129,7 +164,7 @@ function renderAt(vm: Vm, text: string, x: number, y: number, attr: byte = 0b001
 		charBytes[i] = c
 	}
 	vm.setRam(0x9000, charBytes)
-	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), AF: (attr << 8), HL: ((y << 8) | x)})
+	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), AF: (attr << 8), HL: ((p.row << 8) | p.column)})
 	vm.setRam(0x8000, [
 		0xCD, 0x00, 0x08, // call $0800
 		0x76, // HALT
@@ -137,6 +172,12 @@ function renderAt(vm: Vm, text: string, x: number, y: number, attr: byte = 0b001
 	vm.runPcAt({addr:0x8000}, 20000)
 }
 
+function getCoordsAfterRendering(vm: Vm): TextCoords {
+	const r = vm.getRegisters()
+	return {row: r.HL >> 8 as byte, column: (r.HL & 0xff) as byte}
+}
+
 async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
 	await assertBitmapImageMatches('textrender.test', expectedPngFilename, actualOutput)
 }
+
