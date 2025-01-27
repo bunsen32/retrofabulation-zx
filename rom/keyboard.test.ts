@@ -299,10 +299,10 @@ function keyScanResults(vm: Vm) {
 	const r = vm.getRegisters()
 	return {
 		keyCodes: {
-			primary: (r.DE & 0xFF) as byte,
-			secondary: (r.DE >> 8) as byte,
+			primary: r.E,
+			secondary: r.D,
 		},
-		shiftState: (r.BC >> 8) as byte
+		shiftState: r.B
 	}
 }
 
@@ -335,9 +335,10 @@ function setKeyboardState(vm: Vm, state: Partial<KeyboardState>) {
 
 function callKeyboardWith(vm: Vm, pressed: KeyPressState, shiftState?: 0|1|2|3) {
 	vm.setRegisters({
-		DE: ((pressed.secondary || 0) << 8) | (pressed.primary & 0xff),
-		BC: (shiftState || 0) << 8,
-		AF: pressed.tooManyPressed ? 0x00 : 0xff,
+		E: pressed.primary,
+		D: (pressed.secondary || 0),
+		B: (shiftState || 0),
+		F: pressed.tooManyPressed ? 0x00 : 0xff,
 	})
 	vm.callSubroutine(rom.KEYBOARD.after_scan, 300)
 }

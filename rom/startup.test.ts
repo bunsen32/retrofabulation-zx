@@ -44,7 +44,7 @@ describe("Splash-screen", () => {
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
 
-		vm.setRegisters({AF: 0x14_00, BC:0b00101110_00101101})
+		vm.setRegisters({A: 0x14, BC:0b00101110_00101101})
 		vm.runPcAt(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
@@ -56,7 +56,7 @@ describe("Splash-screen", () => {
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
 
-		vm.setRegisters({AF: 0x00_00, BC:0b00000000_00101110})
+		vm.setRegisters({A: 0x00, BC:0b00000000_00101110})
 		vm.runPcAt(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
@@ -68,7 +68,7 @@ describe("Splash-screen", () => {
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
 
-		vm.setRegisters({AF: 0x0A_00, BC:0b00000000_00101110})
+		vm.setRegisters({A: 0x0A, BC:0b00000000_00101110})
 		vm.runPcAt(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
@@ -80,7 +80,7 @@ describe("Splash-screen", () => {
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
 
-		vm.setRegisters({AF: 0x20_00, BC:0b00000000_00101110})
+		vm.setRegisters({A: 0x20, BC:0b00000000_00101110})
 		vm.runPcAt(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
@@ -92,7 +92,7 @@ describe("Splash-screen", () => {
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
 
-		vm.setRegisters({AF: 0x23_00, BC:0b00000000_00101110})
+		vm.setRegisters({A: 0x23, BC:0b00000000_00101110})
 		vm.runPcAt(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)

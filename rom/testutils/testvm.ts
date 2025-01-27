@@ -9,6 +9,21 @@ export type word = number
 
 export type Z80Address = { addr: number }
 
+const REGISTER_PAIRS = [
+	['AF', 'A', 'F'],
+	['BC', 'B', 'C'],
+	['DE', 'D', 'E'],
+	['HL', 'H', 'L'],
+	['AF_', 'A_', 'F_'],
+	['BC_', 'B_', 'C_'],
+	['DE_', 'D_', 'E_'],
+	['HL_', 'H_', 'L_'],
+	['IX', 'IXh', 'IXl'],
+	['IY', 'IYh', 'IYl'],
+	['SP'],
+	['IR', 'I', 'R']
+]
+
 export class Vm {
 	memory: {buffer: ArrayBuffer}
 	memoryData: Uint8Array
@@ -58,19 +73,32 @@ export class Vm {
 
 	getRegisters(): RegisterSet {
 		const result = {};
-		['AF', 'BC', 'DE', 'HL', 'AF_', 'BC_', 'DE_', 'HL_', 'IX', 'IY', 'SP', 'IR'].forEach(
-			(r, i) => {
-				result[r] = this.registerPairs[i]
+		REGISTER_PAIRS.forEach(
+			(registers, i) => {
+				const [rPair, rHigh, rLow] = registers
+				const word = this.registerPairs[i]
+				result[rPair] = word
+				if (rHigh) {
+					result[rHigh] = (word >> 8)
+					result[rLow] = (word & 0xff)
+				}
 			}
 		)
 		return result as RegisterSet
 	}
 
 	setRegisters(registerValues: PartialRegisterSet) {
-		['AF', 'BC', 'DE', 'HL', 'AF_', 'BC_', 'DE_', 'HL_', 'IX', 'IY', 'SP', 'IR'].forEach(
-			(r, i) => {
-				const v = registerValues[r]
-				if (v != undefined) this.registerPairs[i] = v
+		REGISTER_PAIRS.forEach(
+			([rPair, rHigh, rLow], i) => {
+				const word = registerValues[rPair]
+				const highByte = registerValues[rHigh]
+				const lowByte = registerValues[rLow]
+				if (word != undefined) {
+					this.registerPairs[i] = word
+				} else {
+					if (highByte != undefined) this.registerPairs[i] = (this.registerPairs[i] & 0x00ff) | (highByte << 8)
+					if (lowByte != undefined) this.registerPairs[i] = (this.registerPairs[i] & 0xff00) | (lowByte & 0xff)
+				}
 			}
 		)
 	}
@@ -181,6 +209,14 @@ export type RegisterSet = {
 	DE: number,
 	HL: number,
 	SP: number,
+	A: byte,
+	F: byte,
+	B: byte,
+	C: byte,
+	D: byte,
+	E: byte,
+	H: byte,
+	L: byte
 }
 export type PartialRegisterSet = Partial<RegisterSet>
 export type CpuSnapshot = RegisterSet & {

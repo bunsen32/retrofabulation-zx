@@ -164,7 +164,7 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000) 
 		charBytes[i] = c
 	}
 	vm.setRam(0x9000, charBytes)
-	vm.setRegisters({ SP: stackTop, DE: 0x9000, BC: (textLength << 8), AF: (attr << 8), HL: ((p.row << 8) | p.column)})
+	vm.setRegisters({ SP: stackTop, DE: 0x9000, B: textLength as byte, A: attr, H: p.row, L: p.column })
 	vm.setRam(0x8000, [
 		0xCD, 0x00, 0x08, // call $0800
 		0x76, // HALT
@@ -174,7 +174,7 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000) 
 
 function getCoordsAfterRendering(vm: Vm): TextCoords {
 	const r = vm.getRegisters()
-	return {row: r.HL >> 8 as byte, column: (r.HL & 0xff) as byte}
+	return {row: r.H, column: r.L}
 }
 
 async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
