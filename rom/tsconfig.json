@@ -1,0 +1,13 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"paths": {
+			"@jest/globals": ["../node_modules/@jest/globals/build"]
+		}
+	},
+	"references": [
+		{ "path": "../zxsys" }
+	]
+}

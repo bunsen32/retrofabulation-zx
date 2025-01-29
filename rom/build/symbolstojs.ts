@@ -1,4 +1,3 @@
-import { createWriteStream, WriteStream } from 'node:fs'
 import * as process from 'node:process'
 import { createInterface } from 'node:readline'
 

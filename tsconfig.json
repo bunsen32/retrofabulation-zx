@@ -6,6 +6,7 @@
         "esModuleInterop": true,
 		"moduleResolution": "node"
     },
-    "include": [ "*.ts", "rom/*.test.ts", "rom/testutils/testvm.ts" ],
-    "exclude": [ "*.test.ts", "node_modules", "rom/testutils/testvm.ts" ],
+	"files": [],
+    "include": [],
+    "exclude": [ "**/node_modules" ],
 }

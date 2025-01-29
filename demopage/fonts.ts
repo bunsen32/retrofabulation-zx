@@ -1,10 +1,9 @@
 
-import { render } from './parsing'
-import { Colour, Attr, SpecScreen } from './SpecScreen'
-import { glyphs } from './font1'
-import { Line, tokeniseLine } from './tokeniser'
-import { FloatLiteral, identifier, Identifier, IntLiteral, LineComment, StringLiteral, Token, TokenStruct } from './tokens'
-import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from './encoding'
+import { Attr, SpecScreen } from './SpecScreen'
+import { glyphs } from '../fonts/font1'
+import { Line, tokeniseLine } from '../tokeniser'
+import { FloatLiteral, identifier, Identifier, IntLiteral, LineComment, StringLiteral, Token, TokenStruct } from '../tokens'
+import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '../zxsys/encoding'
 
 const store = window.localStorage
 

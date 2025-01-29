@@ -1,5 +1,5 @@
-import { Glyph, glyphs } from '../font1'
-import { Charset } from '../encoding'
+import { Glyph, glyphs } from '../../fonts/font1'
+import { Charset } from '../../zxsys/encoding'
 import { createWriteStream, WriteStream } from 'node:fs'
 import * as process from 'node:process'
 

@@ -1,4 +1,12 @@
 {
+	"private": true,
+	"workspaces": [
+		"zxsys",
+		"fonts",
+		"interpreter",
+		"rom",
+		"demopage"
+	],
   "devDependencies": {
     "@jest/globals": "^29.1.2",
     "@types/node": "^22.4.0",
@@ -7,11 +15,5 @@
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
-  },
-  "scripts": {
-    "test": "jest",
-    "genfont": "ts-node --project tsconfig.generation.json rom/makefont.ts rom/generated/font.z80",
-		"symtojs": "ts-node --project tsconfig.generation.json rom/build/symbolstojs <rom/generated/symbols.txt >rom/generated/symbols.ts",
-    "assemble": "sjasmplus --outprefix=dist/roms/ --sym=rom/generated/symbols.txt -Wno-fwdref rom/root.z80; yarn symtojs"
   }
 }

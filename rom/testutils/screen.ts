@@ -1,13 +1,13 @@
 import {Vm} from './testvm'
-import { coloursFromAttr, PaperAndInk, RGB } from '../../Colours'
+import { coloursFromAttr, PaperAndInk, RGB } from '../../zxsys/Colours'
 import * as PImage from 'pureimage'
 import { createWriteStream, createReadStream, existsSync } from 'node:fs'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { expect } from '@jest/globals'
-import { byte } from '../../Byte'
+import { byte } from '../../zxsys/Byte'
 
-const rootExpectedFiles = "./rom"
+const rootExpectedFiles = "./"
 const rootActualMismatchFiles = "./testout"
 
 export function cls(vm: Vm) {

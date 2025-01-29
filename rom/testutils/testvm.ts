@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs'
 
 export const FRAME_BUFFER_SIZE = 0x6600;
 
-import {byte} from '../../Byte'
+import {byte} from '../../zxsys/Byte'
 import {rom} from '../generated/symbols'
 export type word = number
 
@@ -198,8 +198,8 @@ export class Vm {
 	}
 }
 
-const JSPECCY = "../jsspeccy3/dist/jsspeccy"
-const ROM = "dist/roms/neo48.rom"
+const JSPECCY = "../../jsspeccy3/dist/jsspeccy"
+const ROM = "../dist/roms/neo48.rom"
 const memoryPageWriteMap = [11, 5, 2, 0]
 export const stackTop = 0xF000
 

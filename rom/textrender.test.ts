@@ -2,8 +2,8 @@
 import {describe, test, expect} from '@jest/globals'
 import {emulatorWasm, stackTop, Vm} from './testutils/testvm'
 import {getScreenMono, cls, Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen"
-import {CharsetFromUnicode} from '../encoding'
-import {byte} from '../Byte'
+import {CharsetFromUnicode} from '../zxsys/encoding'
+import {byte} from '../zxsys/Byte'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>

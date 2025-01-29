@@ -2,8 +2,8 @@
 import {describe, expect, test} from '@jest/globals'
 import {emulatorWasm, PartialRegisterSet, Vm, Z80Address} from './testutils/testvm'
 import {rom} from './generated/symbols'
-import { byte } from '../Byte'
-import { Charset, CharsetFromUnicode } from '../encoding'
+import { byte } from '../zxsys/Byte'
+import { Charset, CharsetFromUnicode } from '../zxsys/encoding'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>
