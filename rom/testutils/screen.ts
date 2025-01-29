@@ -1,9 +1,9 @@
 import {Vm} from './testvm'
 import { coloursFromAttr, PaperAndInk, RGB } from '../../Colours'
 import * as PImage from 'pureimage'
-import { createWriteStream, createReadStream, existsSync } from 'fs'
-import * as fs from 'fs'
-import * as path from 'path'
+import { createWriteStream, createReadStream, existsSync } from 'node:fs'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { expect } from '@jest/globals'
 import { byte } from '../../Byte'
 

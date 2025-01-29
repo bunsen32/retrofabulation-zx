@@ -1,6 +1,6 @@
-import { createWriteStream, WriteStream } from 'fs'
-import * as process from 'process'
-import { createInterface } from 'readline'
+import { createWriteStream, WriteStream } from 'node:fs'
+import * as process from 'node:process'
+import { createInterface } from 'node:readline'
 
 const rl = createInterface({
 	input: process.stdin,

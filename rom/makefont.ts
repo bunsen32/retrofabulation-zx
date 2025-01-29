@@ -1,7 +1,7 @@
 import { Glyph, glyphs } from '../font1'
 import { Charset } from '../encoding'
-import { createWriteStream, WriteStream } from 'fs'
-import * as process from 'process'
+import { createWriteStream, WriteStream } from 'node:fs'
+import * as process from 'node:process'
 
 if (process.argv.length === 2) {
 	console.error('Expected at least one argument: <output-file>');
