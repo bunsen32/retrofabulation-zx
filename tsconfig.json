@@ -6,7 +6,6 @@
         "esModuleInterop": true,
 		"moduleResolution": "node"
     },
-	"files": [],
     "include": [],
     "exclude": [ "**/node_modules" ],
 }

@@ -303,7 +303,7 @@ export function tokeniseLine(text: string): Line {
 	function parseWord(): Token|Identifier {
 		let str = String.fromCharCode(next)
 		let possiblyKeyword = true
-		let sigil: IdentifierTypeSigil
+		let sigil: IdentifierTypeSigil|undefined = undefined
 		while (true) {
 			fetchNext()
 			if (next == 0x24) { // $

@@ -1,9 +1,9 @@
 
 import { Attr, SpecScreen } from './SpecScreen'
-import { glyphs } from '../fonts/font1'
-import { Line, tokeniseLine } from '../tokeniser'
-import { FloatLiteral, identifier, Identifier, IntLiteral, LineComment, StringLiteral, Token, TokenStruct } from '../tokens'
-import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '../zxsys/encoding'
+import { glyphs } from 'fonts/font1'
+import { Line, tokeniseLine } from 'interpreter/tokeniser'
+import { FloatLiteral, identifier, Identifier, IntLiteral, LineComment, StringLiteral, Token, TokenStruct } from 'interpreter/tokens'
+import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from 'zxsys/encoding'
 
 const store = window.localStorage
 
@@ -12,11 +12,11 @@ const editor = document.getElementById("editor") as HTMLCanvasElement
 const rect = editor.getBoundingClientRect() // abs. size of element
 const scaleX = editor.width / rect.width    // relationship bitmap vs. element for x
 const scaleY = editor.height / rect.height  // relationship bitmap vs. element for y
-const cx = editor.getContext("2d")
+const cx = editor.getContext("2d")!
 cx.imageSmoothingEnabled = false
 
 const screenElement = document.getElementById("screen") as HTMLCanvasElement
-const screenCx = screenElement.getContext("2d")
+const screenCx = screenElement.getContext("2d")!
 const screen = new SpecScreen(screenCx)
 screenCx.imageSmoothingEnabled = false
 
@@ -165,11 +165,11 @@ export function selectChar(i){
 	if (selected) {
 		saveCurrentChar()
 		const oldC = document.getElementById(`char-${selected}`)
-		oldC.classList.remove("selected")
+		oldC?.classList.remove("selected")
 	}
 	loadCurrentChar(i)
 	const newC = document.getElementById(`char-${i}`)
-	newC.classList.add("selected")
+	newC?.classList.add("selected")
 	console.log("data: "+ data)
 	renderToEditor(data)
 }
@@ -304,7 +304,7 @@ function printTokenisedLine(col, row, line: Line) {
 	let x = (col << 3) + (line.indent * 20)
 	for (let token of line.tokens) {
 		let text: string
-		let attr: Partial<Attr>|undefined = null
+		let attr: Partial<Attr>|undefined = undefined
 		if (typeof token === 'string') {
 			attr = (token >= 'a' && token <= 'z') ? theme.keyword : theme.symbol
 			text = token
