@@ -1,8 +1,7 @@
 {
-	"extends": "./tsconfig.json",
 	"ts-node": {
 		"transpileOnly": true,
-		"files": true,
+		"files": true
 	},
-	"include": [ "build/*.ts" ]
+	"include": [ "build/makefont.ts" ]
 }
