@@ -8,6 +8,8 @@
 		}
 	},
 	"references": [
-		{ "path": "../zxsys" }
-	]
+		{ "path": "../zxsys" },
+		{ "path": "../fonts" }
+	],
+	"include": [ "build/makefont.ts" ]
 }

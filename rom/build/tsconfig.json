@@ -1,0 +1,13 @@
+{
+	"extends": "../../tsconfig.json",
+	"ts-node": {
+		"esm": true
+	},
+	"compilerOptions": {
+	},
+	"references": [
+		{ "path": "../../zxsys" },
+		{ "path": "../../fonts" }
+	],
+	"include": [ "./*.ts" ],
+}

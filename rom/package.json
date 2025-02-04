@@ -10,8 +10,8 @@
 
 	"scripts": {
 		"test": "jest --config ../jest.config.ts *.test.ts",
-		"genfont": "ts-node --project tsconfig.generation.json build/makefont.ts generated/font.z80",
-		"symtojs": "ts-node --project tsconfig.generation.json build/symbolstojs.ts <generated/symbols.txt >generated/symbols.ts",
+		"genfont": "ts-node --project build/tsconfig.json build/makefont.ts generated/font.z80",
+		"symtojs": "ts-node --project build/tsconfig.json build/symbolstojs.ts <generated/symbols.txt >generated/symbols.ts",
 		"assemble": "sjasmplus --outprefix=dist/ --sym=generated/symbols.txt -Wno-fwdref root.z80; yarn symtojs"
 	}
 }

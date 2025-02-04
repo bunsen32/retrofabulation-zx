@@ -1,12 +1,14 @@
 import * as process from 'node:process'
 import { createInterface } from 'node:readline'
 
+interface Writeable {
+	write(chunk: any, callback?: (error: Error | null | undefined) => void): boolean;
+}
 const rl = createInterface({
 	input: process.stdin,
 	output: process.stdout,
 	terminal: false,
 })
-const input = process.stdin
 const out = process.stdout
 
 const indent = ['', '\t', '\t\t', '\t\t\t', '\t\t\t\t']
@@ -72,15 +74,22 @@ function differenceAtLevel(currentPath: string[], path: string[]): number {
 	return l 
 }
 
-function closeLevels(out, currentDepth: number, closeToDepth: number) {
+function closeLevels(out: Writeable, currentDepth: number, closeToDepth: number) {
 	for (let d = currentDepth; d > closeToDepth; d--) {
 		out.write(`${indent[1+d-1]}},\n`)
 	}
 }
 
-function openLevels(out: any, commonDepth: number, path: string[]) {
+function openLevels(out: Writeable, commonDepth: number, path: string[]) {
 	for (let d = commonDepth; d < path.length; d++){
 		out.write(`${indent[1+d]}${path[d]}: {\n`)
 	}
 }
 
+async function write(out: Writeable, str: string): Promise<void> {
+	return new Promise((resolve, reject) => {
+		out.write(str, (anyError: Error|null) => {
+			if (anyError) reject(anyError); else resolve()
+		})
+	})
+}
