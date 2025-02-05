@@ -1,12 +1,10 @@
 {
 	"name": "interpreter",
 	"version": "1.0.0",
-
 	"devDependencies": {
 		"fonts": "1.0.0",
 		"zxsys": "1.0.0"
 	},
-
 	"scripts": {
 		"test": "jest --config ../jest.config.ts *.test.ts"
 	}

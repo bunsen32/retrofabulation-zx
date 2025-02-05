@@ -1,6 +1,6 @@
-import type { Glyph } from 'fonts/font1.ts'
-import { glyphs } from 'fonts/font1.ts'
-import { Charset } from 'zxsys/encoding.ts'
+import type { Glyph } from 'fonts/font1'
+import { glyphs } from 'fonts/font1'
+import { Charset } from 'zxsys/encoding'
 import { createWriteStream } from 'node:fs'
 import * as process from 'node:process'
 

@@ -1,11 +1,10 @@
 {
 	"name": "demopage",
 	"version": "1.0.0",
-
 	"dependencies": {
-		"zxsys": "1.0.0",
 		"fonts": "1.0.0",
 		"interpreter": "1.0.0",
-		"rom": "1.0.0"
+		"rom": "1.0.0",
+		"zxsys": "1.0.0"
 	}
 }

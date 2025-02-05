@@ -2,12 +2,13 @@
 	"name": "rom",
 	"version": "1.0.0",
 	"type": "module",
-
 	"devDependencies": {
+		"@types/node": "^22.4.0",
 		"fonts": "1.0.0",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.5.4",
 		"zxsys": "1.0.0"
 	},
-
 	"scripts": {
 		"test": "jest --config ../jest.config.ts *.test.ts",
 		"genfont": "ts-node --project build/tsconfig.json build/makefont.ts generated/font.z80",
