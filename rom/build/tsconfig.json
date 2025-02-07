@@ -4,6 +4,8 @@
 		"esm": true
 	},
 	"compilerOptions": {
+		"noEmit": true,
+		"allowImportingTsExtensions": true
 	},
 	"references": [
 		{ "path": "../../zxsys" },
