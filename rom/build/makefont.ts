@@ -1,5 +1,5 @@
-import { glyphs, Glyph } from '../../fonts/font1.ts'
-import { Charset } from '../../zxsys/encoding.ts'
+import { glyphs, Glyph } from '@zx/fonts'
+import { Charset } from '@zx/sys'
 import * as process from 'node:process'
 
 interface Writeable {

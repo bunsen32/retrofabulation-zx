@@ -1,5 +1,5 @@
 {
-	"name": "@scope/zxsys",
+	"name": "@zx/sys",
 	"version": "1.0.0",
-	"exports": "*.ts"
+	"exports": "./exports.ts"
 }
