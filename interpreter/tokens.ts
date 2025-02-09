@@ -1,4 +1,4 @@
-import { NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from "zxsys/encoding"
+import { NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from "zxsys/encoding.ts"
 
 export const tokens = [
     // identifier

@@ -3,8 +3,8 @@ import {readFileSync} from 'node:fs'
 
 export const FRAME_BUFFER_SIZE = 0x6600;
 
-import {byte} from '../../zxsys/Byte'
-import {rom} from '../generated/symbols'
+import {byte} from '../../zxsys/Byte.ts'
+import {rom} from '../generated/symbols.ts'
 export type word = number
 
 export type Z80Address = { addr: number }

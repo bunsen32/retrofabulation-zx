@@ -1,7 +1,7 @@
 import {describe, expect, test} from '@jest/globals'
-import {literal16, Op, BoolOp, NumPres, load16, store16} from "../zxsys/parsing"
-import {emulatorWasm, Vm} from './testutils/testvm'
-import {byte} from '../zxsys/Byte'
+import {literal16, Op, BoolOp, NumPres, load16, store16} from "../zxsys/parsing.ts"
+import {emulatorWasm, Vm} from './testutils/testvm.ts'
+import {byte} from '../zxsys/Byte.ts'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>

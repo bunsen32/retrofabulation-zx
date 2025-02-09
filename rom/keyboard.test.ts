@@ -1,9 +1,9 @@
 // Test the keyboard scanning routines:
 import {describe, expect, test} from '@jest/globals'
-import {emulatorWasm, PartialRegisterSet, Vm, Z80Address} from './testutils/testvm'
-import {rom} from './generated/symbols'
-import { byte } from '../zxsys/Byte'
-import { Charset, CharsetFromUnicode } from '../zxsys/encoding'
+import {emulatorWasm, PartialRegisterSet, Vm, Z80Address} from './testutils/testvm.ts'
+import {rom} from './generated/symbols.ts'
+import { byte } from '../zxsys/Byte.ts'
+import { Charset, CharsetFromUnicode } from '../zxsys/encoding.ts'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>

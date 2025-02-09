@@ -1,8 +1,8 @@
 // Test the startup sequence:
 import {describe, test} from '@jest/globals'
-import {emulatorWasm, Vm} from './testutils/testvm'
-import {getScreenMono, Bitmap, cls1, getScreenColour, assertBitmapImageMatches, clearAttrs} from "./testutils/screen"
-import {rom} from './generated/symbols'
+import {emulatorWasm, Vm} from './testutils/testvm.ts'
+import {getScreenMono, Bitmap, cls1, getScreenColour, assertBitmapImageMatches, clearAttrs} from "./testutils/screen.ts"
+import {rom} from './generated/symbols.ts'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>

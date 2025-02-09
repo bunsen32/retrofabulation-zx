@@ -1,11 +1,11 @@
-import {Vm} from './testvm'
-import { coloursFromAttr, PaperAndInk, RGB } from '../../zxsys/Colours'
+import {Vm} from './testvm.ts'
+import { coloursFromAttr, PaperAndInk, RGB } from '../../zxsys/Colours.ts'
 import * as PImage from 'pureimage'
 import { createWriteStream, createReadStream, existsSync } from 'node:fs'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { expect } from '@jest/globals'
-import { byte } from '../../zxsys/Byte'
+import { byte } from '../../zxsys/Byte.ts'
 
 const rootExpectedFiles = "./"
 const rootActualMismatchFiles = "./testout"

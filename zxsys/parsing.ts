@@ -1,4 +1,4 @@
-import {byte} from './Byte'
+import {byte} from './Byte.ts'
 
 // OP-code: 0b_JUMP_DATA
 
