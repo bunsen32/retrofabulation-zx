@@ -1,6 +1,7 @@
 // Test the keyboard scanning routines:
-import {describe, expect, test} from '@jest/globals'
-import {emulatorWasm, PartialRegisterSet, Vm, Z80Address} from './testutils/testvm.ts'
+import { describe, it } from "jsr:@std/testing/bdd";
+import { expect } from "jsr:@std/expect";
+import {emulatorWasm, Vm, Z80Address} from './testutils/testvm.ts'
 import {rom} from './generated/symbols.ts'
 import { byte } from '../zxsys/Byte.ts'
 import { Charset, CharsetFromUnicode } from '../zxsys/encoding.ts'
@@ -54,7 +55,7 @@ const ZEROED: KeyboardState = {
 }
 
 describe("Keyboard scan", () => {
-	test("No keys returns all zeros", async () => {
+	it("No keys returns all zeros", async () => {
 		const vm = await loadedVm
 		// Given no keys pressed
 
@@ -64,7 +65,7 @@ describe("Keyboard scan", () => {
 		expect(r).toEqual({keyCodes: NO_KEYS, shiftState: 0})
 	})
 
-	test("The X key returns correct code", async () => {
+	it("The X key returns correct code", async () => {
 		const vm = await loadedVm
 		vm.keyDown(0, 0x10) // The X key
 
@@ -74,7 +75,7 @@ describe("Keyboard scan", () => {
 		expect(r).toEqual({keyCodes: {secondary: 0, primary: 32}, shiftState: 0})
 	})
 
-	test("Two (non-shift) keys returns the correct codes", async () => {
+	it("Two (non-shift) keys returns the correct codes", async () => {
 		const vm = await loadedVm
 		vm.keyDown(0, 0x06) // The Z & X keys
 
@@ -84,7 +85,7 @@ describe("Keyboard scan", () => {
 		expect(r).toEqual({keyCodes: {secondary: 0x08, primary: 0x10}, shiftState: 0})
 	})
 
-	test("CAPS shift returns the correct code", async () => {
+	it("CAPS shift returns the correct code", async () => {
 		const vm = await loadedVm
 		vm.keysDown([{row: 0, mask: 0x01}]) // The CAPS key
 
@@ -94,7 +95,7 @@ describe("Keyboard scan", () => {
 		expect(r).toEqual({keyCodes: NO_KEYS, shiftState: 0b01})
 	})
 
-	test("SYM shift returns the correct code", async () => {
+	it("SYM shift returns the correct code", async () => {
 		const vm = await loadedVm
 		vm.keysDown([{row: 7, mask: 0x02}]) // The SYM key
 
@@ -104,7 +105,7 @@ describe("Keyboard scan", () => {
 		expect(r).toEqual({keyCodes: NO_KEYS, shiftState: 0b10})
 	})
 
-	test("Two shifts return the correct codes", async () => {
+	it("Two shifts return the correct codes", async () => {
 		const vm = await loadedVm
 		vm.keysDown([{row: 0, mask: 0x01}, {row: 7, mask: 0x02}]) // The CAPS & SYM keys
 
@@ -117,7 +118,7 @@ describe("Keyboard scan", () => {
 
 describe("Keyboard state changes", () => {
 
-	test("Person press button, character gets input", async () => {
+	it("Person press button, character gets input", async () => {
 		const vm = await loadedVmWithKeyboardState(ZEROED)
 
 		callKeyboardWith(vm, {primary: KEYS.A})
@@ -126,7 +127,7 @@ describe("Keyboard state changes", () => {
 		expect(r.currentCharUnicode).toEqual('A')
 	})
 
-	test("On keypress, repeat key is set", async () => {
+	it("On keypress, repeat key is set", async () => {
 		const vm = await loadedVmWithKeyboardState(ZEROED)
 		vm.pokeByte(rom.REPDEL, 99)
 
@@ -137,7 +138,7 @@ describe("Keyboard state changes", () => {
 		expect(r.repeatCountdown).toEqual(99)
 	})
 
-	test("Person keep hold button, pause count decrease, but no keypress", async () => {
+	it("Person keep hold button, pause count decrease, but no keypress", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			currentCharUnicode: 'A',
 			repeatKeyCode: KEYS.A,
@@ -152,7 +153,7 @@ describe("Keyboard state changes", () => {
 		expect(r.repeatKeyCode).toEqual(KEYS.A)
 	})
 
-	test("Person hold button, repeat counter is one, presses key", async () => {
+	it("Person hold button, repeat counter is one, presses key", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			currentCharUnicode: 'A',
 			repeatKeyCode: KEYS.A,
@@ -165,7 +166,7 @@ describe("Keyboard state changes", () => {
 		expect(r.currentCharUnicode).toEqual('A')
 	})
 
-	test("Person hold button, repeat counter is one, sets counter to REPER", async () => {
+	it("Person hold button, repeat counter is one, sets counter to REPER", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			currentCharUnicode: 'A',
 			repeatKeyCode: KEYS.A,
@@ -180,7 +181,7 @@ describe("Keyboard state changes", () => {
 		expect(r.repeatCountdown).toEqual(42)
 	})
 
-	test("If I press two buttons, and one already has been superseded, suppress it and issue second one", async () => {
+	it("If I press two buttons, and one already has been superseded, suppress it and issue second one", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			currentCharUnicode: 'X',
 			repeatKeyCode: KEYS.Q,
@@ -196,7 +197,7 @@ describe("Keyboard state changes", () => {
 		expect(r.currentCharUnicode).toEqual('A')
 	})
 
-	test("If I WAS pressing one button, and press a different one (primary), suppress the first one, and issue second one", async () => {
+	it("If I WAS pressing one button, and press a different one (primary), suppress the first one, and issue second one", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			currentCharUnicode: 'A',
 			repeatKeyCode: KEYS.A,
@@ -212,7 +213,7 @@ describe("Keyboard state changes", () => {
 		expect(r.currentCharUnicode).toEqual('B')
 	})
 
-	test("If I WAS pressing one button, and press a different one (secondary), suppress the first one, and issue second one", async () => {
+	it("If I WAS pressing one button, and press a different one (secondary), suppress the first one, and issue second one", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			currentCharUnicode: 'A',
 			repeatKeyCode: KEYS.A,
@@ -228,7 +229,7 @@ describe("Keyboard state changes", () => {
 		expect(r.currentCharUnicode).toEqual('B')
 	})
 
-	test("If one key had been superseded, and a single key pressed, clear superseded state and issue that key", async () => {
+	it("If one key had been superseded, and a single key pressed, clear superseded state and issue that key", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			repeatKeyCode: KEYS.B,
 			repeatCountdown: 13,
@@ -243,7 +244,7 @@ describe("Keyboard state changes", () => {
 		expect(r.currentCharUnicode).toEqual('A')
 	})
 
-	test("If one key had been superseded, and two keys pressed (neither of which is it), clear superseded state and issue primary key", async () => {
+	it("If one key had been superseded, and two keys pressed (neither of which is it), clear superseded state and issue primary key", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			repeatKeyCode: KEYS.ENTER,
 			repeatCountdown: 13,
@@ -258,7 +259,7 @@ describe("Keyboard state changes", () => {
 		expect(r.currentCharUnicode).toEqual('A')
 	})
 
-	test("After release button, no character issued", async () => {
+	it("After release button, no character issued", async () => {
 		const vm = await loadedVmWithKeyboardState({
 			repeatKeyCode: KEYS.ENTER,
 			repeatCountdown: 1,
@@ -275,7 +276,7 @@ describe("Keyboard state changes", () => {
 })
 
 describe("Keyboard decoding", () => {
-	test("UNshifted character returns main symbol", async () => {
+	it("UNshifted character returns main symbol", async () => {
 		const vm = await loadedVmWithKeyboardState(ZEROED)
 
 		callKeyboardWith(vm, {primary: KEYS.ONE}, SHIFT_NONE)
@@ -284,7 +285,7 @@ describe("Keyboard decoding", () => {
 		expect(r.currentCharUnicode).toEqual('1')
 	})
 
-	test("Press symbol shift, get symbol character from key", async () => {
+	it("Press symbol shift, get symbol character from key", async () => {
 		const vm = await loadedVmWithKeyboardState(ZEROED)
 
 		callKeyboardWith(vm, {primary: KEYS.ONE}, SHIFT_SYM)

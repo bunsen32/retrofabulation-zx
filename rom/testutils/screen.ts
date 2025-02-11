@@ -1,11 +1,11 @@
-import {Vm} from './testvm.ts'
-import { coloursFromAttr, PaperAndInk, RGB } from '../../zxsys/Colours.ts'
+import type {Vm} from './testvm.ts'
+import { coloursFromAttr, type RGB } from '@zx/sys'
 import * as PImage from 'pureimage'
 import { createWriteStream, createReadStream, existsSync } from 'node:fs'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { expect } from '@jest/globals'
-import { byte } from '../../zxsys/Byte.ts'
+import { expect } from "jsr:@std/expect";
+import type { byte } from '@zx/sys'
 
 const rootExpectedFiles = "./"
 const rootActualMismatchFiles = "./testout"
@@ -117,7 +117,6 @@ export function getScreenColour(vm: Vm, xStart: number = 0, yStart: number = 0, 
 
 export async function assertBitmapImageMatches(subdir: string, expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
 	const expectFilePath = `${subdir}/${expectedPngFilename}-expected.png`
-
 	const expected = await readClip(`${rootExpectedFiles}/${expectFilePath}`)
 	try {
 		if (!expected) throw `Cannot find file: ${expectFilePath}`
@@ -133,12 +132,20 @@ export async function assertBitmapImageMatches(subdir: string, expectedPngFilena
 
 export async function writeClip(clipImage: Bitmap, filename: string) {
 	await fs.promises.mkdir(path.dirname(filename), { recursive: true })
-	await PImage.encodePNGToStream(clipImage, createWriteStream(filename))
+	const [output, closeEvent] = writeStream(filename)
+	try {
+		await PImage.encodePNGToStream(clipImage, output)
+	} finally {
+		await closeEvent
+	}
 }
 
 export async function readClip(filename: string): Promise<Bitmap|null> {
 	if (!existsSync(filename)) return Promise.resolve(null)
-	return await PImage.decodePNGFromStream(createReadStream(filename))
+	const [input, closeEvent] = readStream(filename)
+	const result = await PImage.decodePNGFromStream(input)
+	await closeEvent
+	return result
 }
 
 export function assertSamePixels(expected: Bitmap, actual: Bitmap) {
@@ -163,4 +170,24 @@ function lineAddressFromY(y: number) {
 function attrLineAddressFromY(y: number) {
 	const row = y >> 3
 	return 0x5800 + (row * 32)
+}
+
+function readStream(filename: string): [fs.ReadStream, Promise<void>] {
+	const stream = createReadStream(filename)
+	const closure =  new Promise<void>((accept, reject) => {
+		stream
+			.on("close", accept)
+			.on("error", reject)
+	})
+	return [stream, closure]
+}
+
+function writeStream(filename: string): [fs.WriteStream, Promise<void>] {
+	const stream = createWriteStream(filename)
+	const closure =  new Promise<void>((accept, reject) => {
+		stream
+			.on("close", accept)
+			.on("error", reject)
+	})
+	return [stream, closure]
 }

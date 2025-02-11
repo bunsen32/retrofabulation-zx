@@ -1,4 +1,5 @@
-import {describe, expect, test} from '@jest/globals'
+import { describe, it } from "jsr:@std/testing/bdd";
+import { expect } from "jsr:@std/expect";
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "../zxsys/parsing.ts"
 import {emulatorWasm, Vm} from './testutils/testvm.ts'
 import {byte} from '../zxsys/Byte.ts'
@@ -14,7 +15,7 @@ function makeArray<T>(value: T, len: number): T[] {
 }
 
 describe('New ROM!', () => {
-	test('runs some Z80', async () => {
+	it('runs some Z80', async () => {
 		const vm = await loadedVm
 
 		vm.setRam(0x8000, [
@@ -28,13 +29,13 @@ describe('New ROM!', () => {
 		expect(vm.core.peek(0x7fff)).toBe(0x3e)
 	})
 
-	test('interprets the bytestream', async () => {
+	it('interprets the bytestream', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([ Op.HALT ], 80)
 	})
 
-	test('int16 literal16', async () => {
+	it('int16 literal16', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([ literal16(NumPres.Hex), 0x44, 0x99, Op.HALT], 200)
@@ -42,7 +43,7 @@ describe('New ROM!', () => {
 		expect(vm.getStack()).toEqual([0x9944])
 	})
 
-	test('int16 add', async () => {
+	it('int16 add', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -54,7 +55,7 @@ describe('New ROM!', () => {
 		expect(vm.getStack()).toEqual([0xcc66])
 	})
 
-	test('int16 eq (true)', async () => {
+	it('int16 eq (true)', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -67,7 +68,7 @@ describe('New ROM!', () => {
 		expect(vm.getStackBoolean()).toBeTruthy()
 	})
 
-	test('int16 eq (false)', async () => {
+	it('int16 eq (false)', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -80,7 +81,7 @@ describe('New ROM!', () => {
 		expect(vm.getStackBoolean()).toBeFalsy()
 	})
 
-	test('int16 ne (true)', async () => {
+	it('int16 ne (true)', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -93,7 +94,7 @@ describe('New ROM!', () => {
 		expect(vm.getStackBoolean()).toBeTruthy()
 	})
 
-	test('int16 ne (false)', async () => {
+	it('int16 ne (false)', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -106,7 +107,7 @@ describe('New ROM!', () => {
 		expect(vm.getStackBoolean()).toBeFalsy()
 	})
 
-	test('int16 lt (A < B)', async () => {
+	it('int16 lt (A < B)', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -119,7 +120,7 @@ describe('New ROM!', () => {
 		expect(vm.getStackBoolean()).toBeTruthy()
 	})
 
-	test('int16 lt (A = B)', async () => {
+	it('int16 lt (A = B)', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -132,7 +133,7 @@ describe('New ROM!', () => {
 		expect(vm.getStackBoolean()).toBeFalsy()
 	})
 
-	test('int16 lt (A > B)', async () => {
+	it('int16 lt (A > B)', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -145,7 +146,7 @@ describe('New ROM!', () => {
 		expect(vm.getStackBoolean()).toBeFalsy()
 	})
 
-	test('if true', async () => {
+	it('if true', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -157,7 +158,7 @@ describe('New ROM!', () => {
 		expect(vm.getStack()).toEqual([0x3210])
 	})
 
-	test('if false', async () => {
+	it('if false', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -170,7 +171,7 @@ describe('New ROM!', () => {
 		expect(vm.getStack()).toEqual([0x3210])
 	})
 
-	test('if false (big-jump)', async () => {
+	it('if false (big-jump)', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([
@@ -184,7 +185,7 @@ describe('New ROM!', () => {
 		expect(vm.getStack()).toEqual([0x3210])
 	})
 
-	test('Loop 10 times', async () => {
+	it('Loop 10 times', async () => {
 		const vm = await loadedVm
 
 		vm.interpret([

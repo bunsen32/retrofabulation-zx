@@ -1,9 +1,9 @@
-// Test the interpreter:
-import {describe, test, expect} from '@jest/globals'
+import { describe, it } from "jsr:@std/testing/bdd"
+import { expect } from "jsr:@std/expect"
 import {emulatorWasm, stackTop, Vm} from './testutils/testvm.ts'
-import {getScreenMono, cls, Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen.ts"
+import {getScreenMono, cls, type Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen.ts"
 import {CharsetFromUnicode} from '../zxsys/encoding.ts'
-import {byte} from '../zxsys/Byte.ts'
+import type {byte} from '../zxsys/Byte.ts'
 
 const loadedVm = WebAssembly.instantiate(emulatorWasm)
 	.then(results =>
@@ -16,7 +16,7 @@ interface TextCoords {
 
 describe("Text rendering", () => {
 
-	test("Can write a screen", async () => {
+	it("Can write a screen", async () => {
 		const vm = await loadedVm
 		cls(vm)
 
@@ -34,7 +34,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("shapes", actual)
 	})
 
-	test("Render 8-pixel characters", async () => {
+	it("Render 8-pixel characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 
@@ -44,7 +44,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("singlechar", actual)
 	})
 
-	test("Render 8-pixel characters advances column", async () => {
+	it("Render 8-pixel characters advances column", async () => {
 		const vm = await loadedVm
 
 		renderAt(vm, 'ReTro…', {row: 20, column: 10})
@@ -54,7 +54,7 @@ describe("Text rendering", () => {
 		expect(p.column).toEqual(10 + expectedWidth)
 	})
 
-	test("Render 4-pixel characters", async () => {
+	it("Render 4-pixel characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 
@@ -64,7 +64,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("half-width", actual)
 	})
 
-	test("Render 4-pixel characters advances column", async () => {
+	it("Render 4-pixel characters advances column", async () => {
 		const vm = await loadedVm
 
 		renderAt(vm, '‘tf;i’', {row: 20, column: 10})
@@ -74,7 +74,7 @@ describe("Text rendering", () => {
 		expect(p.column).toEqual(10 + expectedWidth)
 	})
 
-	test("Render 12-pixel characters", async () => {
+	it("Render 12-pixel characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 
@@ -84,7 +84,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("extra-width", actual)
 	})
 
-	test("Render 12-pixel characters advances column", async () => {
+	it("Render 12-pixel characters advances column", async () => {
 		const vm = await loadedVm
 
 		renderAt(vm, 'wm\x7f™', {row: 20, column: 10})
@@ -94,7 +94,7 @@ describe("Text rendering", () => {
 		expect(p.column).toEqual(10 + expectedWidth)
 	})
 
-	test("Render at half-cell offset", async () => {
+	it("Render at half-cell offset", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 		vm.setRam(0x5820, [7])
@@ -105,7 +105,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("half-cell-offset", actual)
 	})
 
-	test("Render at half-cell offset onto hidden cell", async () => {
+	it("Render at half-cell offset onto hidden cell", async () => {
 		const vm = await loadedVm
 		clsObscured(vm)
 
@@ -115,7 +115,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("half-cell-offset-hidden", actual)
 	})
 
-	test("Colours text 0.5 cells wide", async () => {
+	it("Colours text 0.5 cells wide", async () => {
 		const vm = await loadedVm
 		cls(vm)
 
@@ -125,7 +125,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("applies-attrs-0_5", actual)
 	})
 
-	test("Colours text 1 cell wide", async () => {
+	it("Colours text 1 cell wide", async () => {
 		const vm = await loadedVm
 		cls(vm)
 
@@ -135,7 +135,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("applies-attrs-1", actual)
 	})
 
-	test("Colours text 1.5 cells wide", async () => {
+	it("Colours text 1.5 cells wide", async () => {
 		const vm = await loadedVm
 		cls(vm)
 
@@ -145,7 +145,7 @@ describe("Text rendering", () => {
 		await assertExpectedImage("applies-attrs-1_5", actual)
 	})
 
-	test("Render mix of characters", async () => {
+	it("Render mix of characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 
@@ -158,7 +158,7 @@ describe("Text rendering", () => {
 
 function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000) {
 	const charBytes: byte[] = []
-	const textLength = text.length
+	const textLength = text.length as byte
 	for(let i = 0; i < textLength; i++) {
 		const c = CharsetFromUnicode[text.charAt(i)]
 		charBytes[i] = c
