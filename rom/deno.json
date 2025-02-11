@@ -1,5 +1,4 @@
 {
-	"name": "rom",
-	"version": "1.0.0",
-	"exports": "dist/neo48.rom"
+	"name": "@zx/rom",
+	"version": "1.0.0"
 }
