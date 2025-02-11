@@ -1,3 +1,4 @@
+import type {CanvasRenderingContext2D} from 'npm:@types/web' 
 
 const black = '#000'
 
@@ -76,8 +77,8 @@ const paperColours = {
 type InkAndPaper = [ink: string, paper: string]
 export function coloursFromAttr(attr: number): InkAndPaper {
 	return [
-		inkColours[attr & inkMask],
-		paperColours[attr & paperMask]
+		inkColours[(attr & inkMask) as keyof typeof inkColours],
+		paperColours[(attr & paperMask) as keyof typeof paperColours]
 	]
 }
 

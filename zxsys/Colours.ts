@@ -65,7 +65,7 @@ export const paperColours = {
 
 export function coloursFromAttr(attr: byte): PaperAndInk {
 	return [
-		paperColours[attr & paperMask],
-		inkColours[attr & inkMask]
+		paperColours[(attr & paperMask) as keyof typeof paperColours],
+		inkColours[(attr & inkMask) as keyof typeof inkColours]
 	]
 }
