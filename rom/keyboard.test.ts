@@ -1,9 +1,9 @@
 // Test the keyboard scanning routines:
 import { describe, it } from "jsr:@std/testing/bdd";
 import { expect } from "jsr:@std/expect";
-import {loadVm, type Vm, Z80Address} from './testutils/testvm.ts'
+import {loadVm, type Vm, type Z80Address} from './testutils/testvm.ts'
 import {rom} from './generated/symbols.ts'
-import { type byte } from '../zxsys/Byte.ts'
+import type { byte } from '../zxsys/Byte.ts'
 import { Charset, CharsetFromUnicode } from '../zxsys/encoding.ts'
 
 const loadedVm = loadVm()
@@ -306,7 +306,7 @@ function keyScanResults(vm: Vm) {
 }
 
 function getKeyboardState(vm: Vm): KeyboardState {
-	var charByte = vm.peekByte(rom.KEY_CHAR)
+	const charByte = vm.peekByte(rom.KEY_CHAR)
 	return {
 		supersededKeyCode: vm.peekByte(rom.KEY_SUPERSEDED),
 		repeatKeyCode: vm.peekByte(rom.KEY_RPT_CODE),
