@@ -111,7 +111,7 @@ export class SpecScreen {
 		this.attrData.fill(attrBits)
 	}
 
-	public pixel(x: number, y: number, v: Boolean): void {
+	public pixel(x: number, y: number, v: boolean): void {
 		if (v)
 			this.setPixel(x, y)
 		else
@@ -162,7 +162,7 @@ export class SpecScreen {
 
 	public setAttr(col: number, row: number, attr: Attr): void;
 	public setAttr(col: number, row: number, ink: Colour, paper: Colour, isBright: boolean): void;
-	public setAttr(col: number, row: number, inkOrAttr: Colour|Attr, paper?: Colour, isBright?: Boolean) {
+	public setAttr(col: number, row: number, inkOrAttr: Colour|Attr, paper?: Colour, isBright?: boolean) {
 		if (col < 0 || row < 0 || col >= this.columns || row >= this.rows) return
 
 		const attr = (!paper)
