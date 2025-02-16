@@ -6,6 +6,7 @@ import { rom } from "./generated/symbols.ts";
 import { expect } from "jsr:@std/expect/expect";
 
 const loadedVm = loadVm()
+const flashRate = rom.CURSOR_FLASH_RATE.addr
 
 describe("Cursor XOR", () => {
 
@@ -59,7 +60,7 @@ describe("Cursor animation", () => {
 	it("If 1 frame in count, renders", async () => {
 		const vm = await loadedVm
 		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, 0b00000011)
+		vm.pokeByte(rom.CURSOR_FRAMES, animState(1, 'on'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
@@ -71,7 +72,7 @@ describe("Cursor animation", () => {
 	it("If 2 frames in count, does not render", async () => {
 		const vm = await loadedVm
 		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, 0b00000101)
+		vm.pokeByte(rom.CURSOR_FRAMES, animState(2, 'on'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
@@ -83,46 +84,46 @@ describe("Cursor animation", () => {
 	it("If multiple frames in count (and on), decrements count", async () => {
 		const vm = await loadedVm
 		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, ((12 << 1) | 1) as byte)
+		vm.pokeByte(rom.CURSOR_FRAMES, animState(12, 'on'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
 
-		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe((11 << 1) | 1)
+		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(animState(11, 'on'))
 	})
 
 	it("If multiple frames in count (and off), decrements count", async () => {
 		const vm = await loadedVm
 		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, (12 << 1) as byte)
+		vm.pokeByte(rom.CURSOR_FRAMES, animState(12, 'off'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
 
-		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(11 << 1)
+		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(animState(11, 'off'))
 	})
 
 
 	it("If 1 frame in count (and on), resets count", async () => {
 		const vm = await loadedVm
 		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, ((1 << 1) | 1) as byte)
+		vm.pokeByte(rom.CURSOR_FRAMES, animState(1, 'on'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
 
-		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe((20 << 1) | 0)
+		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(animState(flashRate, 'off'))
 	})
 
 	it("If 1 frame in count (and off), resets count", async () => {
 		const vm = await loadedVm
 		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, (1 << 1) as byte)
+		vm.pokeByte(rom.CURSOR_FRAMES, animState(1, 'off'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
 
-		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe((20 << 1) | 1)
+		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(animState(flashRate, 'on'))
 	})
 })
 
@@ -138,3 +139,6 @@ async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bi
 	await assertBitmapImageMatches('repl.test', expectedPngFilename, actualOutput)
 }
 
+function animState(frameCount: number, appear: 'on'|'off'): byte {
+	return ((frameCount << 1) | (appear == 'on' ? 1 : 0)) as byte
+}
