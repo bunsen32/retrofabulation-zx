@@ -1,7 +1,7 @@
 import { describe, it } from "jsr:@std/testing/bdd"
 import {loadVm, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, cls, type Bitmap, cls1, assertBitmapImageMatches} from "./testutils/screen.ts"
-import type {byte} from '../zxsys/Byte.ts'
+import type { byte } from '@zx/sys'
 import { rom } from "./generated/symbols.ts";
 import { expect } from "jsr:@std/expect/expect";
 

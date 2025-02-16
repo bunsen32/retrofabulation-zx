@@ -3,8 +3,8 @@ import { describe, it } from "jsr:@std/testing/bdd";
 import { expect } from "jsr:@std/expect";
 import {loadVm, type Vm, type Z80Address} from './testutils/testvm.ts'
 import {rom} from './generated/symbols.ts'
-import type { byte } from '../zxsys/Byte.ts'
-import { Charset, CharsetFromUnicode } from '../zxsys/encoding.ts'
+import type { byte } from '@zx/sys'
+import { Charset, CharsetFromUnicode } from '@zx/sys'
 
 const loadedVm = loadVm()
 

@@ -2,7 +2,7 @@ import { describe, it } from "jsr:@std/testing/bdd";
 import { expect } from "jsr:@std/expect";
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "../zxsys/parsing.ts"
 import {loadVm} from './testutils/testvm.ts'
-import type {byte} from '../zxsys/Byte.ts'
+import type {byte} from '@zx/sys'
 
 const loadedVm = loadVm()
 

@@ -2,8 +2,8 @@ import { describe, it } from "jsr:@std/testing/bdd"
 import { expect } from "jsr:@std/expect"
 import {loadVm, stackTop, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, cls, type Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen.ts"
-import {CharsetFromUnicode} from '../zxsys/encoding.ts'
-import type {byte} from '../zxsys/Byte.ts'
+import {CharsetFromUnicode} from '@zx/sys'
+import type {byte} from '@zx/sys'
 
 const loadedVm = loadVm()
 
