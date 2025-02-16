@@ -24,6 +24,12 @@ const REGISTER_PAIRS = [
 	['IR', 'I', 'R']
 ]
 
+export function loadVm(): Promise<Vm> {
+	return WebAssembly.instantiate(emulatorWasm)
+		.then(results =>
+			new Vm((results as any).instance.exports))
+}
+
 export class Vm {
 	memory: {buffer: ArrayBuffer}
 	memoryData: Uint8Array
@@ -44,7 +50,7 @@ export class Vm {
 
 	async loadRom(filename: string, page: number) {
 		const romBytes = readFileSync(filename)
-		const bytes = new Uint8Array(romBytes)
+		const bytes = new Uint8Array(romBytes as unknown as ArrayBuffer)
 		this.memoryData.set(bytes, this.core.MACHINE_MEMORY + page * 0x4000)
 	}
 
@@ -200,7 +206,7 @@ export class Vm {
 }
 
 const JSPECCY = "../../jsspeccy3/dist/jsspeccy"
-const ROM = "../dist/roms/neo48.rom"
+const ROM = "./dist/neo48.rom"
 const memoryPageWriteMap = [11, 5, 2, 0]
 export const stackTop = 0xF000
 

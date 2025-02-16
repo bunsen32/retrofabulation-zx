@@ -1,11 +1,9 @@
 // Test the startup sequence:
 import { describe, it } from "jsr:@std/testing/bdd";
-import {emulatorWasm, Vm} from './testutils/testvm.ts'
+import {loadVm} from './testutils/testvm.ts'
 import {getScreenMono, Bitmap, cls1, getScreenColour, assertBitmapImageMatches} from "./testutils/screen.ts"
 
-const loadedVm = WebAssembly.instantiate(emulatorWasm)
-	.then(results =>
-		new Vm(results.instance.exports))
+const loadedVm = loadVm()
 
 describe("Startup sequence", () => {
 	it("null test…", () => {})

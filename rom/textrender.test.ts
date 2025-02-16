@@ -1,13 +1,11 @@
 import { describe, it } from "jsr:@std/testing/bdd"
 import { expect } from "jsr:@std/expect"
-import {emulatorWasm, stackTop, Vm} from './testutils/testvm.ts'
+import {loadVm, stackTop, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, cls, type Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen.ts"
 import {CharsetFromUnicode} from '../zxsys/encoding.ts'
 import type {byte} from '../zxsys/Byte.ts'
 
-const loadedVm = WebAssembly.instantiate(emulatorWasm)
-	.then(results =>
-		new Vm(results.instance.exports))
+const loadedVm = loadVm()
 
 interface TextCoords {
 	row: byte,

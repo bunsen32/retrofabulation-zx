@@ -1,14 +1,12 @@
 // Test the keyboard scanning routines:
 import { describe, it } from "jsr:@std/testing/bdd";
 import { expect } from "jsr:@std/expect";
-import {emulatorWasm, Vm, Z80Address} from './testutils/testvm.ts'
+import {loadVm, type Vm, Z80Address} from './testutils/testvm.ts'
 import {rom} from './generated/symbols.ts'
-import { byte } from '../zxsys/Byte.ts'
+import { type byte } from '../zxsys/Byte.ts'
 import { Charset, CharsetFromUnicode } from '../zxsys/encoding.ts'
 
-const loadedVm = WebAssembly.instantiate(emulatorWasm)
-	.then(results =>
-		new Vm(results.instance.exports))
+const loadedVm = loadVm()
 
 interface KeyPressState {
 	primary: byte,

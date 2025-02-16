@@ -1,12 +1,10 @@
 // Test the startup sequence:
 import { describe, it } from "jsr:@std/testing/bdd";
-import {emulatorWasm, Vm} from './testutils/testvm.ts'
-import {getScreenMono, Bitmap, cls1, getScreenColour, assertBitmapImageMatches, clearAttrs} from "./testutils/screen.ts"
+import {loadVm, type Vm} from './testutils/testvm.ts'
+import {getScreenMono, type Bitmap, cls1, getScreenColour, assertBitmapImageMatches, clearAttrs} from "./testutils/screen.ts"
 import {rom} from './generated/symbols.ts'
 
-const loadedVm = WebAssembly.instantiate(emulatorWasm)
-	.then(results =>
-		new Vm(results.instance.exports))
+const loadedVm = loadVm()
 
 describe("Splash-screen", () => {
 
