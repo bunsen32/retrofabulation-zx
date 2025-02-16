@@ -122,7 +122,7 @@ export async function assertBitmapImageMatches(subdir: string, expectedPngFilena
 		if (!expected) throw `Cannot find file: ${expectFilePath}`
 		assertSamePixels(expected, actualOutput)
 
-	} catch(problem) {
+	} catch (problem) {
 		const actualFilePath = expectFilePath.replace('-expected.', '-actual.')
 		const actualFullPath = `${rootActualMismatchFiles}/${actualFilePath}`
 		await writeClip(actualOutput, actualFullPath)
