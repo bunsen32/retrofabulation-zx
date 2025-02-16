@@ -24,4 +24,4 @@ CURSOR_FRAMES	db	0	; bits <count><X> where
 			; <X> is 0: cursor is off; 1: cursor is on.
 
 
-CURSOR_FLASH_RATE	equ	20
+CURSOR_FLASH_RATE	equ	40
