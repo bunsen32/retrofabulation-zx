@@ -54,7 +54,7 @@ function drawGrid(widthPixels: number){
 		afterYPix(y)
 	}
 	cx.fillStyle = "#444"
-	afterYPix(5)
+	afterYPix(6)
 }
 
 function editorPixel(x: number, y: number, v: boolean){
@@ -258,7 +258,7 @@ export function doTestRender(){
 		`let s${NARROW_PERCENT} = MAX_INT`,
 		`let p${NARROW_QUEST} = @something`,
 		'',
-		'©1982 ZX Spectrum Research Ltd'
+		'© 1982 ZX Spectrum Research Ltd'
 	]
 	let row = 1
 	for(let line of lines) {
