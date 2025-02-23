@@ -194,6 +194,22 @@ function togglePixel(event){
 }
 editor.addEventListener("click", togglePixel)
 
+export function rotateDown() {
+	const bytes = data.bytes
+	bytes.unshift(bytes.pop()!)
+	bytes.unshift(bytes.pop()!)
+	isDirty = true
+	renderToEditor(data)
+}
+
+export function rotateUp() {
+	const bytes = data.bytes
+	bytes.push(bytes.shift()!)
+	bytes.push(bytes.shift()!)
+	isDirty = true
+	renderToEditor(data)
+}
+
 export function saveFont() {
 	saveCurrentChar()
 	let s = ""
