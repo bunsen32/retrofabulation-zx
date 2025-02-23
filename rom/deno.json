@@ -1,5 +1,12 @@
 {
 	"name": "@zx/rom",
 	"version": "1.0.0",
-	"exports": ""
+	"exports": "",
+	"tasks":{
+		"test": {
+			"command": "deno test --allow-write=testout/ --allow-read",
+			"dependencies": ["assemble"]
+		}
+
+	}
 }
