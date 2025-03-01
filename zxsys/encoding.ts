@@ -6,6 +6,8 @@ export const Ascii =
 		(_, index) => String.fromCharCode(index));
 
 const NUL = String.fromCharCode(0)
+const _LF = String.fromCharCode(0x0a)
+const _FF = String.fromCharCode(0x0c)
 const NULx16 = [
 	NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL
 ]
@@ -21,10 +23,10 @@ export const CODES = {
 	_7: 0x07,	// BELL. Leave unassigned, because it’s annoying.
 	BACKSPACE: 0x08,	// ‘Delete’
 	TAB: 0x09,
-	ENTER: 0x0A,	// Going with Unix-style line-endings!	
+	LINEFEED: 0x0A,	// Going with Unix-style line-endings!	
 	ESCAPE: 0x0B,	// Aka: ‘EDIT’
 	_12: 0x0C,	// Form-feed. Could actually be useful for printers.
-	_13: 0x0D,	// Reserve \r to avoid \cr\lf problems.
+	ENTER: 0x0D,	// This is the key. Maps to $0A (LINEFEED) in output.
 	CAPS_LOCK: 0x0E,
 	GRAPHICS: 0x0F,
 
@@ -43,7 +45,9 @@ export const NARROW_HASH = String.fromCharCode(CODES.NARROW_HASH)
 export const NARROW_DOLLAR = String.fromCharCode(CODES.NARROW_DOLLAR)
 
 export const Charset = [
-	...Ascii,
+	NUL, '⇦', '⇨', '⇩', '⇧', '☀︎', '☼', '␇', '⌫','\t', _LF, '␛', _FF, '↵', '⇪', ' ',
+	NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, '&', '?', '%', '#', '$',
+	...Ascii.slice(0x20, 0x7F), '░',
 	// 80 hex:
 	'€', '≠', '‚', '×', '„', '…', '†', '‡', 'Ł', '‰', 'Þ', '‹', 'Œ', 'Æ', 'Ð', 'Ø',
 	'π', '‘', '’', '“', '”', '•', '–', '—', 'ł', '™', 'þ', '›', 'œ', 'æ', 'ð', 'ø',

@@ -137,7 +137,7 @@ function decode(str: string): Glyph {
 }
 
 function saveChar(i: number, data: Glyph){
-	if (!i) throw "i is undefined"+i
+	if (i == undefined) throw "i is undefined"+i
 	const encoded = encode(data)
 	console.log("saving "+i, encoded)
 	store.setItem(`char${i}`, encoded)
@@ -145,7 +145,7 @@ function saveChar(i: number, data: Glyph){
 
 function saveCurrentChar() {
 	if (!isDirty) return
-	if (!selected) throw new Error('No character selected')
+	if (selected == undefined) throw new Error('No character selected')
 	saveChar(selected, data)
 	isDirty = false
 }
@@ -160,7 +160,7 @@ function loadCurrentChar(i: number) {
 }
 
 function loadChar(i: number): Glyph|null {
-	if (!i) return null
+	if (i == undefined) return null
 	const data = store.getItem(`char${i}`)
 	if (data) return decode(data)
 	const obj = glyphs[i] as Glyph
@@ -169,7 +169,7 @@ function loadChar(i: number): Glyph|null {
 
 export function selectChar(i: number){
 	console.log("selected", i)
-	if (selected) {
+	if (selected != undefined) {
 		saveCurrentChar()
 		const oldC = document.getElementById(`char-${selected}`)
 		oldC?.classList.remove("selected")
@@ -220,7 +220,7 @@ export function rotateUp() {
 export function saveFont() {
 	saveCurrentChar()
 	let s = ""
-	for (let c = 0x1b; c <= 0xbf; c++) {
+	for (let c = 0x00; c <= 0xbf; c++) {
 		const char = loadChar(c)
 		if (!char) continue
 		if (s) s+= ",\n"

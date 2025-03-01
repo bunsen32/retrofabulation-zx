@@ -33,25 +33,27 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 	out.write("FONT_LOOKUP:\n")
 	out.write(`	DB	${hex(min)}	; First glyph codepoint\n`)
 	out.write(`	DB	${hex(count)}	; Glyph count\n`)
-	const tableSize = 1 + 1 + 2 * count
 	let offset = 0
 	let minDelta = 0, maxDelta = 0, i = 0
-	for (let enc of encoded) {
+	for (const enc of encoded) {
+		const dataPointer = enc.bytes ? offset : 0
 		const c = enc.codepoint
-		const delta = offset - (i * 6)
+		const delta = dataPointer - (i * 6)
 		minDelta = Math.min(delta, minDelta)
 		maxDelta = Math.max(delta, maxDelta)
-		out.write(`	DW	(FONT_DATA + ${offset})	; character ${c} (${hex(c)}  ‘${Charset[c]}’)   delta ${delta}\n`)
-		offset += enc.bytes.length
+		out.write(`	DW	(FONT_DATA + ${dataPointer})	; character ${c} (${hex(c)} ‘${repr(c)}’)   delta ${delta}\n`)
+		offset += enc.bytes?.length ?? 0
 		i ++
 	}
 	out.write(`	; delta from 6* = [${minDelta}..${maxDelta}]\n`)
 	out.write("\n")
 	out.write("FONT_DATA:\n")
-	for (let enc of encoded) {
+	for (const enc of encoded) {
 		const c = enc.codepoint
 		const bytes = enc.bytes
-		out.write(`	; character ${c} (${hex(c)}  ‘${Charset[c]}’)\n`)
+		if (!bytes) continue
+
+		out.write(`	; character ${c} (${hex(c)} ‘${repr(c)}’)\n`)
 		out.write(`	DB	${hex(bytes[0])}`)
 		for (let i = 1; i < bytes.length; i++) {
 			out.write(`, ${hex(bytes[i])}`)
@@ -60,12 +62,26 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 	}
 }
 
+function repr(codepoint: number): string {
+	const unicode = Charset[codepoint]
+	const u = unicode.charCodeAt(0)
+	if (u >= 32) return unicode
+	switch(u) {
+		case 9: return '\\t'
+		case 10: return '\\n'
+		case 13: return '\\r'
+		default: return '\\x' + u.toString(16)
+	}
+}
+
 interface EncodedGlyph {
 	codepoint: number,
-	bytes: number[]
+	bytes?: number[]
 }
 
 function encodedChar(codepoint: number, glyph: Glyph): EncodedGlyph {
+	if (!glyph) return { codepoint: codepoint, bytes: undefined }
+
 	const raw = glyph.bytes
 	const encoded: number[] = []
 	const nWidth = glyph.width == 'h' ? 1 : glyph.width == 'n' ? 2 : 3
@@ -119,12 +135,4 @@ function hex(n: number): string {
 
 interface Writeable {
 	write(chunk: any, callback?: (error: Error | null | undefined) => void): boolean;
-}
-
-async function write(out: Writeable, str: string): Promise<void> {
-	return new Promise((resolve, reject) => {
-		out.write(str, (anyError: Error|null) => {
-			if (anyError) reject(anyError); else resolve()
-		})
-	})
 }
