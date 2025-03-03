@@ -60,7 +60,7 @@ render_common_char:
 	ld	a, (de)		; a := next character to render
 	inc	de
 
-	exx			; bc := screen pointer
+	exx			; de := screen pointer
 	ld	hl, FONT_LOOKUP	; Character index table
 
 	; Force character (in A) to be in range of glyphs:
