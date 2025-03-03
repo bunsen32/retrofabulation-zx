@@ -1,4 +1,4 @@
-import {byte} from './Byte'
+import {byte} from './Byte.ts'
 
 // OP-code: 0b_JUMP_DATA
 
@@ -277,7 +277,7 @@ export enum NumPres {
 
 function parse(text: string): byte[] {
 	const lines = text.split('\n')
-	let out = []
+	let out: byte[] = []
 	let p = 0
 
 	return out
@@ -287,14 +287,14 @@ export function literal16(pres: NumPres): byte {
 	return Op.Literal16IntBin + pres as byte
 }
 
-export function load16(slotNumber): byte {
+export function load16(slotNumber: byte): byte {
 	if (slotNumber < 8) {
 		return (Op.LocalLoadsNear | (slotNumber << 1) | 0) as byte
 	}
 	throw "Unsupported load16 "+slotNumber
 }
 
-export function store16(slotNumber): byte {
+export function store16(slotNumber: byte): byte {
 	if (slotNumber < 8) {
 		return (Op.LocalStoresNear | (slotNumber << 1) | 0) as byte
 	}

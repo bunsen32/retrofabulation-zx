@@ -11,8 +11,8 @@
 	},
 	"scripts": {
 		"test": "jest --config ../jest.config.ts *.test.ts",
-		"genfont": "ts-node --project build/tsconfig.json build/makefont.ts generated/font.z80",
-		"symtojs": "ts-node --project build/tsconfig.json build/symbolstojs.ts <generated/symbols.txt >generated/symbols.ts",
-		"assemble": "sjasmplus --outprefix=dist/ --sym=generated/symbols.txt -Wno-fwdref root.z80; yarn symtojs"
+		"genfont": "deno run build/makefont.ts >generated/font.z80",
+		"symtojs": "cat generated/symbols.txt | deno run build/symbolstojs.ts >generated/symbols.ts",
+		"assemble": "sjasmplus --outprefix=dist/ --sym=generated/symbols.txt -Wno-fwdref root.z80 && deno task symtojs"
 	}
 }

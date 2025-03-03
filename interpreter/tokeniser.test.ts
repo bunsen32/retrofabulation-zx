@@ -1,6 +1,6 @@
 import {describe, expect, test} from '@jest/globals'
-import {tokeniseLine} from "./tokeniser"
-import { identifier, intLiteral, lineComment } from './tokens'
+import {tokeniseLine} from "./tokeniser.ts"
+import { identifier, intLiteral, lineComment } from './tokens.ts'
 
 describe('Tokeniser', () => {
 	test('Parses blank line', () => {

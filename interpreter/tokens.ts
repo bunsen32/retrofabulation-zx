@@ -1,4 +1,4 @@
-import { NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from "zxsys/encoding"
+import { NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '@zx/sys'
 
 export const tokens = [
     // identifier
@@ -112,12 +112,12 @@ export interface FloatLiteral {
 
 export interface StringLiteral {
 	t: 'stringliteral',
-	v: String
+	v: string
 }
 
 export interface BoolLiteral {
 	t: 'boolliteral',
-	v: Boolean
+	v: boolean
 }
 
 export type LiteralToken = IntLiteral | FloatLiteral | StringLiteral | BoolLiteral

@@ -1,16 +1,14 @@
 // Test the startup sequence:
-import {describe, test} from '@jest/globals'
-import {emulatorWasm, Vm} from './testutils/testvm'
-import {getScreenMono, Bitmap, cls1, getScreenColour, assertBitmapImageMatches, clearAttrs} from "./testutils/screen"
-import {rom} from './generated/symbols'
+import { describe, it } from "jsr:@std/testing/bdd";
+import {loadVm, type Vm} from './testutils/testvm.ts'
+import {getScreenMono, type Bitmap, cls1, getScreenColour, assertBitmapImageMatches, clearAttrs} from "./testutils/screen.ts"
+import {rom} from './generated/symbols.ts'
 
-const loadedVm = WebAssembly.instantiate(emulatorWasm)
-	.then(results =>
-		new Vm(results.instance.exports))
+const loadedVm = loadVm()
 
 describe("Splash-screen", () => {
 
-	test("Splash initially sets screen to blue", async () => {
+	it("Splash initially sets screen to blue", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 
@@ -20,7 +18,7 @@ describe("Splash-screen", () => {
 		await assertExpectedImage("splash-colour", actual)
 	})
 
-	test("Splash prepares zigzag pixels", async () => {
+	it("Splash prepares zigzag pixels", async () => {
 		const vm = await loadedVm
 		cls1(vm)
 
@@ -30,7 +28,7 @@ describe("Splash-screen", () => {
 		await assertExpectedImage("splash-pixels", actual)
 	})
 
-	test("UnitTests prepare zigzag pixels", async () => {
+	it("UnitTests prepare zigzag pixels", async () => {
 		const vm = await loadedVm
 
 		writeZigzags(vm)
@@ -39,7 +37,7 @@ describe("Splash-screen", () => {
 		await assertExpectedImage("zigzag-pixels", actual)
 	})
 
-	test("Splash stripe mid", async () => {
+	it("Splash stripe mid", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
@@ -51,7 +49,7 @@ describe("Splash-screen", () => {
 		await assertExpectedImage("stripe-mid", actual)
 	})
 
-	test("Splash stripe 0", async () => {
+	it("Splash stripe 0", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
@@ -63,7 +61,7 @@ describe("Splash-screen", () => {
 		await assertExpectedImage("stripe-0", actual)
 	})
 
-	test("Splash stripe 10", async () => {
+	it("Splash stripe 10", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
@@ -75,7 +73,7 @@ describe("Splash-screen", () => {
 		await assertExpectedImage("stripe-10", actual)
 	})
 
-	test("Splash stripe 32", async () => {
+	it("Splash stripe 32", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper
@@ -87,7 +85,7 @@ describe("Splash-screen", () => {
 		await assertExpectedImage("stripe-32", actual)
 	})
 
-	test("Splash stripe 35", async () => {
+	it("Splash stripe 35", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
 		clearAttrs(vm, 0b00110110) // yellow ink & paper

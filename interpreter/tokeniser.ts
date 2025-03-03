@@ -1,4 +1,4 @@
-import { Token, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral, IdentifierTypeSigil, identifier } from './tokens'
+import { Token, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment, UnrecognisedToken, KeywordToken, keywordLookup, intLiteral, IdentifierTypeSigil, identifier } from './tokens.ts'
 
 export type Line = {indent: number, tokens: Token[]}
 
@@ -341,7 +341,7 @@ export function tokeniseLine(text: string): Line {
 		if (str === 'true') return {t:'boolliteral', v: true}
 		if (str === 'false') return {t: 'boolliteral', v: false}
 		if (str.length > 8) possiblyKeyword = false
-		return (possiblyKeyword && keywordLookup[str])
+		return (possiblyKeyword && str in keywordLookup)
 			? str as KeywordToken
 			: identifier(str, sigil)
 	}

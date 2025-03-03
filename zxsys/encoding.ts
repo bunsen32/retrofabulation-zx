@@ -1,3 +1,4 @@
+import { byte } from "./Byte.ts";
 
 export const Ascii = 
 	Array.from(
@@ -39,9 +40,9 @@ Charset[NARROW_PERCENT_CODE] = '%'
 Charset[NARROW_HASH_CODE] = '#'
 Charset[NARROW_DOLLAR_CODE] = '$'
 
-export const CharsetFromUnicode = {}
-for (let i = 0; i < 0xc0; i++) CharsetFromUnicode[Charset[i]] = i
-for (let i = 0x1b; i <= 0x1f; i++) CharsetFromUnicode[String.fromCharCode(i)] = i
+export const CharsetFromUnicode: { [k: string]: byte } = {}
+for (let i = 0; i < 0xc0; i++) CharsetFromUnicode[Charset[i]] = i as byte
+for (let i = 0x1b; i <= 0x1f; i++) CharsetFromUnicode[String.fromCharCode(i)] = i as byte
 
 const Windows1252 = [
 	...Ascii,

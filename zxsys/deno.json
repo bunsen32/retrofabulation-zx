@@ -1,0 +1,5 @@
+{
+	"name": "@zx/sys",
+	"version": "1.0.0",
+	"exports": "./exports.ts"
+}

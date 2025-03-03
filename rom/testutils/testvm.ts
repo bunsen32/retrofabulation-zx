@@ -1,10 +1,10 @@
-import {expect} from '@jest/globals'
+import { expect } from "jsr:@std/expect";
 import {readFileSync} from 'node:fs'
 
 export const FRAME_BUFFER_SIZE = 0x6600;
 
-import {byte} from '../../zxsys/Byte'
-import {rom} from '../generated/symbols'
+import type {byte} from '@zx/sys'
+import {rom} from '../generated/symbols.ts'
 export type word = number
 
 export type Z80Address = { addr: number }
@@ -23,6 +23,12 @@ const REGISTER_PAIRS = [
 	['SP'],
 	['IR', 'I', 'R']
 ]
+
+export function loadVm(): Promise<Vm> {
+	return WebAssembly.instantiate(emulatorWasm)
+		.then(results =>
+			new Vm((results as any).instance.exports))
+}
 
 export class Vm {
 	memory: {buffer: ArrayBuffer}
@@ -44,7 +50,7 @@ export class Vm {
 
 	async loadRom(filename: string, page: number) {
 		const romBytes = readFileSync(filename)
-		const bytes = new Uint8Array(romBytes)
+		const bytes = new Uint8Array(romBytes as unknown as ArrayBuffer)
 		this.memoryData.set(bytes, this.core.MACHINE_MEMORY + page * 0x4000)
 	}
 
@@ -72,7 +78,7 @@ export class Vm {
 	}
 
 	getRegisters(): RegisterSet {
-		const result = {};
+		const result: any = {};
 		REGISTER_PAIRS.forEach(
 			(registers, i) => {
 				const [rPair, rHigh, rLow] = registers
@@ -88,11 +94,12 @@ export class Vm {
 	}
 
 	setRegisters(registerValues: PartialRegisterSet) {
+		const reg: any = registerValues
 		REGISTER_PAIRS.forEach(
 			([rPair, rHigh, rLow], i) => {
-				const word = registerValues[rPair]
-				const highByte = registerValues[rHigh]
-				const lowByte = registerValues[rLow]
+				const word = reg[rPair]
+				const highByte = reg[rHigh]
+				const lowByte = reg[rLow]
 				if (word != undefined) {
 					this.registerPairs[i] = word
 				} else {
@@ -194,12 +201,12 @@ export class Vm {
 		this.setRegisters({SP: stackTop})
 		this.runPcAt({addr:0x8000}, forTStates)
 
-		expect(this.core.getHalted()).toBe(1)
+		expect(this.core.getHalted(), `PC=${this.core.getPC()}`).toBe(1)
 	}
 }
 
 const JSPECCY = "../../jsspeccy3/dist/jsspeccy"
-const ROM = "../dist/roms/neo48.rom"
+const ROM = "./dist/neo48.rom"
 const memoryPageWriteMap = [11, 5, 2, 0]
 export const stackTop = 0xF000
 
@@ -227,8 +234,8 @@ export type CpuSnapshot = RegisterSet & {
 export const emulatorWasm = readFileSync(`${JSPECCY}/jsspeccy-core.wasm`)
 
 export function logSnapshots(trace: CpuSnapshot[]) {
-	const hex = (n) => ((+n).toString(16)).padStart(4, "0")
-	console.log(expect.getState().currentConcurrentTestName)
+	const hex = (n: word) => ((+n).toString(16)).padStart(4, "0")
+	console.log("Some test name")
 	const full: string[] = []
 	for(const cpu of trace){
 		full.push(`${hex(cpu.PC)}: AF=${hex(cpu.AF)}, BC=${hex(cpu.BC)}, DE=${hex(cpu.DE)}, HL=${hex(cpu.HL)} [${cpu.stack}]`)
