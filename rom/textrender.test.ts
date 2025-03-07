@@ -4,6 +4,7 @@ import {loadVm, stackTop, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, cls, type Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen.ts"
 import {CharsetFromUnicode} from '@zx/sys'
 import type {byte} from '@zx/sys'
+import { rom } from "./generated/symbols.ts";
 
 const loadedVm = loadVm()
 
@@ -153,6 +154,43 @@ describe("Text rendering", () => {
 		await assertExpectedImage("mix-width", actual)
 	})
 })
+
+describe("Text measuring", () => {
+
+	it("4-pixel character returns 1", async () => {
+		const vm = await loadedVm
+
+		vm.setRegisters({ A: charCode(':') })
+		vm.callSubroutine(rom.MEASURE_CHAR, 200)
+
+		const result = vm.getRegisters().A
+		expect(result).toBe(1)
+	})
+
+	it("8-pixel character returns 2", async () => {
+		const vm = await loadedVm
+
+		vm.setRegisters({ A: charCode('A') })
+		vm.callSubroutine(rom.MEASURE_CHAR, 200)
+
+		const result = vm.getRegisters().A
+		expect(result).toBe(2)
+	})
+
+	it("12-pixel character returns 3", async () => {
+		const vm = await loadedVm
+
+		vm.setRegisters({ A: charCode('w') })
+		vm.callSubroutine(rom.MEASURE_CHAR, 200)
+
+		const result = vm.getRegisters().A
+		expect(result).toBe(3)
+	})})
+
+function charCode(singleChar: string) {
+	expect(singleChar).toHaveLength(1)
+	return CharsetFromUnicode[singleChar.charAt(0)]
+}
 
 function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000) {
 	const charBytes: byte[] = []

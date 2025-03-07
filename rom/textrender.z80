@@ -68,11 +68,11 @@ render_common_char:
 	jr	nc, rep1
 	xor	a
 rep1:	inc	hl
+	inc	a
 	cp	(hl)		; #number characters represented
 	jr	c, rep2
-	xor	a
-rep2:	inc	a
-
+	ld	a, 1
+rep2:
 	; Look up glyph data:
 	ld	c, a
 	ld	b, 0
@@ -554,12 +554,32 @@ rowcol_out_of_range:
 	ld	l, a
 	ret
 
+	; Take a character (in A), and return its glyph width,
+	; 0–3, also in A. Preserves all other registers.
+MEASURE_CHAR:
+	push	hl
+	push	bc
+	ld	hl, FONT_LOOKUP	; Character index table
 
-/*
-Some of the most useful commands for golfing in Z80 assembly language are sbc and adc. They often allow you to interact with the flag C in ways that are absolutely amazing. Here are some cool examples:
-
-How to create a decreasing counter in A that stops at 0? or a : jr nz,$+3 : dec a is ugly. sub 1 : adc 0 is faster, runs in constant time and can often be size-optimized, if you have handy 0s or 1s in one of your other registers. Have to stop at a non-zero value N? No problem: sub N : adc N-1. This also works for incrementing counter that is clamped at 255: add 1 : sbc 0. This also works for a incrementing counter clamped at an arbitrary value N: add 256-N : sbc 256-N-1.
-How to load an arbitrary value N to A when flag C is up (or zero otherwise)? ld a,N : jr c,$+3 : xor a is not the way. sbc a : and N usually is (it is faster and shorter by 2 bytes).
-How about loading into A value N if flag C is up or value M if flag C is down? Don't mess with conditional jumps! Use sbc a : and N-M : add M. (This last trick I believe is invented by GriV).
-https://codegolf.stackexchange.com/a/230574
-*/
+	; Force character (in A) to be in range of glyphs:
+	sub	(hl)		; First character represented
+	jr	nc, .rep1
+	xor	a
+.rep1:	inc	hl
+	inc	a
+	cp	(hl)		; #number characters represented - 1
+	jr	c, .rep2
+	ld	a, 1
+.rep2:
+	; Look up glyph data:
+	ld	c, a
+	ld	b, 0
+	add	hl, bc
+	add	hl, bc
+	ld	a, (hl)	; HIGH byte of offset to character data pointer
+	rlca
+	rlca
+	and	3
+	pop	bc
+	pop	hl
+	ret
