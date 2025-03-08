@@ -19,22 +19,34 @@ DEFAULT_INTERRUPT_HANDLER:
 	ei
 	ret
 
+KCODE_CAPS	equ	0
+KCODE_SYM	equ	15
+
 KEYMAP:
-	db	' ', 'A', 'Q', '1', '0', 'P', $0a, ' '
-	db	'Z', 'S', 'W', '2', '9', 'O', 'L', $05
-	db	'X', 'D', 'E', '3', '8', 'I', 'K', 'M'
-	db	'C', 'F', 'R', '4', '7', 'U', 'J', 'N'
-	db	'V', 'G', 'T', '5', '6', 'Y', 'H', 'B'
+	db	' ', 'a', 'q', '1', '0', 'p', $0d, ' '
+	db	'z', 's', 'w', '2', '9', 'o', 'l', ' '
+	db	'x', 'd', 'e', '3', '8', 'i', 'k', 'm'
+	db	'c', 'f', 'r', '4', '7', 'u', 'j', 'n'
+	db	'v', 'g', 't', '5', '6', 'y', 'h', 'b'
 
 KEYMAP_SYM:
 	db	' ', '~', $a8, '!', '_', '"', $0a, ' '
-	db	':', '|', $81, '@', ')', ';', '=', $05
+	db	':', '|', $81, '@', ')', ';', '=', ' '
 	db	$a3, '\', $b8, '#', '(', '`', '+', '.'
 	db	'?', '{', '<', '$', "'", ']', '-', ','
 	db	'/', '}', '>', '%', '&', '[', '^', '*'
 
-KCODE_CAPS	equ	0	; TODO:check
-KCODE_SYM	equ	15	; TODO:check
+KEYMAP_SHIFTED_NUMS:
+	db	$08	; 0: DELETE (BACKSPACE)
+	db	$0b	; 1: EDIT/ESC
+	db	$0e	; 2: CAPS LOCK
+	db	$05	; 3: INV VIDEO
+	db	$06	; 4: TRUE VIDEO
+	db	$01	; 5: LEFT
+	db	$03	; 6: DOWN
+	db	$04	; 7: UP
+	db	$02	; 8: RIGHT
+	db	$0f	; 9: GRAPHICS
 
 
 ; Interrogate the hardware for the current keyboard state
@@ -128,14 +140,27 @@ KEYBOARD:
 	ld	(hl),a	; KEY_RPT_NEXT := (REPDEL)
 .decode
 	ld	d,c	; d := <zero>
-	push	hl
+	push	hl	; Push address of "KEY_CHAR"
 	ld	hl,KEYMAP
 	bit	1,b
 	jr	z,.look_up
 	ld	hl,KEYMAP_SYM	; Override with the symbol shift lookup.
-.look_up	add	hl,de
+.look_up:	add	hl,de
 	ld	a,(hl)
-	pop	hl
+	bit	0,b
+	jr	z, .no_CAPS_shift
+	cp	'A'
+	jr	c, .not_alpha
+.is_alpha:	sub	'a'-'A'
+	jr	.save_char
+.not_alpha:	cp	'0'
+	jr	c,.no_CAPS_shift	; Skip this bit if SPACE or ENTER
+	ld	h, (KEYMAP_SHIFTED_NUMS - '0') >> 8
+	add	(KEYMAP_SHIFTED_NUMS - '0') & $ff
+	ld	l, a
+	ld	a, (hl)
+.no_CAPS_shift
+.save_char:	pop	hl
 	inc	l	; hl := KEY_CHAR
 	ld	(hl),a	; KEY_CHAR := <decoded character>
 	inc	l

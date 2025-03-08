@@ -122,7 +122,7 @@ describe("Keyboard state changes", () => {
 		callKeyboardWith(vm, {primary: KEYS.A})
 
 		const r = getKeyboardState(vm)
-		expect(r.currentCharUnicode).toEqual('A')
+		expect(r.currentCharUnicode).toEqual('a')
 	})
 
 	it("On keypress, repeat key is set", async () => {
@@ -138,7 +138,7 @@ describe("Keyboard state changes", () => {
 
 	it("Person keep hold button, pause count decrease, but no keypress", async () => {
 		const vm = await loadedVmWithKeyboardState({
-			currentCharUnicode: 'A',
+			currentCharUnicode: 'a',
 			repeatKeyCode: KEYS.A,
 			repeatCountdown: 17,
 		})
@@ -153,7 +153,7 @@ describe("Keyboard state changes", () => {
 
 	it("Person hold button, repeat counter is one, presses key", async () => {
 		const vm = await loadedVmWithKeyboardState({
-			currentCharUnicode: 'A',
+			currentCharUnicode: 'a',
 			repeatKeyCode: KEYS.A,
 			repeatCountdown: 1,
 		})
@@ -161,12 +161,12 @@ describe("Keyboard state changes", () => {
 		callKeyboardWith(vm, {primary: KEYS.A})
 
 		const r = getKeyboardState(vm)
-		expect(r.currentCharUnicode).toEqual('A')
+		expect(r.currentCharUnicode).toEqual('a')
 	})
 
 	it("Person hold button, repeat counter is one, sets counter to REPER", async () => {
 		const vm = await loadedVmWithKeyboardState({
-			currentCharUnicode: 'A',
+			currentCharUnicode: 'a',
 			repeatKeyCode: KEYS.A,
 			repeatCountdown: 1,
 		})
@@ -192,12 +192,12 @@ describe("Keyboard state changes", () => {
 		const r = getKeyboardState(vm)
 		expect(r.supersededKeyCode).toEqual(KEYS.B)
 		expect(r.repeatKeyCode).toEqual(KEYS.A)
-		expect(r.currentCharUnicode).toEqual('A')
+		expect(r.currentCharUnicode).toEqual('a')
 	})
 
 	it("If I WAS pressing one button, and press a different one (primary), suppress the first one, and issue second one", async () => {
 		const vm = await loadedVmWithKeyboardState({
-			currentCharUnicode: 'A',
+			currentCharUnicode: 'a',
 			repeatKeyCode: KEYS.A,
 			repeatCountdown: 13,
 			supersededKeyCode: 0,
@@ -208,12 +208,12 @@ describe("Keyboard state changes", () => {
 		const r = getKeyboardState(vm)
 		expect(r.supersededKeyCode).toEqual(KEYS.A)
 		expect(r.repeatKeyCode).toEqual(KEYS.B)
-		expect(r.currentCharUnicode).toEqual('B')
+		expect(r.currentCharUnicode).toEqual('b')
 	})
 
 	it("If I WAS pressing one button, and press a different one (secondary), suppress the first one, and issue second one", async () => {
 		const vm = await loadedVmWithKeyboardState({
-			currentCharUnicode: 'A',
+			currentCharUnicode: 'a',
 			repeatKeyCode: KEYS.A,
 			repeatCountdown: 13,
 			supersededKeyCode: 0,
@@ -224,7 +224,7 @@ describe("Keyboard state changes", () => {
 		const r = getKeyboardState(vm)
 		expect(r.supersededKeyCode).toEqual(KEYS.A)
 		expect(r.repeatKeyCode).toEqual(KEYS.B)
-		expect(r.currentCharUnicode).toEqual('B')
+		expect(r.currentCharUnicode).toEqual('b')
 	})
 
 	it("If one key had been superseded, and a single key pressed, clear superseded state and issue that key", async () => {
@@ -239,7 +239,7 @@ describe("Keyboard state changes", () => {
 		const r = getKeyboardState(vm)
 		expect(r.supersededKeyCode).toEqual(0)
 		expect(r.repeatKeyCode).toEqual(KEYS.A)
-		expect(r.currentCharUnicode).toEqual('A')
+		expect(r.currentCharUnicode).toEqual('a')
 	})
 
 	it("If one key had been superseded, and two keys pressed (neither of which is it), clear superseded state and issue primary key", async () => {
@@ -254,7 +254,7 @@ describe("Keyboard state changes", () => {
 		const r = getKeyboardState(vm)
 		expect(r.supersededKeyCode).toEqual(0)
 		expect(r.repeatKeyCode).toEqual(KEYS.A)
-		expect(r.currentCharUnicode).toEqual('A')
+		expect(r.currentCharUnicode).toEqual('a')
 	})
 
 	it("After release button, no character issued", async () => {
@@ -339,7 +339,7 @@ function callKeyboardWith(vm: Vm, pressed: KeyPressState, shiftState?: 0|1|2|3) 
 		B: (shiftState || 0),
 		F: pressed.tooManyPressed ? 0x00 : 0xff,
 	})
-	vm.callSubroutine(rom.KEYBOARD.after_scan, 300)
+	vm.callSubroutine(rom.KEYBOARD.after_scan, 340)
 }
 
 async function loadedVmWithKeyboardState(keyboardState: Partial<KeyboardState>): Promise<Vm> {

@@ -1,7 +1,7 @@
 <html>
 	<meta charset="utf8" />
 	<style>
-		.char {
+		.char, .no-char {
 			display: inline-block;
 			width: 20px;
 			height: 20px;
@@ -22,7 +22,6 @@
 		}
 		canvas#editor {
 			border:1px solid #000;
-			margin: 12px;
 		}
 		span.char-size {
 			padding-right:1em;
@@ -49,50 +48,83 @@
 			display:block;
 			width:100%;height:100%;
 		}
+		#char-edit canvas {
+			float: left;
+			margin-right: 12px;
+		}
+		#char-edit {
+			overflow:hidden;
+			margin:12px 0
+		}
 	</style>
 	<body>
 		<div id="form">
 			<div id="left">
 				<div>
 					<script>
-						for(let i = 0x20; i <= 0x7e; i++) {
+						for(let i = 0x10; i < 0x1b; i++) {
 							const c = String.fromCharCode(i)
-							document.write(`<span class='char' id="char-${i}">${c}</span>`);
+							document.write(`<span class='no-char'> </span>`);
+							if (i % 16 == 15) document.write("<br/>")
+						}
+						for(let i = 0x1b; i <= 0x1f; i++) {
+							const c = String.fromCharCode(i)
+							document.write(`<span class='char' id="char-${i}">X</span>`);
+							if (i % 16 == 15) document.write("<br/>")
+						}
+						for(let i = 0x20; i <= 0xbf; i++) {
+							const c = String.fromCharCode(i)
+							document.write(`<span class='char' id="char-${i}">X</span>`);
 							if (i % 16 == 15) document.write("<br/>")
 						}
 					</script>
 				</div>
-				<div>
+				<div id="char-edit">
 					<canvas id="editor" width="192" height="128"></canvas>
+					Width: 
 					<span class="char-size">
 						<label>
 							<input type="radio" name="char-size" id="char-size-h" value="h" />
-							&nbsp;4
+							&nbsp;4px
 						</label>
 					</span>
 					<span class="char-size">
 						<label>
 							<input type="radio" name="char-size" id="char-size-n" value="n" />
-							&nbsp;8
+							&nbsp;8px
 						</label>
 					</span>
 					<span class="char-size">
 						<label>
 							<input type="radio" name="char-size" id="char-size-w" value="w" />
-							&nbsp;12
+							&nbsp;12px
 						</label>
 					</span>
-					<button id="render-button">Test render</button>
-					<button id="save-font" onclick="saveFont();return false">Save font</button>
+					<br />
+					<button onclick="rotateDown();return false;">rotate down</button>
+					<button onclick="rotateUp();return false;">rotate up</button>
 				</div>
-				<div>
+				<div id="actions">
+					<button id="save-font" onclick="saveFont();return false">Save font</button>
+					<button id="render-button">Test render</button>
+					<button id="parse-and-render">Parse &amp; Render</button>
+				</div>
+				<div id="screen-area">
 					<canvas id="screen" width="256" height="192"></canvas>
 				</div>
 			</div>
 			<div id="right">
 				<span id="tab-area"></span>
-				<textarea id="text-editor"></textarea>
-				<button id="parse-and-render">Parse &amp; Render</button>
+				<textarea id="text-editor">
+# Here is a function definition
+def leap_year?(year%):
+	if year% % 4 != 0: return false
+	if (year% % 100 = 0) and
+		(year% % 400 <> 0):
+		return false
+	return true
+
+let b% = b% & $f077</textarea>
 			</div>
 		</div>
 	</body>
@@ -104,6 +136,7 @@
 		console.log('Loaded page…?')
 
 		import { doTestRender, parseAndRender, selectChar, saveFont, toggleWidth } from './fonts.js'
+		import { Charset } from './encoding.js'
 
 		document.getElementById('render-button').addEventListener('click', doTestRender)
 		document.getElementById('parse-and-render').addEventListener('click', parseAndRender)
@@ -111,8 +144,10 @@
 		document.getElementById('char-size-h').addEventListener('click', () => toggleWidth('h'))
 		document.getElementById('char-size-n').addEventListener('click', () => toggleWidth('n'))
 		document.getElementById('char-size-w').addEventListener('click', () => toggleWidth('w'))
-		for(let i = 0x20; i <= 0x7e; i++) {
-			document.getElementById("char-"+i).addEventListener("click", () => selectChar(i));
+		for(let i = 0x1b; i <= 0xbf; i++) {
+			const span = document.getElementById("char-"+i)
+			span.addEventListener("click", () => selectChar(i));
+			span.innerText = Charset[i]
 		}
 	</script>
 </html>

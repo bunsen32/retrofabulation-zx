@@ -76,7 +76,7 @@ describe("Text rendering", () => {
 		const vm = await loadedVm
 		cls1(vm)
 
-		renderAt(vm, 'wm\x7f™', {row: 0, column: 0})
+		renderAt(vm, 'wm⌫™', {row: 0, column: 0})
 
 		const actual = getScreenMono(vm)
 		await assertExpectedImage("extra-width", actual)
@@ -85,7 +85,7 @@ describe("Text rendering", () => {
 	it("Render 12-pixel characters advances column", async () => {
 		const vm = await loadedVm
 
-		renderAt(vm, 'wm\x7f™', {row: 20, column: 10})
+		renderAt(vm, 'wm⌫™', {row: 20, column: 10})
 		const expectedWidth = 12
 
 		const p = getCoordsAfterRendering(vm)

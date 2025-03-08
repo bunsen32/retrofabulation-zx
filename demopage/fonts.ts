@@ -1,11 +1,11 @@
 
-import { Attr, SpecScreen } from './SpecScreen'
-import { glyphs } from 'fonts/font1'
-import { Line, tokeniseLine } from 'interpreter/tokeniser'
-import { FloatLiteral, identifier, Identifier, IntLiteral, LineComment, StringLiteral, Token, TokenStruct } from 'interpreter/tokens'
-import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from 'zxsys/encoding'
+import { Attr, SpecScreen } from './SpecScreen.ts'
+import { glyphs } from '@zx/fonts'
+import { Line, tokeniseLine, LineComment } from '@zx/interpreter'
+import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '@zx/sys'
+import { byte } from "../zxsys/Byte.ts";
 
-const store = window.localStorage
+const store = globalThis.localStorage
 
 const scale = 16
 const editor = document.getElementById("editor") as HTMLCanvasElement
@@ -22,18 +22,24 @@ screenCx.imageSmoothingEnabled = false
 
 const textEditor = document.getElementById("text-editor") as HTMLTextAreaElement
 
-function drawGrid(widthPixels){
+type GlyphWidth = 'h'|'n'|'w'
+interface Glyph {
+	width: GlyphWidth
+	bytes: byte[]
+}
+
+function drawGrid(widthPixels: number){
 	const xMax = scale * widthPixels, yMax = scale * 8
 	cx.fillStyle = "#fff"
 	cx.fillRect(0, 0, xMax, yMax)
 	cx.fillStyle = "#ddd"
 	cx.fillRect(xMax, 0, 12 * scale, yMax)
 
-	function afterXPix(x) {
+	function afterXPix(x: number) {
 		const xp = (x * scale) + scale - 1
 		cx.fillRect(xp, 0, 1, yMax)
 	}
-	function afterYPix(y) {
+	function afterYPix(y: number) {
 		const yp = (y * scale) + scale - 1
 		cx.fillRect(0, yp, xMax, 1)
 	}
@@ -48,19 +54,19 @@ function drawGrid(widthPixels){
 		afterYPix(y)
 	}
 	cx.fillStyle = "#444"
-	afterYPix(5)
+	afterYPix(6)
 }
 
-function editorPixel(x, y, v){
+function editorPixel(x: number, y: number, v: boolean){
 	cx.fillStyle = v ? "#000" : "#fff"
 	cx.fillRect(x*scale, y*scale, scale-1, scale-1)
 }
 
-function screenPixel(x, y, v){
+function screenPixel(x: number, y: number, v: boolean){
 	screen.pixel(x, y, v)
 }
 
-function byteAndBitFromXAndY(x, y)
+function byteAndBitFromXAndY(x: number, y: number)
 {
 	if (x > 12 || y > 8) throw "out of range";
 	const byte = (y * 2) + Math.floor(x / 8)
@@ -68,7 +74,7 @@ function byteAndBitFromXAndY(x, y)
 	return [byte, bit]
 }
 
-function renderToEditor(data){
+function renderToEditor(data: Glyph){
 	const w = widthPixels(data.width)
 	for (let y = 0; y < 8; y++){
 		for(let x = 0; x < w; x++){
@@ -80,7 +86,7 @@ function renderToEditor(data){
 	}
 }
 
-function renderToScreen(data, left, top){
+function renderToScreen(data: Glyph, left: number, top: number){
 	for (let y = 0; y < 8; y++){
 		for(let x = 0; x < 12; x++){
 			const [byte, bitPos] = byteAndBitFromXAndY(x, y)
@@ -91,26 +97,26 @@ function renderToScreen(data, left, top){
 	}
 }
 
-function emptyChar(){
+function emptyChar(): Glyph{
 	return {
 		width: "n",
 		bytes: [0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0]
 	}
 }
 
-let selected = undefined
+let selected: number|undefined
 let data = emptyChar()
 let isDirty = false
 
-function encode(data){
+function encode(data: Glyph){
 	const w = data.width
 	const s = data.bytes.map(b => b.toString(16)).join(",")
 	console.log("encoding...", w, s)
 	return `${w}${s}`
 }
 
-function decode(str){
-	let width, byteString
+function decode(str: string): Glyph {
+	let width: 'h'|'n'|'w', byteString
 	switch(str[0]) {
 		case 'h': case 'n': case 'w':
 			width = str[0]
@@ -124,14 +130,14 @@ function decode(str){
 
 	const result = {
 		width: width,
-		bytes: byteString.split(",").map(b => parseInt(b, 16))
+		bytes: byteString.split(",").map(b => parseInt(b, 16) as byte)
 	}
 	//console.log("decoded: ", result)
 	return result
 }
 
-function saveChar(i, data){
-	if (!i) throw "i is undefined"+i
+function saveChar(i: number, data: Glyph){
+	if (i == undefined) throw "i is undefined"+i
 	const encoded = encode(data)
 	console.log("saving "+i, encoded)
 	store.setItem(`char${i}`, encoded)
@@ -139,11 +145,12 @@ function saveChar(i, data){
 
 function saveCurrentChar() {
 	if (!isDirty) return
+	if (selected == undefined) throw new Error('No character selected')
 	saveChar(selected, data)
 	isDirty = false
 }
 
-function loadCurrentChar(i) {
+function loadCurrentChar(i: number) {
 	console.log("loading char " + i)
 	data = loadChar(i) ?? emptyChar()
 	drawGrid(widthPixels(data.width));
@@ -152,17 +159,17 @@ function loadCurrentChar(i) {
 	isDirty = false
 }
 
-function loadChar(i) {
-	if (!i) return null
+function loadChar(i: number): Glyph|null {
+	if (i == undefined) return null
 	const data = store.getItem(`char${i}`)
 	if (data) return decode(data)
-	const obj = glyphs[i]
+	const obj = glyphs[i] as Glyph
 	return obj || null
 }
 
-export function selectChar(i){
+export function selectChar(i: number){
 	console.log("selected", i)
-	if (selected) {
+	if (selected != undefined) {
 		saveCurrentChar()
 		const oldC = document.getElementById(`char-${selected}`)
 		oldC?.classList.remove("selected")
@@ -174,7 +181,7 @@ export function selectChar(i){
 	renderToEditor(data)
 }
 
-export function toggleWidth(newW){
+export function toggleWidth(newW: GlyphWidth){
 	if (data.width == newW) return
 	data.width = newW
 	drawGrid(widthPixels(newW))
@@ -182,7 +189,7 @@ export function toggleWidth(newW){
 	renderToEditor(data)
 }
 
-function togglePixel(event){
+function togglePixel(event: MouseEvent){
 	const x = Math.floor(event.offsetX * scaleX / scale)
 	const y = Math.floor(event.offsetY * scaleY / scale)
 
@@ -194,10 +201,26 @@ function togglePixel(event){
 }
 editor.addEventListener("click", togglePixel)
 
+export function rotateDown() {
+	const bytes = data.bytes
+	bytes.unshift(bytes.pop()!)
+	bytes.unshift(bytes.pop()!)
+	isDirty = true
+	renderToEditor(data)
+}
+
+export function rotateUp() {
+	const bytes = data.bytes
+	bytes.push(bytes.shift()!)
+	bytes.push(bytes.shift()!)
+	isDirty = true
+	renderToEditor(data)
+}
+
 export function saveFont() {
 	saveCurrentChar()
 	let s = ""
-	for (let c = 0x1b; c <= 0xbf; c++) {
+	for (let c = 0x00; c <= 0xbf; c++) {
 		const char = loadChar(c)
 		if (!char) continue
 		if (s) s+= ",\n"
@@ -235,7 +258,7 @@ export function doTestRender(){
 		`let s${NARROW_PERCENT} = MAX_INT`,
 		`let p${NARROW_QUEST} = @something`,
 		'',
-		'©1982 ZX Spectrum Research Ltd'
+		'© 1982 ZX Spectrum Research Ltd'
 	]
 	let row = 1
 	for(let line of lines) {
@@ -243,7 +266,7 @@ export function doTestRender(){
 		row ++
 	}
 }
-function widthPixels(width): number {
+function widthPixels(width: GlyphWidth): number {
 	switch(width){
 		case 'h': return 4
 		case 'n': return 8
@@ -269,16 +292,12 @@ function renderText(left: number, top: number, str: string, attr?: Attr): number
 	return x
 }
 
-function printLine(col, row, line) {
+function printLine(col: number, row: number, line: string) {
 	renderText(col << 3, row << 3, line)
 }
 
 function parse(text: string): number[] {
-	const lines = text.split('\n')
-	let out = []
-	let p = 0
-
-	return out
+	throw new Error('Not implemented')
 }
 
 function combine(base: Attr, diff?: Partial<Attr>): Attr {
@@ -299,7 +318,7 @@ const theme = {
 	error: {ink: 'red', isBright: true} as Partial<Attr>
 }
 
-function printTokenisedLine(col, row, line: Line) {
+function printTokenisedLine(col: number, row: number, line: Line) {
 	const y = row << 3
 	let x = (col << 3) + (line.indent * 20)
 	for (let token of line.tokens) {

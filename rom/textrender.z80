@@ -60,7 +60,7 @@ render_common_char:
 	ld	a, (de)		; a := next character to render
 	inc	de
 
-	exx			; bc := screen pointer
+	exx			; de := screen pointer
 	ld	hl, FONT_LOOKUP	; Character index table
 
 	; Force character (in A) to be in range of glyphs:
@@ -71,34 +71,36 @@ rep1:	inc	hl
 	cp	(hl)		; #number characters represented
 	jr	c, rep2
 	xor	a
-rep2:	inc hl
+rep2:	inc	a
 
 	; Look up glyph data:
 	ld	c, a
 	ld	b, 0
 	add	hl, bc
 	add	hl, bc
-	ld	a, (hl)		; LOW byte of character data pointer
-	inc	hl
-	ld	h, (hl)		; HIGH byte of character data pointer
-	ld	l, a		; hl := character pointer
+	ld	a, (hl)	; HIGH byte of offset to character data pointer
+	ex	af, af'	; This has width encoded in top 2 bits
+	ld	a, $3f	; Mask out top 2 bits
+	and	(hl)
+	ld	b, a	; Top byte (or 6 bits of it anyway)	
+	dec	hl
+	ld	c, (hl)	; LOW byte of offset to character data pointer
+	add	hl, bc	; hl := character pointer
 
 	; Decode character info:
-	ld	b, (hl)		; <char-info> = binary <widthnybles:2><startrow:3><height:3>
-	inc	hl		; Advance to pixel data
-	ld	a, b
-	ex	af, af'		; a' := <char-info>
-	ld	a, 7
-	and	b
-	ld	c, a		; c := <height:3>
-	ld	a, b
-	rra
-	rra
-	rra
+	ld	a, (hl)	; <char-info> = binary X<height:4><start-row:3>
 	and	7
-	ld	b, a		; b := <startrow:3>
-	ex	de, hl		; hl := screen pointer; de := glyph pixel data
-	ex	af, af'		; a := <chr-info>; a' := (8 - startrow - height)
+	ld	b, a	; b := <start-row:3>
+	ld	a, (hl)
+	rra
+	rra
+	rra
+	and	$f
+	ld	c, a	; c := <height:4>
+
+	inc	hl	; Advance to pixel data
+	ex	de, hl	; hl := screen pointer; de := glyph pixel data
+	ex	af, af'	; a := <chr-info>
 	bit	5, h
 	jp	nz, render_o4
 
