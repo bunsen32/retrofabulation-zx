@@ -179,6 +179,7 @@ colour_it_in:
 	inc	b	; We gonna colour into the next cell
 .no_half_incr:	rla		; Multiply width in cells by 2, adding a half-cell if necessary (if Carry flag was set)
 	pop	de	; Pop initial (row, column)
+	res	0,e	; (New half-cell offset INCLUDES original odd/even bit.)
 	add	e	; Add half-cell offset to column originally passed in
 	ld	e, a	; de := row/column (d = row 0–23; e = column 0–63) (at end of text)
 

@@ -53,6 +53,16 @@ describe("Text rendering", () => {
 		expect(p.column).toEqual(10 + expectedWidth)
 	})
 
+	it("Render 8-pixel characters advances column (on half)", async () => {
+		const vm = await loadedVm
+
+		renderAt(vm, 'ReTro…', {row: 20, column: 11})
+		const expectedWidth = 12
+
+		const p = getCoordsAfterRendering(vm)
+		expect(p.column).toEqual(11 + expectedWidth)
+	})
+
 	it("Render 4-pixel characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
@@ -73,6 +83,16 @@ describe("Text rendering", () => {
 		expect(p.column).toEqual(10 + expectedWidth)
 	})
 
+	it("Render 4-pixel characters advances column (on half)", async () => {
+		const vm = await loadedVm
+
+		renderAt(vm, '‘tf;i’', {row: 20, column: 11})
+		const expectedWidth = 6
+
+		const p = getCoordsAfterRendering(vm)
+		expect(p.column).toEqual(11 + expectedWidth)
+	})
+
 	it("Render 12-pixel characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
@@ -91,6 +111,16 @@ describe("Text rendering", () => {
 
 		const p = getCoordsAfterRendering(vm)
 		expect(p.column).toEqual(10 + expectedWidth)
+	})
+
+	it("Render 12-pixel characters advances column (on half)", async () => {
+		const vm = await loadedVm
+
+		renderAt(vm, 'wm⌫™', {row: 20, column: 11})
+		const expectedWidth = 12
+
+		const p = getCoordsAfterRendering(vm)
+		expect(p.column).toEqual(11 + expectedWidth)
 	})
 
 	it("Render at half-cell offset", async () => {
