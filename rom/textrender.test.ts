@@ -153,6 +153,47 @@ describe("Text rendering", () => {
 		const actual = getScreenMono(vm)
 		await assertExpectedImage("mix-width", actual)
 	})
+
+	it("Does not mangle AF'", async () => {
+		const vm = await loadedVm
+		vm.setRegisters({AF_: 0x9999})
+
+		renderAt(vm, '::mmA', {row: 4, column: 4})
+
+		const registers = vm.getRegisters()
+		expect(registers.AF_).toBe(0x9999)
+	})
+
+	it("Does not mangle BC'", async () => {
+		const vm = await loadedVm
+		vm.setRegisters({BC_: 0x9999})
+
+		renderAt(vm, '::mmA', {row: 4, column: 4})
+
+		const registers = vm.getRegisters()
+		expect(registers.BC_).toBe(0x9999)
+	})
+
+	it("Does not mangle DE'", async () => {
+		const vm = await loadedVm
+		vm.setRegisters({DE_: 0x9999})
+
+		renderAt(vm, '::mmA', {row: 4, column: 4})
+
+		const registers = vm.getRegisters()
+		expect(registers.DE_).toBe(0x9999)
+	})
+
+	it("Does not mangle HL'", async () => {
+		const vm = await loadedVm
+		vm.setRegisters({HL_: 0x9999})
+
+		renderAt(vm, '::mmA', {row: 4, column: 4})
+
+		const registers = vm.getRegisters()
+		expect(registers.HL_).toBe(0x9999)
+	})
+
 })
 
 describe("Text measuring", () => {
@@ -205,7 +246,7 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000) 
 		0xCD, 0x00, 0x08, // call $0800
 		0x76, // HALT
 	])
-	vm.runPcAt({addr:0x8000}, 20000)
+	vm.runPcAt({addr:0x8000}, 17670)
 }
 
 function getCoordsAfterRendering(vm: Vm): TextCoords {

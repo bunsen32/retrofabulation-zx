@@ -5,14 +5,23 @@
 	; a	= attrs for the text (h = row 0–23; l = column 0–63)
 	; RETURNS:
 	; hl	= end row/column 
-	; TRASHES: pretty much all other normal registers (except IY and IX)
+	; TRASHES: BC, DE, AF
 render_text:
 	inc	b
 	dec	b
 	ret	z		; Return if no characters to render.
 
 	inc	b		; b := characters to print + 1
+
 	push	af		; push attrs value
+	ex	af,af'
+	push	af
+	exx
+	push	hl
+	push	de
+	push	bc
+	exx
+
 	push	hl
 	exx			; de' := char pointer; b' := remaining character count + 1
 	pop	hl		; hl := (row, column)
@@ -173,6 +182,13 @@ colour_it_in:
 	add	e	; Add half-cell offset to column originally passed in
 	ld	e, a	; de := row/column (d = row 0–23; e = column 0–63) (at end of text)
 
+	exx
+	pop	bc
+	pop	de
+	pop	hl
+	exx
+	pop	af
+	ex	af,af'
 	pop	af	; a  := attrs
 colour_loop:
 	ld	(hl), a
