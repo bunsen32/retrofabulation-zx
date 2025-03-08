@@ -21,25 +21,15 @@ REPL_LOOP:
 	or	a
 	jr	nz,.keypress
 .await	halt		; Wait for some potential keyboard input.
-	push	de
-	push	hl
-	push	bc
 	call	CURSOR_ANIM_FRAME
-	pop	bc
-	pop	hl
-	pop	de
 	jr	.check_key
 .keypress
 	ld	(de), a
 	inc	de
 	inc	b
 .print_it:
-	push	de
-	push	bc
-	push	hl
 	call	HIDE_CURSOR
-	pop	hl	; Get insertion point coords & count, and save again
-	pop	bc
+	push	de
 	push	bc
 	push	hl
 	ld	de, $5B80
@@ -55,6 +45,7 @@ REPL_LOOP:
 	; Display cursor on the screen, if it is not already shown.
 	; Either way, extend animation frame count for visible cursor.
 	; (Extend the displayed lifespan.)
+	; Trashes: A, HL
 SHOW_CURSOR:
 	ld	hl, CURSOR_FRAMES
 	ld	a, (hl)
@@ -64,32 +55,41 @@ SHOW_CURSOR:
 	jr	CURSOR_XOR
 
 	; Hide the cursor, if it is shown.
-	; Trashes: A, HL, B, DE
+	; Trashes: A
 HIDE_CURSOR:
-	ld	hl, CURSOR_FRAMES
-	ld	a, (hl)
+	ld	a, (CURSOR_FRAMES)
 	rra
 	ret	nc	; Cursor not on screen anyway
 	xor	a	; Cursor WAS on screen…
-	jr	CURSOR_ANIM_FRAME.store_and_xor
+	ld	(CURSOR_FRAMES), a	; And store back in variable.
+	jr	CURSOR_XOR
 
+	; Decrement the frame counter and show or hide the cursor
+	; Trashes: A
 CURSOR_ANIM_FRAME:
+	push	hl
 	ld	hl, CURSOR_FRAMES
 	ld	a, (hl)
 	srl	a
 	dec	a
 	jr	z, .statechange
-	rla		; Put C back into posn 0
+	rla		; Put <carry> back into posn 0
 	ld	(hl), a	; And store back in variable.
+	pop	hl
 	ret
-.statechange	rla		; Move C back into low bit
+.statechange:
+	rla		; Move <carry> back into low bit
 	xor	(CURSOR_FLASH_RATE << 1) | 1	; Add back in count and invert bit zero
 .store_and_xor:	ld	(hl), a
-		; Fallthrough to…
+	jr	CURSOR_XOR.after_pushes_HL
 
 	; Invert cursor pixels. Current cursor posn is held in (CURSOR_XY)
-	; Trashes: A, HL, B, DE
+	; Trashes: A
 CURSOR_XOR:
+	push	hl
+.after_pushes_HL
+	push	de
+	push	bc
 	ld	b, 8
 	ld	hl, (CURSOR_XY)
 	call	ROWCOL_ADDR
@@ -102,13 +102,17 @@ CURSOR_XOR:
 	inc	d
 	djnz	.loop0
 	dec	e
-	ret	m	; Return if we were in the first column
+	jp	m,.pop_and_return	; Return if we were in the first column
 	ld	b, 8	; Otherwise…
 .loop0B:	dec	d
 	ld	a, (de)
 	xor	1
 	ld	(de), a
 	djnz	.loop0B
+.pop_and_return:
+	pop	bc
+	pop	de
+	pop	hl
 	ret
 .halfcol:
 	res	5, d
@@ -117,4 +121,4 @@ CURSOR_XOR:
 	ld	(de), a
 	inc	d
 	djnz	.loop1
-	ret
+	jr	.pop_and_return
