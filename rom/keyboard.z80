@@ -22,6 +22,18 @@ DEFAULT_INTERRUPT_HANDLER:
 KCODE_CAPS	equ	0
 KCODE_SYM	equ	15
 
+KEYMAP_SHIFTED_NUMS:
+	db	$08	; 0: DELETE (BACKSPACE)
+	db	$0b	; 1: EDIT/ESC
+	db	$0e	; 2: CAPS LOCK
+	db	$05	; 3: INV VIDEO
+	db	$06	; 4: TRUE VIDEO
+	db	$01	; 5: LEFT
+	db	$03	; 6: DOWN
+	db	$04	; 7: UP
+	db	$02	; 8: RIGHT
+	db	$0f	; 9: GRAPHICS
+
 KEYMAP:
 	db	' ', 'a', 'q', '1', '0', 'p', $0d, ' '
 	db	'z', 's', 'w', '2', '9', 'o', 'l', ' '
@@ -35,18 +47,6 @@ KEYMAP_SYM:
 	db	$a3, '\', $b8, '#', '(', '`', '+', '.'
 	db	'?', '{', '<', '$', "'", ']', '-', ','
 	db	'/', '}', '>', '%', '&', '[', '^', '*'
-
-KEYMAP_SHIFTED_NUMS:
-	db	$08	; 0: DELETE (BACKSPACE)
-	db	$0b	; 1: EDIT/ESC
-	db	$0e	; 2: CAPS LOCK
-	db	$05	; 3: INV VIDEO
-	db	$06	; 4: TRUE VIDEO
-	db	$01	; 5: LEFT
-	db	$03	; 6: DOWN
-	db	$04	; 7: UP
-	db	$02	; 8: RIGHT
-	db	$0f	; 9: GRAPHICS
 
 
 ; Interrogate the hardware for the current keyboard state
