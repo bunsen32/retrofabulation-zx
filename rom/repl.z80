@@ -15,6 +15,15 @@ REPL:
 	ld	b, 0
 	ld	hl, $0300
 	ld	(CURSOR_XY), hl
+
+	; Buffer: [xxxxxx|xxxx-----]
+	; A: scratch register
+	; HL: screen position of cursor (row,half-cell)
+	; DE: buffer position of cursor (byte pointer)
+	; B : characters prior to cursor
+	; C : characters after cursor
+	; B': remaining space in buffer (characters)
+	; C': remaining space on screen (half-cells)
 REPL_LOOP:	
 .check_key:
 	ld	a, (KEY_CHAR)
@@ -23,36 +32,138 @@ REPL_LOOP:
 .await	halt		; Wait for some potential keyboard input.
 	call	CURSOR_ANIM_FRAME
 	jr	.check_key
-.keypress
-	ld	(de), a
-	inc	de
+.keypress:	; A != 0
+	cp	$10	; no-carry == printable character
+	jr	nc, .try_insert
+	rra
+	jr	c,.char_xxx1
+
+.char_xxx0:	rra
+	jr	c,.char_xx10
+.char_xx00:	rra
+	jr	c,.char_x100
+
+.char_x000:	; BACKSPACE (1000) because 0000 is not passed
+.BACKSPACE:	dec	b
 	inc	b
-.print_it:
+	jr	z,.await	; Nothing to delete.
+	dec	b
+	dec	de
+	jr	.await	; TODO
+
+.char_x100:	; UP (0100) because 1100 ($C) is not passed
+.UP:	jr	.await	; TODO
+
+.char_xx10:	rra
+	jr	c,.char_x110
+.char_x010:	; RIGHT (0010) because 1010 ($A) is not used
+.RIGHT:	dec	c
+	inc	c
+	jr	z,.await	; We’ve hit the right limit
+	dec	c	; 1 more right
+	inc	b	; 1 less left
+	ld	a,(de)	; Get current char
+	call	MEASURE_CHAR	; Width in half-cells
+	inc	de	; Forward 1 char byte
+	add	l
+	ld	l,a
+	call	MOVE_CURSOR
+	jr	.await
+
+.char_x110:	rra
+	jr	c,.char_1110
+
+.char_0110:	; TRU VID (0110) $06
+.TRU_VID:	jr	.await	; TODO
+
+.char_1110:	; CAPS LOCK (1110) $0E
+.CAPS_LOCK:	ld	a,$e
+	jr	.try_insert	; TODO
+
+.char_xxx1:	rra
+	jr	c,.char_xx11
+.char_xx01:	rra
+	jr	c,.char_x101
+
+.char_x001:	; LEFT (0001) because 1001 ($9) is not used
+.LEFT:	dec	b
+	inc	b
+	jr	z,.await	; We’ve hit the left limit
+	dec	b	; 1 more left
+	inc	c	; 1 less right
+	dec	de	; Back 1 char byte
+	ld	a,(de)	; Get prev char
+	call	MEASURE_CHAR	; Width in half-cells
+	neg
+	add	l
+	ld	l,a
+	call	MOVE_CURSOR
+	jr	.await
+
+.char_x101:	; INV-VID (0101) because 1101 ($D) is not used
+.INV_VID:	jr	.await	; TODO
+
+.char_xx11:	rra
+	jr	.char_x111
+.char_x011:	rra
+	jr	.char_1011
+.char_0011:	; DOWN (0011) $03
+.DOWN	jr	.await	; TODO
+
+.char_1011:	; ESC/EDIT (1011) $0B
+.ESC_EDIT	jr	.await	; TODO
+
+.char_x111:	; GFX (1111) because 0111 ($07) is not used
+.GFX	jr	.await	; TODO
+
+.try_insert:
+	ld	(de), a	; Put the character into the buffer
 	call	HIDE_CURSOR
+	inc	b
+
+	; Print inserted character:
+	push	de
+	push	bc
+	ld	b,1	; single character
+	ld	a,0b01111000	; black ink, white paper
+	call	render_text	; HL is updated with new cursor posn
+	pop	bc
+	pop	de
+	inc	de	; Increase buffer position.
+
+	; (Re)print remaining characters:
 	push	de
 	push	bc
 	push	hl
-	ld	de, $5B80
-	ld	a, 0b01111000
+	ld	b,c
+	ld	a,0b01111000	; black ink, white paper
 	call	render_text
-	ld	(CURSOR_XY), hl
-	call	SHOW_CURSOR
+.after_insert
 	pop	hl
 	pop	bc
 	pop	de
-	jr	.await
+	call	MOVE_CURSOR
+	jp	.await
+
+	; Moves cursor to coordinates indicated by HL
+	; Trashes A
+MOVE_CURSOR:	call	HIDE_CURSOR
+	ld	(CURSOR_XY), hl
+	jp	SHOW_CURSOR	; Tail call.
 
 	; Display cursor on the screen, if it is not already shown.
 	; Either way, extend animation frame count for visible cursor.
 	; (Extend the displayed lifespan.)
-	; Trashes: A, HL
+	; Trashes: A
 SHOW_CURSOR:
+	push	hl
 	ld	hl, CURSOR_FRAMES
 	ld	a, (hl)
 	ld	(hl), (CURSOR_FLASH_RATE << 1) | 1
 	rra		; Examine previous value of bit zero…
-	ret	c	; Exit if cursor already shown
-	jr	CURSOR_XOR
+	jr	nc,CURSOR_XOR.after_pushes_HL
+	pop	hl
+	ret
 
 	; Hide the cursor, if it is shown.
 	; Trashes: A
