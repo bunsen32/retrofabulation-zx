@@ -1,3 +1,5 @@
+TEXT_BUFFER	EQU	$5B80
+
 	; Read-Execute-Print Loop
 POP_AND_REPL:
 	pop	bc	; Pop off a return address
@@ -11,8 +13,13 @@ REPL:
 	ld	bc,768
 	ldir		; Clear screen to all white (16123 t-states)
 .init_buffer
-	ld	de, $5B80
-	ld	b, 0
+	ld	hl,TEXT_BUFFER
+	ld	de,TEXT_BUFFER+1
+	ld	bc,256
+	ld	(hl),32	; Space char
+	ldir
+	ld	de, TEXT_BUFFER
+	ld	bc, 0
 	ld	hl, $0300
 	ld	(CURSOR_XY), hl
 
@@ -44,12 +51,7 @@ REPL_LOOP:
 	jr	c,.char_x100
 
 .char_x000:	; BACKSPACE (1000) because 0000 is not passed
-.BACKSPACE:	dec	b
-	inc	b
-	jr	z,.await	; Nothing to delete.
-	dec	b
-	dec	de
-	jr	.await	; TODO
+.BACKSPACE:	jr	.try_delete
 
 .char_x100:	; UP (0100) because 1100 ($C) is not passed
 .UP:	jr	.await	; TODO
@@ -117,6 +119,23 @@ REPL_LOOP:
 .GFX	jr	.await	; TODO
 
 .try_insert:
+	inc	c
+	dec	c	; Characters after cursor
+	jr	z,.after_ins_move	; If zero, nothing to move.
+	push	hl
+	push	de
+	push	bc
+	ld	b,0	; C already has letters-to-end.
+	ex	de,hl
+	add	hl,bc
+	ld	d,h
+	ld	e,l
+	dec	hl
+	lddr
+	pop	bc
+	pop	de
+	pop	hl
+.after_ins_move:
 	ld	(de), a	; Put the character into the buffer
 	call	HIDE_CURSOR
 	inc	b
@@ -132,18 +151,49 @@ REPL_LOOP:
 	inc	de	; Increase buffer position.
 
 	; (Re)print remaining characters:
-	push	de
+.reprint_remain:	push	de
 	push	bc
 	push	hl
 	ld	b,c
 	ld	a,0b01111000	; black ink, white paper
 	call	render_text
-.after_insert
+.after_insert:
 	pop	hl
 	pop	bc
 	pop	de
 	call	MOVE_CURSOR
-	jp	.await
+.jp_await	jp	.await
+
+.try_delete:
+	dec	b
+	inc	b
+	jr	z,.jp_await	; Nothing to delete.
+
+	dec	de	; Move back to character to be deleted.
+	ld	a,(de)	; Get it
+	call	MEASURE_CHAR	; Measure it
+	neg		; 0 - column-width
+	add	l	; Add to cursor column
+	ld	l,a	; Cursor column -= deleted character width
+.del_move:
+	inc	c
+	dec	c	; Characters after cursor
+	jr	z,.after_del_move	; If zero, nothing to move.
+	push	hl
+	push	de
+	push	bc
+	ld	b,0	; C already has letters-to-end.
+	ld	h,d
+	ld	l,e
+	inc	hl
+	ldir
+	pop	bc
+	pop	de
+	pop	hl
+.after_del_move:
+	dec	b	; characters to left -= 1
+	call	HIDE_CURSOR
+	jr	.reprint_remain	; (Re)print remaining characters (possibly zero)
 
 	; Moves cursor to coordinates indicated by HL
 	; Trashes A
