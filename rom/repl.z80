@@ -12,12 +12,10 @@ REPL:
 	ld	de,$5801
 	ld	bc,768
 	ldir		; Clear screen to all white (16123 t-states)
-.init_buffer
-	ld	hl,TEXT_BUFFER
-	ld	de,TEXT_BUFFER+1
-	ld	bc,256
-	ld	(hl),32	; Space char
-	ldir
+.init_buffer:
+	exx
+	ld	c,30	; Max length
+	exx
 	ld	de, TEXT_BUFFER
 	ld	bc, 0
 	ld	hl, $0300
@@ -48,10 +46,10 @@ REPL_LOOP:
 .char_xxx0:	rra
 	jr	c,.char_xx10
 .char_xx00:	rra
-	jr	c,.char_x100
+	;jr	c,.char_x100	; [This check is inverted on next line.]
 
 .char_x000:	; BACKSPACE (1000) because 0000 is not passed
-.BACKSPACE:	jr	.try_delete
+.BACKSPACE:	jp	nc,.try_delete
 
 .char_x100:	; UP (0100) because 1100 ($C) is not passed
 .UP:	jr	.await	; TODO
@@ -119,6 +117,15 @@ REPL_LOOP:
 .GFX	jr	.await	; TODO
 
 .try_insert:
+	push	af
+	call	MEASURE_CHAR
+	exx
+	inc	c
+	dec	c
+	jr	z,.exx_await
+	dec	c	; Reduce buffer space.
+	exx
+
 	inc	c
 	dec	c	; Characters after cursor
 	jr	z,.after_ins_move	; If zero, nothing to move.
@@ -136,9 +143,10 @@ REPL_LOOP:
 	pop	de
 	pop	hl
 .after_ins_move:
-	ld	(de), a	; Put the character into the buffer
 	call	HIDE_CURSOR
-	inc	b
+	inc	b	; Number of characters to the left
+	pop	af
+	ld	(de), a	; Put the character into the buffer
 
 	; Print inserted character:
 	push	de
@@ -162,7 +170,9 @@ REPL_LOOP:
 	pop	bc
 	pop	de
 	call	MOVE_CURSOR
-.jp_await	jp	.await
+	exx
+.exx_await:	exx
+.jp_await:	jp	.await
 
 .try_delete:
 	dec	b
@@ -175,6 +185,10 @@ REPL_LOOP:
 	neg		; 0 - column-width
 	add	l	; Add to cursor column
 	ld	l,a	; Cursor column -= deleted character width
+
+	exx
+	inc	c	; Buffer has space for one more char.
+	exx
 .del_move:
 	inc	c
 	dec	c	; Characters after cursor
