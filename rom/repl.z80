@@ -14,7 +14,7 @@ REPL:
 	ldir		; Clear screen to all white (16123 t-states)
 .init_buffer:
 	exx
-	ld	c,30	; Max length
+	ld	c,$ff	; Max length
 	exx
 	ld	de, TEXT_BUFFER
 	ld	bc, 0
@@ -151,7 +151,7 @@ REPL_LOOP:
 	; Print inserted character:
 	push	de
 	push	bc
-	ld	b,1	; single character
+	ld	bc,$0104	; single character
 	ld	a,0b01111000	; black ink, white paper
 	call	render_text	; HL is updated with new cursor posn
 	pop	bc
@@ -164,7 +164,7 @@ REPL_LOOP:
 	push	hl
 	ld	b,c
 	ld	a,0b01111000	; black ink, white paper
-	call	render_text
+	call	RENDER_TEXT
 .after_insert:
 	pop	hl
 	pop	bc

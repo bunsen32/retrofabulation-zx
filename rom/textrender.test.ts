@@ -263,7 +263,7 @@ function charCode(singleChar: string) {
 	return CharsetFromUnicode[singleChar.charAt(0)]
 }
 
-function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000) {
+function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, maxWidth: byte = 127) {
 	const charBytes: byte[] = []
 	const textLength = text.length as byte
 	for(let i = 0; i < textLength; i++) {
@@ -271,12 +271,20 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000) 
 		charBytes[i] = c
 	}
 	vm.setRam(0x9000, charBytes)
-	vm.setRegisters({ SP: stackTop, DE: 0x9000, B: textLength as byte, A: attr, H: p.row, L: p.column })
+	vm.setRegisters({
+		SP: stackTop,
+		DE: 0x9000,
+		B: textLength as byte,
+		C: maxWidth,
+		A: attr,
+		H: p.row,
+		L: p.column
+	 })
 	vm.setRam(0x8000, [
 		0xCD, 0x00, 0x08, // call $0800
 		0x76, // HALT
 	])
-	vm.runPcAt({addr:0x8000}, 17670)
+	vm.runPcAt({addr:0x8000}, 3000 + 660 * textLength)
 }
 
 function getCoordsAfterRendering(vm: Vm): TextCoords {

@@ -1,11 +1,23 @@
+	; "Safe" text rendering: takes into account right-and-side of the screen
+RENDER_TEXT:
+	push	af
+	ld	a,63
+	sub	l	; a := half-cells to RHS of screen
+	ld	c,a
+	pop	af
+	ret	c	; Already beyond the RHS
+	
+	; Fall-through
+
 	; Render some text
 	; de	= pointer to characters
-	; b	= count of characters
+	; b	= (max) count of characters
+	; c	= (max) number of columns (half-cells) allowed
 	; hl	= row/column (h = row 0–23; l = column 0–63)
 	; a	= attrs for the text (h = row 0–23; l = column 0–63)
 	; RETURNS:
 	; hl	= end row/column 
-	; TRASHES: BC, DE, AF
+	; TRASHES: BC, DE
 render_text:
 	inc	b
 	dec	b
@@ -87,10 +99,21 @@ rep2:
 	ld	b, 0
 	add	hl, bc
 	add	hl, bc
-	ld	a, (hl)	; HIGH byte of offset to character data pointer
-	ex	af, af'	; This has width encoded in top 2 bits
-	ld	a, $3f	; Mask out top 2 bits
-	and	(hl)
+	ld	b, (hl)	; b := HIGH byte of offset to character data pointer
+	ld	a, b
+	exx		; c <-> c' = remaining allowed character width
+	rlca
+	rlca		; Width of char is now in low bits of A
+	and	3	; Mask it out
+	neg
+	add	c	; (0 - char width) + space remaining
+	ld	c,a	; c := new space remaining
+	jr	nc,colour_it_in	; cos we added negative, carry has opposite meaning
+	exx
+	ld	a, b	; HIGH byte of offset to character data pointer...
+	ex	af, af'	; ...has width encoded in top 2 bits
+	ld	a, $3f	; Reset top 2 bits
+	and	b
 	ld	b, a	; Top byte (or 6 bits of it anyway)	
 	dec	hl
 	ld	c, (hl)	; LOW byte of offset to character data pointer
@@ -170,12 +193,12 @@ colour_it_in:
 	ld	a, e
 	pop	hl	; hl := pointer to attribute block (of FIRST char)
 	sub	l
-	ld	b, a
+	ld	b, a	; b := count cells to colour in
 
 	or	a	; clear carry flag
 	bit	5, d
 	jr	z, .no_half_incr
-.has_half_incr:	scf
+.has_half_incr:	scf		; Carry flag := extra half cell to add
 	inc	b	; We gonna colour into the next cell
 .no_half_incr:	rla		; Multiply width in cells by 2, adding a half-cell if necessary (if Carry flag was set)
 	pop	de	; Pop initial (row, column)

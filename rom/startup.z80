@@ -125,7 +125,7 @@ SPLASH_ANIM:
 
 COPYRIGHT:
 	ld	de, COPYRIGHT_TEXT
-	ld	b, COPYRIGHT_TEXT.length
+	ld	bc, (COPYRIGHT_TEXT.length << 8) | $7f
 	ld	a, %00111000	; Black ink on white paper
 	ld	hl, $1602	; x := 2 (half-cells), y := 22
 	call	render_text
