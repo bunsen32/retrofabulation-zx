@@ -6,7 +6,7 @@ RENDER_TEXT:
 	ld	c,a
 	pop	af
 	ret	c	; Already beyond the RHS
-	
+			; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
 	; Fall-through
 
 	; Render some text
@@ -17,22 +17,25 @@ RENDER_TEXT:
 	; a	= attrs for the text (h = row 0–23; l = column 0–63)
 	; RETURNS:
 	; hl	= end row/column 
+	; de	= pointer to next character, or 1 + end of buffer
+	; b	= remaining character count (if we hit the column limit) or zero
+	; c	= remaining half-cell column limit
 	; TRASHES: BC, DE
 render_text:
 	inc	b
 	dec	b
 	ret	z		; Return if no characters to render.
 
-	inc	b		; b := characters to print + 1
-
-	push	af		; push attrs value
-	ex	af,af'
-	push	af
 	exx
 	push	hl
 	push	de
 	push	bc
 	exx
+	inc	b		; b := characters to print + 1
+
+	push	af		; push attrs value
+	ex	af,af'
+	push	af
 
 	push	hl
 	exx			; de' := char pointer; b' := remaining character count + 1
@@ -107,8 +110,9 @@ rep2:
 	and	3	; Mask it out
 	neg
 	add	c	; (0 - char width) + space remaining
+	jr	nc,beyond_rhs	; Exit early if beyond RHS screen/window margin.
+			; cos we added negative, carry has opposite meaning
 	ld	c,a	; c := new space remaining
-	jr	nc,colour_it_in	; cos we added negative, carry has opposite meaning
 	exx
 	ld	a, b	; HIGH byte of offset to character data pointer...
 	ex	af, af'	; ...has width encoded in top 2 bits
@@ -187,7 +191,9 @@ r_w2_bot_o0:
 r_w2_bot_end_o0:
 	inc	l		; move to next column
 	jp	render_next_char
-
+beyond_rhs:			; c has OLD space remaining
+	dec	de	; Go back a character in buffer.
+			; (No need to increase 'b' here since we already did that at the start.)
 colour_it_in:
 	exx		; de := screen pointer
 	ld	a, e
@@ -206,11 +212,6 @@ colour_it_in:
 	add	e	; Add half-cell offset to column originally passed in
 	ld	e, a	; de := row/column (d = row 0–23; e = column 0–63) (at end of text)
 
-	exx
-	pop	bc
-	pop	de
-	pop	hl
-	exx
 	pop	af
 	ex	af,af'
 	pop	af	; a  := attrs
@@ -220,7 +221,17 @@ colour_loop:
 	djnz	colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
 			; For short runs, up to 10 characters, djnz is faster. For 32 characters, ldir is 10% faster.
 			; For VERY short runs (1–2 characters), djnz is twice as fast.
-	ex	de, hl	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
+	push	de	; Push end-of-text coordinates
+	exx
+	pop	hl	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
+			; de = pointer to next char
+			; b = remaining characters in buffer
+			; c = remaining half-cells on screen.
+	exx
+	pop	bc
+	pop	de
+	pop	hl
+	exx
 	ret
 
 
