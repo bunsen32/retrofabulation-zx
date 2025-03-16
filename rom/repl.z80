@@ -14,11 +14,15 @@ REPL:
 	ldir		; Clear screen to all white (16123 t-states)
 .init_buffer:
 	exx
-	ld	c,$ff	; Max length
-	exx
+	ld	b,$ff	; Max length
 	ld	de, TEXT_BUFFER
-	ld	bc, 0
 	ld	hl, $0300
+	push	hl
+	push	de
+	exx
+	pop	de
+	pop	hl
+	ld	bc, 0
 	ld	(CURSOR_XY), hl
 
 	; Buffer: [xxxxxx|xxxx-----]
@@ -29,6 +33,8 @@ REPL:
 	; C : characters after cursor
 	; B': remaining space in buffer (characters)
 	; C': remaining space on screen (half-cells)
+	; HL': screen position of column-zero (row,half-cell)
+	; DE': buffer position of column-zero
 REPL_LOOP:	
 .check_key:
 	ld	a, (KEY_CHAR)
@@ -120,10 +126,10 @@ REPL_LOOP:
 	push	af
 	call	MEASURE_CHAR
 	exx
-	inc	c
-	dec	c
+	inc	b
+	dec	b
 	jr	z,.exx_await
-	dec	c	; Reduce buffer space.
+	dec	b	; Reduce buffer space.
 	exx
 
 	inc	c
@@ -149,26 +155,17 @@ REPL_LOOP:
 	ld	(de), a	; Put the character into the buffer
 
 	; Print inserted character:
-	push	de
 	push	bc
 	ld	bc,$0104	; single character
 	ld	a,0b01111000	; black ink, white paper
 	call	render_text	; HL is updated with new cursor posn
 	pop	bc
-	pop	de
-	inc	de	; Increase buffer position.
 
 	; (Re)print remaining characters:
-.reprint_remain:	push	de
-	push	bc
+.reprint_remain:
 	push	hl
-	ld	b,c
-	ld	a,0b01111000	; black ink, white paper
-	call	RENDER_TEXT
-.after_insert:
+	call	PRINT_WRAP
 	pop	hl
-	pop	bc
-	pop	de
 	call	MOVE_CURSOR
 	exx
 .exx_await:	exx
@@ -187,7 +184,7 @@ REPL_LOOP:
 	ld	l,a	; Cursor column -= deleted character width
 
 	exx
-	inc	c	; Buffer has space for one more char.
+	inc	b	; Buffer has space for one more char.
 	exx
 .del_move:
 	inc	c
@@ -207,8 +204,53 @@ REPL_LOOP:
 .after_del_move:
 	dec	b	; characters to left -= 1
 	call	HIDE_CURSOR
-	jr	.reprint_remain	; (Re)print remaining characters (possibly zero)
+	push	hl
+	ld	a,0b01111000	; black ink, white paper
+	call	PRINT_WRAP
+	pop	hl
+	call	MOVE_CURSOR
+	jr	.jp_await	; (Re)print remaining characters (possibly zero)
 
+	; Renders multiple lines of text, until the end of the buffer:
+	; Takes:
+	; A = attr, B = char count, DE = char pointer, HL = initial coords
+	; On stack: coords of start of line.
+	; RETURNS:
+	; B = 0, DE = pointer to the end, HL = coords of the end of last line.
+	; On stack: start of last line.
+PRINT_WRAP:
+	push	bc
+	push	de
+	ld	b,c	; b := total characters to render.
+	exx
+	push	hl	; Push start of line.
+	exx
+	jr	.first_line
+
+.next_line:	pop	hl	; Pop start of line.
+	inc	h	; Down one line
+	push	hl	; Push start of line.
+.first_line:
+	call	RENDER_TEXT	; Render as much as we can (stopping at end of line)
+	
+	push	bc
+	push	de
+	ld	de, .two_spaces
+	ld	b,2
+	call	RENDER_TEXT	; Erase any junk at end of line.
+	pop	de	; de := next character (start of next line)
+	pop	bc	; b := remaining characters to render
+
+	inc	b
+	dec	b
+	jr	nz,.next_line	; Loop if more characters (lines) to render.
+	inc	sp
+	inc	sp	; 'pop' and discard start-of-line (was HL)
+	pop	de
+	pop	bc
+	ret
+
+.two_spaces	db	' ', ' '
 	; Moves cursor to coordinates indicated by HL
 	; Trashes A
 MOVE_CURSOR:	call	HIDE_CURSOR
