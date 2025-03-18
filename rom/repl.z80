@@ -15,10 +15,12 @@ REPL:
 .init_buffer:
 	exx
 	ld	b,$ff	; Max length
+	ld	c,1	; Current line number
 	ld	de, TEXT_BUFFER
 	ld	hl, $0300
 	push	hl
 	push	de
+
 	exx
 	pop	de
 	pop	hl
@@ -32,20 +34,22 @@ REPL:
 	; B : characters prior to cursor
 	; C : characters after cursor
 	; B': remaining space in buffer (characters)
-	; C': remaining space on screen (half-cells)
+	; C': Current line number (1-based)
 	; HL': screen position of column-zero (row,half-cell)
 	; DE': buffer position of column-zero
 REPL_LOOP:	
 .check_key:
 	ld	a, (KEY_CHAR)
 	or	a
-	jr	nz,.keypress
-.await	halt		; Wait for some potential keyboard input.
+	call	nz,.keypress
+	halt		; Wait for some potential keyboard input.
 	call	CURSOR_ANIM_FRAME
 	jr	.check_key
+	
 .keypress:	; A != 0
 	cp	$10	; no-carry == printable character
 	jr	nc, .try_insert
+
 	rra
 	jr	c,.char_xxx1
 
@@ -58,29 +62,20 @@ REPL_LOOP:
 .BACKSPACE:	jp	nc,.try_delete
 
 .char_x100:	; UP (0100) because 1100 ($C) is not passed
-.UP:	jr	.await	; TODO
+.UP:	jp	CURSOR_UP	; (Tail call)
 
 .char_xx10:	rra
 	jr	c,.char_x110
 .char_x010:	; RIGHT (0010) because 1010 ($A) is not used
-.RIGHT:	dec	c
-	inc	c
-	jr	z,.await	; We’ve hit the right limit
-	dec	c	; 1 more right
-	inc	b	; 1 less left
-	ld	a,(de)	; Get current char
-	call	MEASURE_CHAR	; Width in half-cells
-	inc	de	; Forward 1 char byte
-	add	l
-	ld	l,a
-	call	MOVE_CURSOR
-	jr	.await
+.RIGHT:
+	call	CURSOR_RIGHT
+	jp	SHOW_CURSOR	; (Tail call)
 
 .char_x110:	rra
 	jr	c,.char_1110
 
 .char_0110:	; TRU VID (0110) $06
-.TRU_VID:	jr	.await	; TODO
+.TRU_VID:	ret		; TODO
 
 .char_1110:	; CAPS LOCK (1110) $0E
 .CAPS_LOCK:	ld	a,$e
@@ -92,35 +87,25 @@ REPL_LOOP:
 	jr	c,.char_x101
 
 .char_x001:	; LEFT (0001) because 1001 ($9) is not used
-.LEFT:	dec	b
-	inc	b
-	jr	z,.await	; We’ve hit the left limit
-	dec	b	; 1 more left
-	inc	c	; 1 less right
-	dec	de	; Back 1 char byte
-	ld	a,(de)	; Get prev char
-	call	MEASURE_CHAR	; Width in half-cells
-	neg
-	add	l
-	ld	l,a
-	call	MOVE_CURSOR
-	jr	.await
+.LEFT:
+	call	CURSOR_LEFT
+	jp	SHOW_CURSOR	; (Tail call)
 
 .char_x101:	; INV-VID (0101) because 1101 ($D) is not used
-.INV_VID:	jr	.await	; TODO
+.INV_VID:	ret		; TODO
 
 .char_xx11:	rra
 	jr	.char_x111
 .char_x011:	rra
 	jr	.char_1011
 .char_0011:	; DOWN (0011) $03
-.DOWN	jr	.await	; TODO
+.DOWN	jp	CURSOR_DOWN	; (Tail call)
 
 .char_1011:	; ESC/EDIT (1011) $0B
-.ESC_EDIT	jr	.await	; TODO
+.ESC_EDIT	ret		; TODO
 
 .char_x111:	; GFX (1111) because 0111 ($07) is not used
-.GFX	jr	.await	; TODO
+.GFX	ret		; TODO
 
 .try_insert:
 	push	af
@@ -128,7 +113,7 @@ REPL_LOOP:
 	exx
 	inc	b
 	dec	b
-	jr	z,.exx_await
+	jr	z,.exx_ret
 	dec	b	; Reduce buffer space.
 	exx
 
@@ -150,31 +135,26 @@ REPL_LOOP:
 	pop	hl
 .after_ins_move:
 	call	HIDE_CURSOR
-	inc	b	; Number of characters to the left
+	inc	c	; Number of characters to the right
 	pop	af
 	ld	(de), a	; Put the character into the buffer
 
 	; Print inserted character:
-	push	bc
-	ld	bc,$0104	; single character
-	ld	a,0b01111000	; black ink, white paper
-	call	render_text	; HL is updated with new cursor posn
-	pop	bc
-
-	; (Re)print remaining characters:
-.reprint_remain:
 	push	hl
+	ld	a,0b01111000	; black ink, white paper
 	call	PRINT_WRAP
 	pop	hl
-	call	MOVE_CURSOR
-	exx
-.exx_await:	exx
-.jp_await:	jp	.await
+	call	CURSOR_RIGHT
+	jp	SHOW_CURSOR	; (Tail call)
+
+	; (Re)print remaining characters:
+.exx_ret:	exx
+	ret
 
 .try_delete:
 	dec	b
 	inc	b
-	jr	z,.jp_await	; Nothing to delete.
+	ret	z	; Nothing to delete.
 
 	dec	de	; Move back to character to be deleted.
 	ld	a,(de)	; Get it
@@ -209,14 +189,14 @@ REPL_LOOP:
 	call	PRINT_WRAP
 	pop	hl
 	call	MOVE_CURSOR
-	jr	.jp_await	; (Re)print remaining characters (possibly zero)
+	ret
 
 	; Renders multiple lines of text, until the end of the buffer:
 	; Takes:
 	; A = attr, B = char count, DE = char pointer, HL = initial coords
-	; On stack: coords of start of line.
+	; HL' coords of start of line.
 	; RETURNS:
-	; B = 0, DE = pointer to the end, HL = coords of the end of last line.
+	; HL = coords of the end of last line.
 	; On stack: start of last line.
 PRINT_WRAP:
 	push	bc
@@ -242,15 +222,53 @@ PRINT_WRAP:
 	pop	bc	; b := remaining characters to render
 
 	inc	b
-	dec	b
-	jr	nz,.next_line	; Loop if more characters (lines) to render.
-	inc	sp
-	inc	sp	; 'pop' and discard start-of-line (was HL)
+	djnz	.next_line	; Loop if more characters (lines) to render.
+	pop	de	; pop (and discard) start-of-line (was HL)
 	pop	de
 	pop	bc
 	ret
 
 .two_spaces	db	' ', ' '
+
+CURSOR_LEFT:
+	dec	b
+	inc	b
+	ret	z	; We’ve hit the left limit
+
+	dec	b	; 1 more left
+	inc	c	; 1 less right
+	dec	de	; Back 1 char byte
+	ld	a,(de)	; Get prev char
+	call	MEASURE_CHAR	; Width in half-cells
+	neg
+	add	l
+	ld	l,a
+	jr	HIDE_AND_LD_CUR	; (Tail call)
+
+CURSOR_RIGHT:
+	dec	c
+	inc	c
+	ret	z	; We’ve hit the right limit
+
+	dec	c	; 1 more right
+	inc	b	; 1 less left
+	ld	a,(de)	; Get current char
+	call	MEASURE_CHAR	; Width in half-cells
+	inc	de	; Forward 1 char byte
+	add	l
+	ld	l,a
+	jr	HIDE_AND_LD_CUR	; (Tail call)
+
+CURSOR_UP:	; TODO
+	ret
+
+CURSOR_DOWN:	; TODO
+	ret
+
+HIDE_AND_LD_CUR:	call	HIDE_CURSOR
+	ld	(CURSOR_XY), hl
+	ret
+
 	; Moves cursor to coordinates indicated by HL
 	; Trashes A
 MOVE_CURSOR:	call	HIDE_CURSOR
