@@ -226,7 +226,7 @@ describe("Text rendering", () => {
 
 })
 
-describe("Text measuring", () => {
+describe("Measure single char", () => {
 
 	it("4-pixel character returns 1", async () => {
 		const vm = await loadedVm
@@ -256,7 +256,19 @@ describe("Text measuring", () => {
 
 		const result = vm.getRegisters().A
 		expect(result).toBe(3)
-	})})
+	})
+})
+
+describe("Measure span of characters", () => {
+
+	it("4-pixel character x4 returns 4", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "iiii", 99)
+
+		expect(result.columnsRemaining).toBe(99 - 4)
+	})
+})
 
 function charCode(singleChar: string) {
 	expect(singleChar).toHaveLength(1)
@@ -285,6 +297,24 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, 
 		0x76, // HALT
 	])
 	vm.runPcAt({addr:0x8000}, 3000 + 660 * textLength)
+}
+
+function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {
+	const charBytes: byte[] = []
+	const textLength = text.length as byte
+	for(let i = 0; i < textLength; i++) {
+		const c = CharsetFromUnicode[text.charAt(i)]
+		charBytes[i] = c
+	}
+	vm.setRam(0x9000, charBytes)
+	vm.setRegisters({DE: 0x9000, B: textLength as byte, C: maxColumnWidth})
+	vm.callSubroutine(rom.MEASURE_SPAN, 6000)
+	const {DE, B, C} = vm.getRegisters()
+	return {
+		pointerOffset: DE - 0x9000,
+		charRemaining: B,
+		columnsRemaining: C
+	}
 }
 
 function getCoordsAfterRendering(vm: Vm): TextCoords {

@@ -605,6 +605,33 @@ rowcol_out_of_range:
 	ld	l, a
 	ret
 
+	; Iterate through a buffer of characters, for a given maximum count and
+	; text width, and return the ending position (by width and char count)
+	; DE: char pointer
+	; B:  max number of characters
+	; C:  maximum width in half-cell columns.
+	; RETURNS
+	; DE: point to NEXT character (or end of span)
+	; B:  remaining character count (or zero)
+	; C:  remaining column count (or zero)
+MEASURE_SPAN:
+	inc	b
+	dec	b
+	ret	z	; Return if char count = 0
+	push	af
+.loop:	
+	ld	a, (de)
+	call	MEASURE_CHAR
+	neg
+	add	c
+	jr	nc,.end	; C + (-A) => carry is inverted
+	ld	c,a
+	inc	de
+	djnz	.loop
+.end:	
+	pop	af
+	ret
+
 	; Take a character (in A), and return its glyph width,
 	; 0–3, also in A. Preserves all other registers.
 MEASURE_CHAR:
