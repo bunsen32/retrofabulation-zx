@@ -109,7 +109,6 @@ REPL_LOOP:
 
 .try_insert:
 	push	af
-	call	MEASURE_CHAR
 	exx
 	inc	b
 	dec	b
@@ -134,12 +133,12 @@ REPL_LOOP:
 	pop	de
 	pop	hl
 .after_ins_move:
-	call	HIDE_CURSOR
-	inc	c	; Number of characters to the right
 	pop	af
 	ld	(de), a	; Put the character into the buffer
+	inc	c	; Number of characters to the right
 
 	; Print inserted character:
+	call	HIDE_CURSOR
 	push	hl
 	ld	a,0b01111000	; black ink, white paper
 	call	PRINT_WRAP
