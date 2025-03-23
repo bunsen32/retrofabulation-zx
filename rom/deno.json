@@ -6,7 +6,10 @@
 		"test": {
 			"command": "deno test --allow-write=testout/ --allow-read",
 			"dependencies": ["assemble"]
+		},
+		"deploy": {
+			"command": "cp dist/neo48.rom ../dist/jsspeccy/roms/48.rom",
+			"dependencies": ["assemble"]
 		}
-
 	}
 }
