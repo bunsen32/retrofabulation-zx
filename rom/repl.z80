@@ -1,5 +1,11 @@
 TEXT_BUFFER	EQU	$5B80
 
+SCR_CUR_UP	EQU	0b0001
+SCR_CUR_DOWN	EQU	0b0011
+SCR_SHOW_CURSOR	EQU	$80
+SCR_REDRAW_TEXT	EQU	0b0010
+SCR_ISSUE_RIGHT	EQU	0b0100
+
 	; Read-Execute-Print Loop
 POP_AND_REPL:
 	pop	bc	; Pop off a return address
@@ -41,12 +47,76 @@ REPL_LOOP:
 .check_key:
 	ld	a, (KEY_CHAR)
 	or	a
-	call	nz,.keypress
-	halt		; Wait for some potential keyboard input.
+	call	nz,LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
+	or	a
+	jr	nz,.screen_cmd
+.await	halt		; Wait for some potential keyboard input.
 	call	CURSOR_ANIM_FRAME
 	jr	.check_key
 	
-.keypress:	; A != 0
+	// If we get here, we need to move between lines, or redraw the display.
+	// Implies a cursor move/reset too. Takes in bits of A:
+	// 0: Vertical move to next or previous line? (0 = NO, 1 = YES)
+	// 1:   0 = vertical move UP; 1 = vertical move DOWN
+	// 1: Redraw? (0 = NO, 1 = YES)
+	// 2: Issue CURSOR_RIGHT key to move cursor after inserting a character.
+	// 3–6: <unused>
+	// 7: (Can be set to 1 to show cursor and do nothing else.)
+.screen_cmd:
+.bit_A:	rra		; Bit B+0: vertical movement (up or down arrow)
+	jr	nc,.fixup_cursor
+	rra		; Bit B+1: 0=UP 1=DOWN
+	jr	c,.mv_down
+.mv_up:	nop		; TODO!
+	jr	.end_screen_cmd
+
+.mv_down:	nop		; TODO!
+	jr	.end_screen_cmd
+
+.ex_bit_B:	ex	af,af'
+.bit_B:	rra		; Bit B: redraw
+	jr	nc,.bit_C
+	ex	af,af'
+	push	hl
+	ld	a,0b01111000	; black ink, white paper
+	call	PRINT_WRAP
+	pop	hl
+	ex	af,af'
+
+.bit_C:	rra		; Bit C: right-arrow
+	jr	nc,.end_screen_cmd
+	ld	a,CHAR_RIGHT
+	call	LINE_EDIT
+	jr	.screen_cmd
+
+.end_screen_cmd:	call	MOVE_CURSOR
+	jr	.await
+
+	// Sort out cursor position. If it’s to the left of the allowed screen area,
+	// move it to the end of the previous line (minus one character); if it’s
+	// to the right of allowed screen area, move it to start of next line (plus one
+	// character). Assumes that previous code has checked that it’s a valid character
+	// position.
+.fixup_cursor:	ex	af,af'
+	ld	a,l
+	cp	-4
+	jr	nc,.fixup_prev_line
+	sub	64
+	jr	nc,.ex_bit_B
+
+.fixup_next_line:	nop		; TODO
+	jr	.ex_bit_B
+
+.fixup_prev_line:	nop		; TODO
+	jr	.ex_bit_B
+
+	// Subroutine for the movement and editing operations within a single line.
+	// If we require a movement between lines, (or redraw of other lines),
+	// return a ‘screen command’.
+	// A = pressed character code
+	// RETURNS
+	// A = ‘screen command’
+LINE_EDIT:	; A != 0
 	cp	$10	; no-carry == printable character
 	jr	nc, .try_insert
 
@@ -59,23 +129,23 @@ REPL_LOOP:
 	;jr	c,.char_x100	; [This check is inverted on next line.]
 
 .char_x000:	; BACKSPACE (1000) because 0000 is not passed
-.BACKSPACE:	jp	nc,.try_delete
+.BACKSPACE:	jp	nc,DEL_BACKSPACE
 
 .char_x100:	; UP (0100) because 1100 ($C) is not passed
-.UP:	jp	CURSOR_UP	; (Tail call)
+.UP:	ld	a,SCR_CUR_UP	; Screen command: move down
+	ret
 
 .char_xx10:	rra
 	jr	c,.char_x110
 .char_x010:	; RIGHT (0010) because 1010 ($A) is not used
-.RIGHT:
-	call	CURSOR_RIGHT
-	jp	SHOW_CURSOR	; (Tail call)
+.RIGHT:	jp	CURSOR_RIGHT	; (Tail call)
 
 .char_x110:	rra
 	jr	c,.char_1110
 
 .char_0110:	; TRU VID (0110) $06
-.TRU_VID:	ret		; TODO
+.TRU_VID:	xor	a	; TODO
+	ret
 
 .char_1110:	; CAPS LOCK (1110) $0E
 .CAPS_LOCK:	ld	a,$e
@@ -87,28 +157,29 @@ REPL_LOOP:
 	jr	c,.char_x101
 
 .char_x001:	; LEFT (0001) because 1001 ($9) is not used
-.LEFT:
-	call	CURSOR_LEFT
-	jp	SHOW_CURSOR	; (Tail call)
+.LEFT:	jp	CURSOR_LEFT	; (Tail call)
 
 .char_x101:	; INV-VID (0101) because 1101 ($D) is not used
-.INV_VID:	ret		; TODO
+.INV_VID:	xor	a	; TODO
+	ret
 
 .char_xx11:	rra
 	jr	.char_x111
 .char_x011:	rra
 	jr	.char_1011
 .char_0011:	; DOWN (0011) $03
-.DOWN	jp	CURSOR_DOWN	; (Tail call)
+.DOWN	ld	a,SCR_CUR_DOWN	; Screen command: move down
+	ret
 
 .char_1011:	; ESC/EDIT (1011) $0B
-.ESC_EDIT	ret		; TODO
+.ESC_EDIT:	xor	a	; TODO
+	ret
 
 .char_x111:	; GFX (1111) because 0111 ($07) is not used
-.GFX	ret		; TODO
+.GFX:	xor	a	; TODO
+	ret
 
 .try_insert:
-	push	af
 	exx
 	inc	b
 	dec	b
@@ -116,6 +187,7 @@ REPL_LOOP:
 	dec	b	; Reduce buffer space.
 	exx
 
+	push	af
 	inc	c
 	dec	c	; Characters after cursor
 	jr	z,.after_ins_move	; If zero, nothing to move.
@@ -137,23 +209,20 @@ REPL_LOOP:
 	ld	(de), a	; Put the character into the buffer
 	inc	c	; Number of characters to the right
 
-	; Print inserted character:
-	call	HIDE_CURSOR
-	push	hl
-	ld	a,0b01111000	; black ink, white paper
-	call	PRINT_WRAP
-	pop	hl
-	call	CURSOR_RIGHT
-	jp	SHOW_CURSOR	; (Tail call)
-
-	; (Re)print remaining characters:
-.exx_ret:	exx
+			; Redraw the screen (including newly inserted char), and move cursor right:
+	ld	a,SCR_REDRAW_TEXT|SCR_ISSUE_RIGHT
 	ret
 
-.try_delete:
+	; No space in buffer, so exit:
+.exx_ret:	exx
+	xor	a
+	ret
+
+DEL_BACKSPACE:
 	dec	b
 	inc	b
 	ret	z	; Nothing to delete.
+	dec	b	; characters to left -= 1
 
 	dec	de	; Move back to character to be deleted.
 	ld	a,(de)	; Get it
@@ -165,6 +234,7 @@ REPL_LOOP:
 	exx
 	inc	b	; Buffer has space for one more char.
 	exx
+
 .del_move:
 	inc	c
 	dec	c	; Characters after cursor
@@ -181,13 +251,8 @@ REPL_LOOP:
 	pop	de
 	pop	hl
 .after_del_move:
-	dec	b	; characters to left -= 1
 	call	HIDE_CURSOR
-	push	hl
-	ld	a,0b01111000	; black ink, white paper
-	call	PRINT_WRAP
-	pop	hl
-	call	MOVE_CURSOR
+	ld	a,SCR_REDRAW_TEXT|SCR_SHOW_CURSOR
 	ret
 
 	; Renders multiple lines of text, until the end of the buffer:
@@ -230,6 +295,7 @@ PRINT_WRAP:
 .two_spaces	db	' ', ' '
 
 CURSOR_LEFT:
+	xor	a	; (In case we need to exit early with NOP)
 	dec	b
 	inc	b
 	ret	z	; We’ve hit the left limit
@@ -245,6 +311,7 @@ CURSOR_LEFT:
 	jr	HIDE_AND_LD_CUR	; (Tail call)
 
 CURSOR_RIGHT:
+	xor	a	; (In case we need to exit early with NOP)
 	dec	c
 	inc	c
 	ret	z	; We’ve hit the right limit
@@ -266,6 +333,7 @@ CURSOR_DOWN:	; TODO
 
 HIDE_AND_LD_CUR:	call	HIDE_CURSOR
 	ld	(CURSOR_XY), hl
+	ld	a,SCR_SHOW_CURSOR
 	ret
 
 	; Moves cursor to coordinates indicated by HL
