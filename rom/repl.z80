@@ -100,9 +100,9 @@ REPL_LOOP:
 .fixup_cursor:	ex	af,af'
 	ld	a,l
 	cp	-4
-	jr	nc,.fixup_prev_line
+	jr	nc,.fixup_prev_line	; If -4, -3, -2, -1, move to prev line. 
 	sub	64
-	jr	nc,.ex_bit_B
+	jr	c,.ex_bit_B	; Less than the margin: do nothing.
 
 .fixup_next_line:	nop		; TODO
 	jr	.ex_bit_B
