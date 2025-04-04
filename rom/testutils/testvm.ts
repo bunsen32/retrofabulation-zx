@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs'
 
 export const FRAME_BUFFER_SIZE = 0x6600;
 
-import type {byte} from '@zx/sys'
+import {Charset, CharsetFromUnicode, type byte} from '@zx/sys'
 import {rom} from '../generated/symbols.ts'
 export type word = number
 
@@ -123,11 +123,19 @@ export class Vm {
 		}
 	}
 		
-	setRam(pos: number, bytes: ArrayLike<byte>) {
+	setRam(pos: number, bytesOrString: ArrayLike<byte> | string) {
+		const bytes = asBytes(bytesOrString)
 		const page = memoryPageWriteMap[Math.floor(pos / 0x4000)]
 		const offset = pos % 0x4000
 		const p = this.core.MACHINE_MEMORY + page * 0x4000 + offset
 		this.memoryData.set(bytes, p)
+	}
+
+	getRam(pos: number, span: number): ArrayLike<byte> {
+		const page = memoryPageWriteMap[Math.floor(pos / 0x4000)]
+		const offset = pos % 0x4000
+		const p = this.core.MACHINE_MEMORY + page * 0x4000 + offset
+		return this.memoryData.subarray(p, p + span) as ArrayLike<byte>
 	}
 
 	peekByte(pos: Z80Address): byte {
@@ -227,7 +235,15 @@ export type RegisterSet = {
 	D: byte,
 	E: byte,
 	H: byte,
-	L: byte
+	L: byte,
+	A_: byte,
+	F_: byte,
+	B_: byte,
+	C_: byte,
+	D_: byte,
+	E_: byte,
+	H_: byte,
+	L_: byte
 }
 export type PartialRegisterSet = Partial<RegisterSet>
 export type CpuSnapshot = RegisterSet & {
@@ -246,3 +262,28 @@ export function logSnapshots(trace: CpuSnapshot[]) {
 	}
 	console.log(full)
 }
+
+export function asBytes(bytesOrString: ArrayLike<byte>|string): ArrayLike<byte> {
+	if (typeof bytesOrString !== 'string') return bytesOrString
+
+	const charBytes: byte[] = []
+	const textLength = bytesOrString.length as byte
+	for(let i = 0; i < textLength; i++) {
+		const c = CharsetFromUnicode[bytesOrString.charAt(i)]
+		charBytes[i] = c
+	}
+	return charBytes
+}
+
+export function asString(bytesOrString: ArrayLike<byte>|string): string {
+	if (typeof bytesOrString === 'string') return bytesOrString
+
+	let str = ''
+	const textLength = bytesOrString.length as byte
+	for(let i = 0; i < textLength; i++) {
+		const c = Charset[bytesOrString[i]]
+		str += c
+	}
+	return str
+}
+

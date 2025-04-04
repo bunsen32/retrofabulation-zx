@@ -1,6 +1,6 @@
 import { describe, it } from "jsr:@std/testing/bdd"
 import { expect } from "jsr:@std/expect"
-import {loadVm, stackTop, type Vm} from './testutils/testvm.ts'
+import {asBytes, loadVm, stackTop, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, cls, type Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen.ts"
 import {CharsetFromUnicode} from '@zx/sys'
 import type {byte} from '@zx/sys'
@@ -276,17 +276,11 @@ function charCode(singleChar: string) {
 }
 
 function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, maxWidth: byte = 127) {
-	const charBytes: byte[] = []
-	const textLength = text.length as byte
-	for(let i = 0; i < textLength; i++) {
-		const c = CharsetFromUnicode[text.charAt(i)]
-		charBytes[i] = c
-	}
-	vm.setRam(0x9000, charBytes)
+	vm.setRam(0x9000, asBytes(text))
 	vm.setRegisters({
 		SP: stackTop,
 		DE: 0x9000,
-		B: textLength as byte,
+		B: text.length as byte,
 		C: maxWidth,
 		A: attr,
 		H: p.row,
@@ -296,18 +290,12 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, 
 		0xCD, 0x00, 0x08, // call $0800
 		0x76, // HALT
 	])
-	vm.runPcAt({addr:0x8000}, 3000 + 660 * textLength)
+	vm.runPcAt({addr:0x8000}, 3000 + 660 * text.length)
 }
 
 function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {
-	const charBytes: byte[] = []
-	const textLength = text.length as byte
-	for(let i = 0; i < textLength; i++) {
-		const c = CharsetFromUnicode[text.charAt(i)]
-		charBytes[i] = c
-	}
-	vm.setRam(0x9000, charBytes)
-	vm.setRegisters({DE: 0x9000, B: textLength as byte, C: maxColumnWidth})
+	vm.setRam(0x9000, asBytes(text))
+	vm.setRegisters({DE: 0x9000, B: text.length as byte, C: maxColumnWidth})
 	vm.callSubroutine(rom.MEASURE_SPAN, 6000)
 	const {DE, B, C} = vm.getRegisters()
 	return {
