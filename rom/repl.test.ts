@@ -1,7 +1,7 @@
 import { describe, it } from "jsr:@std/testing/bdd"
-import {loadVm, type Vm} from './testutils/testvm.ts'
+import {asString, loadVm, word, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, cls, type Bitmap, cls1, assertBitmapImageMatches} from "./testutils/screen.ts"
-import type { byte } from '@zx/sys'
+import { CODES, type byte } from '@zx/sys'
 import { rom } from "./generated/symbols.ts";
 import { expect } from "jsr:@std/expect/expect";
 
@@ -127,6 +127,90 @@ describe("Cursor animation", () => {
 	})
 })
 
+describe('LINE_EDIT', () => {
+
+	it('Typed character is appended to buffer', async () => {
+		const vm = await loadedVm
+		const buf = givenEditBuffer(vm, 'ABC|___')
+		
+		whenTyped(vm, 'Z')
+
+		const result = getBufferString(vm, buf)
+		expect(result).toBe('ABC|Z__')
+	})
+
+	it('Typed character is inserted in buffer', async () => {
+		const vm = await loadedVm
+		const buf = givenEditBuffer(vm, '|ABC___')
+		
+		whenTyped(vm, 'Z')
+
+		const result = getBufferString(vm, buf)
+		expect(result).toBe('|ZABC__')
+	})
+	
+	it('After typed character, tries to move right', async () => {
+		const vm = await loadedVm
+		givenEditBuffer(vm, '|ABC___')
+		
+		whenTyped(vm, 'Z')
+
+		const {A} = vm.getRegisters()
+		expect(A).toBe(rom.SCR_ISSUE_RIGHT.addr|rom.SCR_REDRAW_TEXT.addr)
+	})
+	
+	it('Typed character is not appended when buffer is full', async () => {
+		const vm = await loadedVm
+		const buf = givenEditBuffer(vm, 'ABC|')
+		
+		whenTyped(vm, 'Z')
+
+		const result = getBufferString(vm, buf)
+		expect(result).toBe('ABC|')
+	})
+
+	it('Backspace at position zero does nothing', async () => {
+		const vm = await loadedVm
+		const buf = givenEditBuffer(vm, '|ABC___')
+		
+		whenTyped(vm, CODES.BACKSPACE)
+
+		const result = getBufferString(vm, buf)
+		expect(result).toBe('|ABC___')
+	})
+
+	it('Backspace in middle deletes one', async () => {
+		const vm = await loadedVm
+		const buf = givenEditBuffer(vm, 'AB|C___')
+		
+		whenTyped(vm, CODES.BACKSPACE)
+
+		const result = getBufferString(vm, buf)
+		expect(result).toBe('A|C____')
+	})
+
+	it('Backspace at end deletes one (no problem copying)', async () => {
+		const vm = await loadedVm
+		const buf = givenEditBuffer(vm, 'ABC|')
+		
+		whenTyped(vm, CODES.BACKSPACE)
+
+		const result = getBufferString(vm, buf)
+		expect(result).toBe('AB|_')
+	})
+
+	it('After backspace, redraws screen', async () => {
+		const vm = await loadedVm
+		givenEditBuffer(vm, 'AB|C___')
+		
+		whenTyped(vm, CODES.BACKSPACE)
+
+		const {A} = vm.getRegisters()
+		expect(A).toBe(rom.SCR_REDRAW_TEXT.addr|rom.SCR_SHOW_CURSOR.addr)
+	})
+	
+})
+
 function cursorXor(vm: Vm) {
 	vm.callSubroutine(rom.CURSOR_XOR, 1000)
 }
@@ -141,4 +225,59 @@ async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bi
 
 function animState(frameCount: number, appear: 'on'|'off'): byte {
 	return ((frameCount << 1) | (appear == 'on' ? 1 : 0)) as byte
+}
+
+// Text buffer things.
+// Define string definition of text buffer as 'abc|def___' where vertical bar indicates
+// insertion point and underscore indicates free space at end of the buffer.
+// We can convert from that to memory/register representation.
+
+interface EditBuffer {
+	start: word
+	length: byte
+}
+
+function givenEditBuffer(vm: Vm, bufferWithCursor: string): EditBuffer {
+	const cursorPosition = bufferWithCursor.indexOf('|') as byte
+	expect(cursorPosition).not.toBe(-1)
+	const bufferChars = bufferWithCursor.replaceAll('|', '')
+	const bufferCapacity = bufferChars.length
+	expect(bufferCapacity).toBe(bufferWithCursor.length - 1)
+	let bufferUsed = bufferChars.indexOf('_')
+	if (bufferUsed === -1) bufferUsed = bufferChars.length
+
+	const start = 0x9000
+	vm.setRegisters({
+		DE: start + cursorPosition,
+		B: cursorPosition,
+		C: bufferUsed - cursorPosition as byte,
+		HL: 0x0909,
+		B_: (bufferCapacity - bufferUsed) as byte
+	})
+	vm.setRam(start, bufferChars)
+
+	return {
+		start: 0x9000,
+		length: bufferCapacity as byte
+	}
+}
+
+function whenTyped(vm: Vm, c: string|byte) {
+	const b = (typeof c === 'number')
+		? c as byte
+		: c.charCodeAt(0) as byte
+
+	vm.setRegisters({A: b})
+	vm.callSubroutine(rom.LINE_EDIT, 10000)
+}
+
+function getBufferString(vm: Vm, buffer: EditBuffer): string {
+	const {DE, B, C} = vm.getRegisters()
+	expect(DE).toBe(buffer.start + B)
+	const cursorPosition = B
+	const stringLength = B + C
+	expect(stringLength).toBeLessThanOrEqual(buffer.length)
+
+	const bufferChars = asString(vm.getRam(buffer.start, stringLength)) + '_'.repeat(buffer.length - stringLength)
+	return bufferChars.substring(0,cursorPosition) + '|' + bufferChars.substring(cursorPosition)
 }
