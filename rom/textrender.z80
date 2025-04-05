@@ -3,10 +3,12 @@ RENDER_TEXT:
 	push	af
 	ld	a,63
 	sub	l	; a := half-cells to RHS of screen
-	ld	c,a
+	jr	nc,.margin_ok
+	pop	af	; Already beyond the RHS
+	ret		; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
+
+.margin_ok:	ld	c,a
 	pop	af
-	ret	c	; Already beyond the RHS
-			; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
 	; Fall-through
 
 	; Render some text
