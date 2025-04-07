@@ -1,7 +1,7 @@
 	; "Safe" text rendering: takes into account right-and-side of the screen
 RENDER_TEXT:
 	push	af
-	ld	a,63
+	ld	a,64
 	sub	l	; a := half-cells to RHS of screen
 	jr	nc,.margin_ok
 	pop	af	; Already beyond the RHS
