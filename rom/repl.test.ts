@@ -1,5 +1,5 @@
 import { describe, it } from "jsr:@std/testing/bdd"
-import {asString, loadVm, word, type Vm} from './testutils/testvm.ts'
+import {asString, loadVm, type word, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, cls, type Bitmap, cls1, assertBitmapImageMatches} from "./testutils/screen.ts"
 import { CODES, type byte } from '@zx/sys'
 import { rom } from "./generated/symbols.ts";
@@ -129,6 +129,8 @@ describe("Cursor animation", () => {
 
 describe('LINE_EDIT', () => {
 
+	// Type a character:
+
 	it('Typed character is appended to buffer', async () => {
 		const vm = await loadedVm
 		const buf = givenEditBuffer(vm, 'ABC|___')
@@ -156,7 +158,7 @@ describe('LINE_EDIT', () => {
 		whenTyped(vm, 'Z')
 
 		const {A} = vm.getRegisters()
-		expect(A).toBe(rom.SCR_ISSUE_RIGHT.addr|rom.SCR_REDRAW_TEXT.addr)
+		expect(A).toBe(0b110)
 	})
 	
 	it('Typed character is not appended when buffer is full', async () => {
@@ -168,6 +170,8 @@ describe('LINE_EDIT', () => {
 		const result = getBufferString(vm, buf)
 		expect(result).toBe('ABC|')
 	})
+
+	// Backspace:
 
 	it('Backspace at position zero does nothing', async () => {
 		const vm = await loadedVm
@@ -209,6 +213,92 @@ describe('LINE_EDIT', () => {
 		expect(A).toBe(rom.SCR_REDRAW_TEXT.addr|rom.SCR_SHOW_CURSOR.addr)
 	})
 	
+	// Cursor left:
+
+	it('Left key at start does nothing', async () => {
+		const vm = await loadedVm
+		const buffer = givenEditBuffer(vm, '|ABC_')
+		
+		whenTyped(vm, CODES.LEFT)
+
+		const result = getBufferString(vm, buffer)
+		expect(result).toBe('|ABC_')
+	})
+	
+	it('Left key moves position left', async () => {
+		const vm = await loadedVm
+		const buffer = givenEditBuffer(vm, 'AB|C_')
+		
+		whenTyped(vm, CODES.LEFT)
+
+		const result = getBufferString(vm, buffer)
+		expect(result).toBe('A|BC_')
+	})
+	
+	it('Left key moves cursor left', async () => {
+		const vm = await loadedVm
+		givenEditBuffer(vm, 'AB|C_')
+		givenCursorPosition(vm, {row: 1, column: 10})
+
+		whenTyped(vm, CODES.LEFT)
+
+		const result = getCursorPosition(vm)
+		expect(result).toEqual({row: 1, column: 8})
+	})
+	
+	it('LEFT key tries to show cursor', async () => {
+		const vm = await loadedVm
+		givenEditBuffer(vm, 'A|BC_')
+
+		whenTyped(vm, CODES.LEFT)
+
+		const {A} = vm.getRegisters()
+		expect(A).toBe(rom.SCR_SHOW_CURSOR.addr)
+	})
+	
+	// Cursor right:
+
+	it('Right key at end does nothing', async () => {
+		const vm = await loadedVm
+		const buffer = givenEditBuffer(vm, 'ABC|_')
+		
+		whenTyped(vm, CODES.RIGHT)
+
+		const result = getBufferString(vm, buffer)
+		expect(result).toBe('ABC|_')
+	})
+	
+	it('Right key moves position right', async () => {
+		const vm = await loadedVm
+		const buffer = givenEditBuffer(vm, 'A|BC_')
+		
+		whenTyped(vm, CODES.RIGHT)
+
+		const result = getBufferString(vm, buffer)
+		expect(result).toBe('AB|C_')
+	})
+	
+	it('Right key moves cursor right', async () => {
+		const vm = await loadedVm
+		givenEditBuffer(vm, 'A|BC_')
+		givenCursorPosition(vm, {row: 1, column: 10})
+
+		whenTyped(vm, CODES.RIGHT)
+
+		const result = getCursorPosition(vm)
+		expect(result).toEqual({row: 1, column: 12})
+	})
+	
+	it('Right key tries to show cursor', async () => {
+		const vm = await loadedVm
+		givenEditBuffer(vm, 'A|BC_')
+
+		whenTyped(vm, CODES.RIGHT)
+
+		const {A} = vm.getRegisters()
+		expect(A).toBe(rom.SCR_SHOW_CURSOR.addr)
+	})
+	
 })
 
 function cursorXor(vm: Vm) {
@@ -237,6 +327,11 @@ interface EditBuffer {
 	length: byte
 }
 
+interface TextCoords {
+	row: byte,
+	column: byte
+}
+
 function givenEditBuffer(vm: Vm, bufferWithCursor: string): EditBuffer {
 	const cursorPosition = bufferWithCursor.indexOf('|') as byte
 	expect(cursorPosition).not.toBe(-1)
@@ -262,6 +357,12 @@ function givenEditBuffer(vm: Vm, bufferWithCursor: string): EditBuffer {
 	}
 }
 
+function givenCursorPosition(vm: Vm, p: TextCoords) {
+	const coordsWord = (p.row << 8) | p.column
+	vm.setRegisters({ HL: coordsWord })
+	vm.pokeWord(rom.CURSOR_XY, coordsWord)
+}
+
 function whenTyped(vm: Vm, c: string|byte) {
 	const b = (typeof c === 'number')
 		? c as byte
@@ -280,4 +381,11 @@ function getBufferString(vm: Vm, buffer: EditBuffer): string {
 
 	const bufferChars = asString(vm.getRam(buffer.start, stringLength)) + '_'.repeat(buffer.length - stringLength)
 	return bufferChars.substring(0,cursorPosition) + '|' + bufferChars.substring(cursorPosition)
+}
+
+function getCursorPosition(vm: Vm): TextCoords {
+	const {H, L, HL} = vm.getRegisters()
+	const cursorWord = vm.peekWord(rom.CURSOR_XY)
+	expect(HL).toBe(cursorWord)
+	return {row: H, column: L}
 }
