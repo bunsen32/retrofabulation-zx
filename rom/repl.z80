@@ -53,6 +53,7 @@ REPL:
 	; C': Current line number (1-based)
 	; HL': screen position of column-zero (row,half-cell)
 	; DE': buffer position of column-zero
+	push	de
 REPL_LOOP:	
 .check_key:
 	ld	a, (KEY_CHAR)
@@ -75,7 +76,7 @@ REPL_LOOP:
 .screen_cmd:	ex	af,af'
 	call	HIDE_CURSOR
 	ex	af,af'
-.bit_A:	ld	($5800),a	; DEBUG!
+.bit_A:
 	rra		; Bit A+0: vertical movement (up or down arrow)
 	jr	c,.mov_vertical
 
@@ -88,18 +89,50 @@ REPL_LOOP:
 	ld	a,l
 	cp	-4
 	jr	nc,.wrap_to_prev_ln	; If -4, -3, -2, -1, move to prev line. 
-	sub	64
-	jr	c,.ex_bit_B	; Less than the margin: do nothing.
+	sub	65
+	jr	c,.ex_bit_B	; ≤ margin (64): do nothing.
 
-.wrap_to_next_ln:	nop		; TODO
-	jr	.ex_bit_B
+.wrap_to_next_ln:
+	exx
+	push	de
+	exx
+	dec	de
+	push	de
+	exx
+	pop	de
+	inc	h
+	push	hl
+	exx
+	pop	hl
+	dec	b
+	inc	c
+	jr	.right_by_one
 
-.wrap_to_prev_ln:	nop		; TODO
-	jr	.ex_bit_B
+.wrap_to_prev_ln:
+	exx
+	pop	de	; Prev start-of-line buffer position
+	dec	h	; Previous line row-number
+	push	hl
+	push	de
+	exx
+
+	ex	de,hl	; We’re going to discard previous HL (cursor coordinates)
+	pop	de	; HL: current p (buffer); DE: prev line start (buffer)
+	or	a	; (clear carry flag)
+	sbc	hl,de	; HL: distance along previous line in characters (<256 so only L is significant)
+	push	bc
+	ld	b,l
+	ld	a,b
+	ld	c,64
+	call	MEASURE_SPAN	; DE := cursor buffer position; C := offset from left margin
+	ld	a,c
+	pop	bc
+	pop	hl	; HL := HL'
+	add	l
+	ld	l,a
 
 .ex_bit_B:	ex	af,af'
-.bit_B:	ld	($5801),a	; DEBUG!
-	rra		; Bit B: redraw
+.bit_B:	rra		; Bit B: redraw
 	jr	nc,.bit_C
 	push	af
 	push	hl
@@ -108,10 +141,10 @@ REPL_LOOP:
 	pop	hl
 	pop	af
 
-.bit_C:	ld	($5802),a	; DEBUG!
+.bit_C:
 	rra		; Bit C: right-arrow
 	jr	nc,.end_screen_cmd
-	ld	a,CHAR_RIGHT
+.right_by_one:	ld	a,CHAR_RIGHT
 	call	LINE_EDIT
 	jr	.screen_cmd
 
@@ -398,6 +431,7 @@ CURSOR_ANIM_FRAME:
 	jr	CURSOR_XOR.after_pushes_HL
 
 	; Invert cursor pixels. Current cursor posn is held in (CURSOR_XY)
+	; TODO: Doesn’t show cursor on last col of screen (64). SHould do.
 	; Trashes: A
 CURSOR_XOR:
 	push	hl
