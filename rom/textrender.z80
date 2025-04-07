@@ -614,23 +614,31 @@ rowcol_out_of_range:
 	; C:  maximum width in half-cell columns.
 	; RETURNS
 	; DE: point to NEXT character (or end of span)
-	; B:  remaining character count (or zero)
-	; C:  remaining column count (or zero)
+	; B:  character count to fit (or zero)
+	; C:  column count of text (or zero)
 MEASURE_SPAN:
 	inc	b
 	dec	b
 	ret	z	; Return if char count = 0
 	push	af
-.loop:	
+	push	hl
+	ld	h,0	; Char count to fit := 0
+	ld	l,c	; Limit column := C (parameter)
+	ld	c,h	; Column count := 0
+.loop:
 	ld	a, (de)
 	call	MEASURE_CHAR
-	neg
-	add	c
-	jr	nc,.end	; C + (-A) => carry is inverted
-	ld	c,a
+	add	c	; Add char width to columns so far (C)
+	cp	l	; Compare to column limit (L)
+	jr	z,.eq
+	jr	nc,.end	; Beyond column limit?
+.eq	ld	c,a
 	inc	de
+	inc	h	; One more char
 	djnz	.loop
-.end:	
+.end:
+	ld	b,h	; B := char count to fit
+	pop	hl
 	pop	af
 	ret
 

@@ -264,9 +264,49 @@ describe("Measure span of characters", () => {
 	it("4-pixel character x4 returns 4", async () => {
 		const vm = await loadedVm
 
-		const result = measureSpan(vm, "iiii", 99)
+		const result = measureSpan(vm, "iiii")
 
-		expect(result.columnsRemaining).toBe(99 - 4)
+		expect(result.columnWidth).toBe(4)
+	})
+
+	it("8-pixel character x4 returns 8", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "aaaa")
+
+		expect(result.columnWidth).toBe(8)
+	})
+
+	it("12-pixel character x4 returns 12", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "wwww")
+
+		expect(result.columnWidth).toBe(12)
+	})
+
+	it("4-pixel character: only 2 fit into 2 columns", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "iiii", 2)
+
+		expect(result.charFit).toBe(2)
+	})
+
+	it("8-pixel character: only 2 fit into 5 columns", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "aaaa", 5)
+
+		expect(result.charFit).toBe(2)
+	})
+
+	it("12-pixel character: only 2 fit into 7 columns", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "wwww", 7)
+
+		expect(result.charFit).toBe(2)
 	})
 })
 
@@ -294,14 +334,19 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, 
 }
 
 function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {
-	vm.setRam(0x9000, asBytes(text))
-	vm.setRegisters({DE: 0x9000, B: text.length as byte, C: maxColumnWidth})
+	const bufferAddress = 0x9000
+	vm.setRam(bufferAddress, asBytes(text))
+	vm.setRegisters({
+		DE: bufferAddress,
+		B: text.length as byte,
+		C: maxColumnWidth
+	})
 	vm.callSubroutine(rom.MEASURE_SPAN, 6000)
 	const {DE, B, C} = vm.getRegisters()
 	return {
-		pointerOffset: DE - 0x9000,
-		charRemaining: B,
-		columnsRemaining: C
+		pointerOffset: DE - bufferAddress,
+		charFit: B,
+		columnWidth: C
 	}
 }
 
