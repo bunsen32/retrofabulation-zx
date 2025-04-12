@@ -138,23 +138,92 @@ REPL_LOOP:
 
 .bit_C:
 	rra		; Bit C: right-arrow
-	jr	nc,.end_screen_cmd
+	jr	nc,.set_ideal_x
 .right_by_one:	ld	a,CHAR_RIGHT
 	call	LINE_EDIT
 	jr	.screen_cmd
 
-.end_screen_cmd:	ld	(CURSOR_XY),hl
+.set_ideal_x
+	ld	a,l
+	ld	(IDEAL_CUR_X),a
+.end_screen_cmd:
+	ld	(CURSOR_XY),hl
 	call	SHOW_CURSOR
 	jr	.await
 
 .mov_vertical:
 	rra		; Bit A+1: 0=UP 1=DOWN
 	jr	c,.mv_down
-.mv_up:	nop		; TODO!
+
+.mv_up:	; First: Move to start of CURRENT line:
+	pop	hl	; Discard cursor posn & HL := buffer start of line
+	push	hl	; (keep it on the stack)
+	call	MV_HOME
+	inc	b
+	dec	b	; Check non-zero number of prior characters (and hence prior lines)	
+	jr	z,.end_screen_cmd	; No prior lines? Stop here (with cursor at start of first line)
+
+	; Next: Move to start of PREVIOUS line:
+	exx
+	dec	h	; Move up a line
+	exx
+	pop	hl	; Discard cursor posn & HL := buffer start of current line
+	pop	hl	; HL := buffer start of PREVIOUS line
+	push	hl	; (keep it on the stack)
+	call	MV_HOME
+
+	; Last: Find desired cursor position:
+	push	bc
+	ld	b,c	; B := number of characters after cursor
+	ld	a,(IDEAL_CUR_X)
+	sub	l
+	ld	c,a	; C := (IDEAL_CUR_X - left margin)
+	call	MEASURE_SPAN
+	ld	a,l
+	add	c
+	ld	l,a	; L (cursor X) := desired position
+	ld	a,b	; A := count of characters to desired position
+	pop	bc
+	call	.fixup_bc
+
 	jr	.end_screen_cmd
 
 .mv_down:	nop		; TODO!
 	jr	.end_screen_cmd
+
+.fixup_bc:	; Add A to B; Subtract A from C. (Only save 1 byte by making this subroutine with 2 uses!)
+	push	af
+	add	b
+	ld	b,a	; B := B + (char count)
+	pop	af
+	neg
+	add	c
+	ld	c,a	; C := C + (char count)
+	ret
+
+	; Move to the start of the line.
+	; NEED TO: 'pop HL' before calling. (Which discards cursor position & retrieve start of line)
+	; Does not do any screen cursor manipulation
+	; RETURNS
+	; DE: New buffer position
+	; HL: New cursor coords
+	; B & C: Fixed-up ‘prior’ & ‘subsequent’ character counts.
+	; A: <trashed>
+MV_HOME:	ex	de,hl	; DE := buffer position start of line (HL := prev buffer posn)
+	or	a	; clear carry flag
+	sbc	hl,de	; L := characters to start of line
+	ld	a,b
+	sub	l
+	ld	b,a	; B := characters prior to start of line
+	ld	a,c
+	add	l
+	ld	c,a	; C := characters
+	exx
+	push	hl
+	exx
+	pop	hl	; HL := screen coords for start of line
+	ret
+	
 
 	// Subroutine for the movement and editing operations within a single line.
 	// If we require a movement between lines, (or redraw of other lines),
