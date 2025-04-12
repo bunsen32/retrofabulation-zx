@@ -19,19 +19,18 @@ REPL:
 	ld	bc,768
 	ldir		; Clear screen to all white (16123 t-states)
 .init_buffer:
+	ld	de, TEXT_BUFFER
+	ld	bc, 0	; prior-chars := 0; subsequent-chars := 0
 	exx
 	ld	b,$ff	; Max length
 	ld	c,1	; Current line number
-	ld	de, TEXT_BUFFER
 	ld	hl, $0300
 	push	hl
-	push	de
-
 	exx
-	pop	de
 	pop	hl
-	ld	bc, 0
 	ld	(CURSOR_XY), hl
+
+	; Clear first character cell so that flashing cursor is visible:
 	push	bc
 	push	de
 	push	hl
@@ -43,6 +42,9 @@ REPL:
 	pop	de
 	pop	bc
 
+	; Push first line buffer position onto stack:
+	push	de	
+
 	; Buffer: [xxxxxx|xxxx-----]
 	; A: scratch register
 	; HL: screen position of cursor (row,half-cell)
@@ -52,8 +54,7 @@ REPL:
 	; B': remaining space in buffer (characters)
 	; C': Current line number (1-based)
 	; HL': screen position of column-zero (row,half-cell)
-	; DE': buffer position of column-zero
-	push	de
+	; (SP): buffer position of column-zero (we push lines on, and pop them off)
 REPL_LOOP:	
 .check_key:
 	ld	a, (KEY_CHAR)
@@ -93,43 +94,37 @@ REPL_LOOP:
 	jr	c,.ex_bit_B	; ≤ margin (64): do nothing.
 
 .wrap_to_next_ln:
+	dec	de	; Go 1 char to left in buffer (we’ll go back at the end)
+	push	de	; That’s the new line buffer start
+	dec	b
+	inc	c	; Adjust B & C to match
 	exx
-	push	de
-	exx
-	dec	de
-	push	de
-	exx
-	pop	de
-	inc	h
+	inc	h	; Line start down by 1 line
 	push	hl
 	exx
-	pop	hl
-	dec	b
-	inc	c
-	jr	.right_by_one
+	pop	hl	; Cursor position to start of new line.
+	jr	.right_by_one	; Now go 1 right, to original buffer position.
 
 .wrap_to_prev_ln:
+	pop	hl	; We’re going to discard previous HL (cursor coordinates)
+	pop	hl	; HL: previous line buffer position
+	push	hl	; …and stick it back on the stack.
 	exx
-	pop	de	; Prev start-of-line buffer position
 	dec	h	; Previous line row-number
-	push	hl
-	push	de
+	push	hl	; (SP) := coords of start of previous line
 	exx
-
-	ex	de,hl	; We’re going to discard previous HL (cursor coordinates)
-	pop	de	; HL: current p (buffer); DE: prev line start (buffer)
+	ex	de,hl	; HL: current p (buffer); DE: prev line start (buffer)
 	or	a	; (clear carry flag)
 	sbc	hl,de	; HL: distance along previous line in characters (<256 so only L is significant)
 	push	bc
-	ld	b,l
-	ld	a,b
-	ld	c,64
+	ld	b,l	; B := distance along prev line in characters
+	ld	c,64	; C := maximum line width (= "no limit")
 	call	MEASURE_SPAN	; DE := cursor buffer position; C := offset from left margin
-	ld	a,c
+	ld	a,c	; A := measured width of line
 	pop	bc
 	pop	hl	; HL := HL'
-	add	l
-	ld	l,a
+	add	l	; A := width of line + left margin
+	ld	l,a	; L (cursor X) := width of line + left margin
 
 .ex_bit_B:	ex	af,af'
 .bit_B:	rra		; Bit B: redraw
