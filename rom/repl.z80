@@ -210,11 +210,11 @@ LINE_EDIT:	; A != 0
 	ret
 
 .char_xx11:	rra
-	jr	.char_x111
+	jr	c,.char_x111
 .char_x011:	rra
-	jr	.char_1011
+	jr	c,.char_1011
 .char_0011:	; DOWN (0011) $03
-.DOWN	ld	a,SCR_CUR_DOWN	; Screen command: move down
+.DOWN:	ld	a,SCR_CUR_DOWN	; Screen command: move down
 	ret
 
 .char_1011:	; ESC/EDIT (1011) $0B
