@@ -617,14 +617,14 @@ rowcol_out_of_range:
 	; B:  character count to fit (or zero)
 	; C:  column count of text (or zero)
 MEASURE_SPAN:
-	inc	b
-	dec	b
-	ret	z	; Return if char count = 0
 	push	af
 	push	hl
 	ld	h,0	; Char count to fit := 0
 	ld	l,c	; Limit column := C (parameter)
 	ld	c,h	; Column count := 0
+	inc	b
+	dec	b
+	jr	z,.end	; Return if char count = 0
 .loop:
 	ld	a, (de)
 	call	MEASURE_CHAR
@@ -641,7 +641,7 @@ MEASURE_SPAN:
 	pop	hl
 	pop	af
 	ret
-
+6
 	; Take a character (in A), and return its glyph width,
 	; 0–3, also in A. Preserves all other registers.
 MEASURE_CHAR:
