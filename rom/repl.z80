@@ -65,7 +65,12 @@ REPL_LOOP:
 .await	halt		; Wait for some potential keyboard input.
 	call	CURSOR_ANIM_FRAME
 	jr	.check_key
-	
+
+	; Cycle back round again and move cursor right
+.right_by_one:	ld	a,CHAR_RIGHT
+	call	LINE_EDIT
+	; fallthrough to .screen_cmd
+
 	// If we get here, we (might) need to move between lines, or redraw the display.
 	// Implies a cursor move/reset too. Takes in bits of A:
 	// 0: Vertical move to next or previous line? (0 = NO, 1 = YES)
@@ -138,21 +143,17 @@ REPL_LOOP:
 
 .bit_C:
 	rra		; Bit C: right-arrow
-	jr	nc,.set_ideal_x
-.right_by_one:	ld	a,CHAR_RIGHT
-	call	LINE_EDIT
-	jr	.screen_cmd
+	jr	c,.right_by_one
 
-.set_ideal_x
+.set_ideal_x:	; Set the up-down target horizontal position:
 	ld	a,l
 	ld	(IDEAL_CUR_X),a
-.end_screen_cmd:
+.end_screen_cmd:	; Set new cursor position & display it:
 	ld	(CURSOR_XY),hl
 	call	SHOW_CURSOR
 	jr	.await
 
-.mov_vertical:
-	rra		; Bit A+1: 0=UP 1=DOWN
+.mov_vertical:	rra		; Bit A+1: 0=UP 1=DOWN
 	jr	c,.mv_down
 
 .mv_up:	; First: Move to start of CURRENT line:
@@ -161,7 +162,7 @@ REPL_LOOP:
 	call	MV_HOME
 	inc	b
 	dec	b	; Check non-zero number of prior characters (and hence prior lines)	
-	jr	z,.end_screen_cmd	; No prior lines? Stop here (with cursor at start of first line)
+	jr	z,.set_ideal_x	; No prior lines? Stop here (with cursor at start of first line)
 
 	; Next: Move to start of PREVIOUS line:
 	exx
@@ -173,6 +174,34 @@ REPL_LOOP:
 	call	MV_HOME
 
 	; Last: Find desired cursor position:
+	jr	.mv_to_ideal_x
+
+.mv_down:	; First: Move to end of CURRENT line:
+	push	bc
+	ld	b,c	; B := # subsequent characters
+	ld	a,64
+	sub	l	; A := column space to end of line
+	ld	c,a	; C := allowed columns for characters
+	call	MEASURE_SPAN
+	ld	a,l
+	add	c	; A: = L (cursor-X) + span width
+	ld	l,a	; L := position of end of line
+	ld	a,b	; A := chars to end of line
+	pop	bc
+	call	.fixup_bc
+	inc	c
+	dec	c	; Check non-zero number of subsequent characters (and hence subsequent lines)	
+	jr	z,.set_ideal_x	; No subsequent lines? Stop here (with cursor at end of last line)
+
+	; Next: Position cursor at start of NEXT line:
+	push	de
+	exx
+	inc	h
+	push	hl
+	exx
+	pop	hl
+
+.mv_to_ideal_x	; Last: Find desired cursor position:
 	push	bc
 	ld	b,c	; B := number of characters after cursor
 	ld	a,(IDEAL_CUR_X)
@@ -186,9 +215,6 @@ REPL_LOOP:
 	pop	bc
 	call	.fixup_bc
 
-	jr	.end_screen_cmd
-
-.mv_down:	nop		; TODO!
 	jr	.end_screen_cmd
 
 .fixup_bc:	; Add A to B; Subtract A from C. (Only save 1 byte by making this subroutine with 2 uses!)
