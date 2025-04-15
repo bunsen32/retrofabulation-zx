@@ -228,7 +228,7 @@ REPL_LOOP:
 	ret
 
 	; Move to the start of the line.
-	; NEED TO: 'pop HL' before calling. (Which discards cursor position & retrieve start of line)
+	; NEED TO: 'pop HL' before calling. (Which discards cursor position & retrieves start of line)
 	; Does not do any screen cursor manipulation
 	; RETURNS
 	; DE: New buffer position
@@ -249,7 +249,6 @@ MV_HOME:	ex	de,hl	; DE := buffer position start of line (HL := prev buffer posn)
 	exx
 	pop	hl	; HL := screen coords for start of line
 	ret
-	
 
 	// Subroutine for the movement and editing operations within a single line.
 	// If we require a movement between lines, (or redraw of other lines),
@@ -259,68 +258,18 @@ MV_HOME:	ex	de,hl	; DE := buffer position start of line (HL := prev buffer posn)
 	// A = ‘screen command’
 LINE_EDIT:	; A != 0
 	cp	$10	; no-carry == printable character
-	jr	nc, .try_insert
+	jr	nc, TRY_INSERT	; If >= 16, insert it as a character
 
-	rra
-	jr	c,.char_xxx1
-
-.char_xxx0:	rra
-	jr	c,.char_xx10
-.char_xx00:	rra
-	;jr	c,.char_x100	; [This check is inverted on next line.]
-
-.char_x000:	; BACKSPACE (1000) because 0000 is not passed
-.BACKSPACE:	jp	nc,DEL_BACKSPACE
-
-.char_x100:	; UP (0100) because 1100 ($C) is not passed
-.UP:	ld	a,SCR_CUR_UP	; Screen command: move down
+	; Otherwise, it’s a control character. Look up handler in table:
+	add	a	; Double it
+	add	(CONTROL_KEY_ROUTINES & $ff) - 2
+	push	hl
+	ld	l,a
+	ld	h,CONTROL_KEY_ROUTINES >> 8
+	ex	(sp),hl
 	ret
 
-.char_xx10:	rra
-	jr	c,.char_x110
-.char_x010:	; RIGHT (0010) because 1010 ($A) is not used
-.RIGHT:	jp	CURSOR_RIGHT	; (Tail call)
-
-.char_x110:	rra
-	jr	c,.char_1110
-
-.char_0110:	; TRU VID (0110) $06
-.TRU_VID:	xor	a	; TODO
-	ret
-
-.char_1110:	; CAPS LOCK (1110) $0E
-.CAPS_LOCK:	ld	a,$e
-	jr	.try_insert	; TODO
-
-.char_xxx1:	rra
-	jr	c,.char_xx11
-.char_xx01:	rra
-	jr	c,.char_x101
-
-.char_x001:	; LEFT (0001) because 1001 ($9) is not used
-.LEFT:	jp	CURSOR_LEFT	; (Tail call)
-
-.char_x101:	; INV-VID (0101) because 1101 ($D) is not used
-.INV_VID:	xor	a	; TODO
-	ret
-
-.char_xx11:	rra
-	jr	c,.char_x111
-.char_x011:	rra
-	jr	c,.char_1011
-.char_0011:	; DOWN (0011) $03
-.DOWN:	ld	a,SCR_CUR_DOWN	; Screen command: move down
-	ret
-
-.char_1011:	; ESC/EDIT (1011) $0B
-.ESC_EDIT:	xor	a	; TODO
-	ret
-
-.char_x111:	; GFX (1111) because 0111 ($07) is not used
-.GFX:	xor	a	; TODO
-	ret
-
-.try_insert:
+TRY_INSERT:
 	exx
 	inc	b
 	dec	b
@@ -396,6 +345,58 @@ DEL_BACKSPACE:
 	ld	a,SCR_REDRAW_TEXT|SCR_SHOW_CURSOR
 	ret
 
+KEY_ARROW_UP:	ld	a,SCR_CUR_UP	; Screen command: move up
+	ret
+	
+KEY_ARROW_DOWN:	ld	a,SCR_CUR_DOWN	; Screen command: move down
+	ret
+
+KEY_TAB:	ld	a,$09
+	jr	TRY_INSERT
+
+KEY_ESC_EDIT:	xor	a
+	jr	TRY_INSERT
+
+KEY_INV_VID:	xor	a
+	jr	TRY_INSERT
+
+KEY_TRU_VID:	xor	a
+	jr	TRY_INSERT
+
+KEY_ENTER:	ld	a,$0a
+	jr	TRY_INSERT
+
+KEY_CAPS_LOCK:	ld	a,$e
+	jr	TRY_INSERT
+
+KEY_GRAPHICS:	xor	a
+	jr	TRY_INSERT
+
+CONTROL_KEY_ROUTINES:
+	SAME_PAGE	.end
+	jr	CURSOR_LEFT	; $01 LEFT
+	jr	CURSOR_RIGHT	; $02 RIGHT
+	jr	KEY_ARROW_DOWN	; $03 DOWN
+	jr	KEY_ARROW_UP	; $04 UP
+	jr	KEY_INV_VID	; $05 INV VIDEO
+	jr	KEY_TRU_VID	; $06 TRU VIDEO
+
+	xor a		; $07
+	ret
+
+	jr	DEL_BACKSPACE	; $08 BACKSPACE
+	jr	KEY_TAB	; $09 TAB
+	jr	KEY_ENTER	; $0a LINEFEED
+	jr	KEY_ESC_EDIT	; $0b ESCAPE
+
+	xor a		; $0c
+	ret
+
+	jr	KEY_ENTER	; $0d ENTER
+	jr	KEY_CAPS_LOCK	; $0e CAPS LOCK
+	jr	KEY_GRAPHICS	; $0f GRAPHICS
+.end
+
 	; Renders multiple lines of text, until the end of the buffer:
 	; Takes:
 	; A = attr, B = char count, DE = char pointer, HL = initial coords
@@ -465,12 +466,6 @@ CURSOR_RIGHT:
 	add	l
 	ld	l,a
 	jr	HIDE_AND_LD_CUR	; (Tail call)
-
-CURSOR_UP:	; TODO
-	ret
-
-CURSOR_DOWN:	; TODO
-	ret
 
 HIDE_AND_LD_CUR:	call	HIDE_CURSOR
 	ld	(CURSOR_XY), hl
