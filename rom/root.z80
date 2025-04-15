@@ -19,6 +19,14 @@
 		ORG	addr
 	ENDM
 
+	MACRO SAME_PAGE end_excl
+		IF ($ & $ff00) != ((end_excl - 1) & $ff00)
+			LUA
+			sj.error("Table at "..hex(_c("$")).." spans >1 page. (Size ".._c("end_excl - $")..")")
+			ENDLUA
+		ENDIF
+	ENDM
+
 	INCLUDE "reset.z80"	; 0000 to 00CF
 	INCLUDE "interpreter.z80"	; 00D0 to 05FF
 	INCLUDE "four-shift-lookup.z80"	; 0600 to 07FF

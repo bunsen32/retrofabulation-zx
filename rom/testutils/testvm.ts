@@ -209,7 +209,7 @@ export class Vm {
 		this.setRegisters({SP: stackTop})
 		this.runPcAt({addr:0x8000}, forTStates)
 
-		expect(this.core.getHalted(), `PC=${this.core.getPC()}`).toBe(1)
+		expect(this.core.getHalted(), `Should have HALTED (PC=${this.core.getPC()})`).toBe(1)
 	}
 }
 
