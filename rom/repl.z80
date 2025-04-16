@@ -43,7 +43,7 @@ REPL:
 	pop	bc
 
 	; Push first line buffer position onto stack:
-	push	de	
+	push	de	; PUSH INITIAL LINE BUFFER POINTER
 
 	; Buffer: [xxxxxx|xxxx-----]
 	; A: scratch register
@@ -100,7 +100,7 @@ REPL_LOOP:
 
 .wrap_to_next_ln:
 	dec	de	; Go 1 char to left in buffer (we’ll go back at the end)
-	push	de	; That’s the new line buffer start
+	push	de	; PUSH LINE BUFFER POINTER
 	dec	b
 	inc	c	; Adjust B & C to match
 	exx
@@ -111,8 +111,8 @@ REPL_LOOP:
 	jr	.right_by_one	; Now go 1 right, to original buffer position.
 
 .wrap_to_prev_ln:
-	pop	hl	; We’re going to discard previous HL (cursor coordinates)
-	pop	hl	; HL: previous line buffer position
+	pop	hl	; DISCARD (POP) LINE BUFFER POINTER
+	pop	hl	; READ LINE BUFFER POINTER
 	push	hl	; …and stick it back on the stack.
 	exx
 	dec	h	; Previous line row-number
@@ -157,7 +157,7 @@ REPL_LOOP:
 	jr	c,.mv_down
 
 .mv_up:	; First: Move to start of CURRENT line:
-	pop	hl	; Discard cursor posn & HL := buffer start of line
+	pop	hl	; READ LINE BUFFER POINTER
 	push	hl	; (keep it on the stack)
 	call	MV_HOME
 	inc	b
@@ -168,8 +168,8 @@ REPL_LOOP:
 	exx
 	dec	h	; Move up a line
 	exx
-	pop	hl	; Discard cursor posn & HL := buffer start of current line
-	pop	hl	; HL := buffer start of PREVIOUS line
+	pop	hl	; DISCARD (POP) LINE BUFFER POINTER
+	pop	hl	; READ LINE BUFFER POINTER
 	push	hl	; (keep it on the stack)
 	call	MV_HOME
 
@@ -194,12 +194,12 @@ REPL_LOOP:
 	jr	z,.set_ideal_x	; No subsequent lines? Stop here (with cursor at end of last line)
 
 	; Next: Position cursor at start of NEXT line:
-	push	de
+	push	de	; PUSH LINE BUFFER POINTER
 	exx
 	inc	h
-	push	hl
+	push	hl	; (Push start of line coords)
 	exx
-	pop	hl
+	pop	hl	; (Pop start of line coords)
 
 .mv_to_ideal_x	; Last: Find desired cursor position:
 	push	bc
@@ -228,8 +228,10 @@ REPL_LOOP:
 	ret
 
 	; Move to the start of the line.
-	; NEED TO: 'pop HL' before calling. (Which discards cursor position & retrieves start of line)
-	; Does not do any screen cursor manipulation
+	; Takes:
+	; HL: Start-of-line buffer position
+	; DE: Current (mid-line) buffer position
+	; B & C: Current ‘prior’ & ‘subsequent’ character counts.
 	; RETURNS
 	; DE: New buffer position
 	; HL: New cursor coords
