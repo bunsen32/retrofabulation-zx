@@ -174,6 +174,38 @@ describe("Text rendering", () => {
 		await assertExpectedImage("applies-attrs-1_5", actual)
 	})
 
+	it("Does not colour when 1.5-cell character is clipped", async () => {
+		const vm = await loadedVm
+		cls(vm)
+
+		renderAt(vm, 'm', {row: 7, column: 62}, 0b01110001)
+
+		const actual = getScreenColour(vm)
+		await assertExpectedImage("no-colouring-when-clipped-1_5", actual)
+	})
+
+	// This result is not quite correct: We should probably not colour ANYTHING in when 
+	// position starts and ends on same odd half-cell boundary
+	it("Does not colour when 1-cell character is clipped", async () => {
+		const vm = await loadedVm
+		cls(vm)
+
+		renderAt(vm, 'R', {row: 7, column: 63}, 0b01110001)
+
+		const actual = getScreenColour(vm)
+		await assertExpectedImage("no-colouring-when-clipped-1_0", actual)
+	})
+
+	it("Does not colour when 0.5-cell character is clipped", async () => {
+		const vm = await loadedVm
+		cls(vm)
+
+		renderAt(vm, 'i', {row: 7, column: 65}, 0b01110001)
+
+		const actual = getScreenColour(vm)
+		await assertExpectedImage("no-colouring-when-clipped-0_5", actual)
+	})
+
 	it("Render mix of characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
