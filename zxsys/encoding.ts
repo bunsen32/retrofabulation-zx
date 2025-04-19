@@ -12,7 +12,7 @@ const NULx16 = [
 	NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL
 ]
 
-export const CODES = {
+export const CODES: {[key: string]: byte} = {
 	NUL: 0x00,
 	LEFT: 0x01,
 	RIGHT: 0x02,

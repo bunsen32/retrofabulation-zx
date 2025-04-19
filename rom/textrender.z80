@@ -1,12 +1,14 @@
 	; "Safe" text rendering: takes into account right-and-side of the screen
 RENDER_TEXT:
 	push	af
-	ld	a,63
+	ld	a,64
 	sub	l	; a := half-cells to RHS of screen
-	ld	c,a
+	jr	nc,.margin_ok
+	pop	af	; Already beyond the RHS
+	ret		; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
+
+.margin_ok:	ld	c,a
 	pop	af
-	ret	c	; Already beyond the RHS
-			; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
 	; Fall-through
 
 	; Render some text
@@ -213,12 +215,14 @@ colour_it_in:
 	ld	e, a	; de := row/column (d = row 0–23; e = column 0–63) (at end of text)
 
 	pop	af
-	ex	af,af'
+	ex	af,af'	; Restore original value of AF'
 	pop	af	; a  := attrs
-colour_loop:
+	inc	b
+	jr	.colour_loop_rpt	; Add 1 and jump to end of the loop, to deal with 0-case.
+.colour_loop:
 	ld	(hl), a
 	inc	l
-	djnz	colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
+.colour_loop_rpt:	djnz	.colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
 			; For short runs, up to 10 characters, djnz is faster. For 32 characters, ldir is 10% faster.
 			; For VERY short runs (1–2 characters), djnz is twice as fast.
 	push	de	; Push end-of-text coordinates
@@ -231,7 +235,7 @@ colour_loop:
 	pop	bc
 	pop	de
 	pop	hl
-	exx
+	exx		; Restore original values of BC', DE' & HL'
 	ret
 
 
@@ -612,26 +616,34 @@ rowcol_out_of_range:
 	; C:  maximum width in half-cell columns.
 	; RETURNS
 	; DE: point to NEXT character (or end of span)
-	; B:  remaining character count (or zero)
-	; C:  remaining column count (or zero)
+	; B:  character count to fit (or zero)
+	; C:  column count of text (or zero)
 MEASURE_SPAN:
+	push	af
+	push	hl
+	ld	h,0	; Char count to fit := 0
+	ld	l,c	; Limit column := C (parameter)
+	ld	c,h	; Column count := 0
 	inc	b
 	dec	b
-	ret	z	; Return if char count = 0
-	push	af
-.loop:	
+	jr	z,.end	; Return if char count = 0
+.loop:
 	ld	a, (de)
 	call	MEASURE_CHAR
-	neg
-	add	c
-	jr	nc,.end	; C + (-A) => carry is inverted
-	ld	c,a
+	add	c	; Add char width to columns so far (C)
+	cp	l	; Compare to column limit (L)
+	jr	z,.eq
+	jr	nc,.end	; Beyond column limit?
+.eq	ld	c,a
 	inc	de
+	inc	h	; One more char
 	djnz	.loop
-.end:	
+.end:
+	ld	b,h	; B := char count to fit
+	pop	hl
 	pop	af
 	ret
-
+6
 	; Take a character (in A), and return its glyph width,
 	; 0–3, also in A. Preserves all other registers.
 MEASURE_CHAR:

@@ -1,6 +1,6 @@
 import { describe, it } from "jsr:@std/testing/bdd"
 import { expect } from "jsr:@std/expect"
-import {loadVm, stackTop, type Vm} from './testutils/testvm.ts'
+import {asBytes, loadVm, stackTop, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, cls, type Bitmap, cls1, getScreenColour, clsObscured, assertBitmapImageMatches} from "./testutils/screen.ts"
 import {CharsetFromUnicode} from '@zx/sys'
 import type {byte} from '@zx/sys'
@@ -174,6 +174,38 @@ describe("Text rendering", () => {
 		await assertExpectedImage("applies-attrs-1_5", actual)
 	})
 
+	it("Does not colour when 1.5-cell character is clipped", async () => {
+		const vm = await loadedVm
+		cls(vm)
+
+		renderAt(vm, 'm', {row: 7, column: 62}, 0b01110001)
+
+		const actual = getScreenColour(vm)
+		await assertExpectedImage("no-colouring-when-clipped-1_5", actual)
+	})
+
+	// This result is not quite correct: We should probably not colour ANYTHING in when 
+	// position starts and ends on same odd half-cell boundary
+	it("Does not colour when 1-cell character is clipped", async () => {
+		const vm = await loadedVm
+		cls(vm)
+
+		renderAt(vm, 'R', {row: 7, column: 63}, 0b01110001)
+
+		const actual = getScreenColour(vm)
+		await assertExpectedImage("no-colouring-when-clipped-1_0", actual)
+	})
+
+	it("Does not colour when 0.5-cell character is clipped", async () => {
+		const vm = await loadedVm
+		cls(vm)
+
+		renderAt(vm, 'i', {row: 7, column: 65}, 0b01110001)
+
+		const actual = getScreenColour(vm)
+		await assertExpectedImage("no-colouring-when-clipped-0_5", actual)
+	})
+
 	it("Render mix of characters", async () => {
 		const vm = await loadedVm
 		cls1(vm)
@@ -264,9 +296,49 @@ describe("Measure span of characters", () => {
 	it("4-pixel character x4 returns 4", async () => {
 		const vm = await loadedVm
 
-		const result = measureSpan(vm, "iiii", 99)
+		const result = measureSpan(vm, "iiii")
 
-		expect(result.columnsRemaining).toBe(99 - 4)
+		expect(result.columnWidth).toBe(4)
+	})
+
+	it("8-pixel character x4 returns 8", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "aaaa")
+
+		expect(result.columnWidth).toBe(8)
+	})
+
+	it("12-pixel character x4 returns 12", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "wwww")
+
+		expect(result.columnWidth).toBe(12)
+	})
+
+	it("4-pixel character: only 2 fit into 2 columns", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "iiii", 2)
+
+		expect(result.charFit).toBe(2)
+	})
+
+	it("8-pixel character: only 2 fit into 5 columns", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "aaaa", 5)
+
+		expect(result.charFit).toBe(2)
+	})
+
+	it("12-pixel character: only 2 fit into 7 columns", async () => {
+		const vm = await loadedVm
+
+		const result = measureSpan(vm, "wwww", 7)
+
+		expect(result.charFit).toBe(2)
 	})
 })
 
@@ -276,17 +348,11 @@ function charCode(singleChar: string) {
 }
 
 function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, maxWidth: byte = 127) {
-	const charBytes: byte[] = []
-	const textLength = text.length as byte
-	for(let i = 0; i < textLength; i++) {
-		const c = CharsetFromUnicode[text.charAt(i)]
-		charBytes[i] = c
-	}
-	vm.setRam(0x9000, charBytes)
+	vm.setRam(0x9000, asBytes(text))
 	vm.setRegisters({
 		SP: stackTop,
 		DE: 0x9000,
-		B: textLength as byte,
+		B: text.length as byte,
 		C: maxWidth,
 		A: attr,
 		H: p.row,
@@ -296,24 +362,23 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, 
 		0xCD, 0x00, 0x08, // call $0800
 		0x76, // HALT
 	])
-	vm.runPcAt({addr:0x8000}, 3000 + 660 * textLength)
+	vm.runPcAt({addr:0x8000}, 3000 + 660 * text.length)
 }
 
 function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {
-	const charBytes: byte[] = []
-	const textLength = text.length as byte
-	for(let i = 0; i < textLength; i++) {
-		const c = CharsetFromUnicode[text.charAt(i)]
-		charBytes[i] = c
-	}
-	vm.setRam(0x9000, charBytes)
-	vm.setRegisters({DE: 0x9000, B: textLength as byte, C: maxColumnWidth})
+	const bufferAddress = 0x9000
+	vm.setRam(bufferAddress, asBytes(text))
+	vm.setRegisters({
+		DE: bufferAddress,
+		B: text.length as byte,
+		C: maxColumnWidth
+	})
 	vm.callSubroutine(rom.MEASURE_SPAN, 6000)
 	const {DE, B, C} = vm.getRegisters()
 	return {
-		pointerOffset: DE - 0x9000,
-		charRemaining: B,
-		columnsRemaining: C
+		pointerOffset: DE - bufferAddress,
+		charFit: B,
+		columnWidth: C
 	}
 }
 

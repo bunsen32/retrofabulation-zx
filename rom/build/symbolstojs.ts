@@ -46,13 +46,8 @@ rl.on('close', () => {
 })
 
 function symCmp(a: string, b: string) {
-	const aCase = a.toLowerCase()
-	const bCase = b.toLowerCase()
-	if (aCase !== bCase) {
-		return (aCase < bCase) ? -1 : +1
-	}
-
 	if (a === b) return 0
+
 	return (a < b) ? -1 : +1
 }
 

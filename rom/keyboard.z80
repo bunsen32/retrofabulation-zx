@@ -27,6 +27,7 @@ CHAR_UP	equ	$04
 CHAR_DOWN	equ	$03
 
 KEYMAP_SHIFTED_NUMS:
+	SAME_PAGE	.end
 	db	$08	; 0: DELETE (BACKSPACE)
 	db	$0b	; 1: EDIT/ESC
 	db	$0e	; 2: CAPS LOCK
@@ -37,6 +38,7 @@ KEYMAP_SHIFTED_NUMS:
 	db	$04	; 7: UP
 	db	$02	; 8: RIGHT
 	db	$0f	; 9: GRAPHICS
+.end
 
 KEYMAP:
 	db	' ', 'a', 'q', '1', '0', 'p', $0d, ' '

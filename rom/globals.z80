@@ -22,6 +22,6 @@ CURSOR_XY	db	0, 0	; Position (in text coordinates) of current cursor.
 CURSOR_FRAMES	db	0	; bits <count><X> where 
 			; <count> is frames to wait til next cursor state
 			; <X> is 0: cursor is off; 1: cursor is on.
-
+IDEAL_CUR_X	db	0	; When moving up or down, column to aim for.
 
 CURSOR_FLASH_RATE	equ	40
