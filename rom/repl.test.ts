@@ -193,6 +193,18 @@ describe('LINE_EDIT', () => {
 		expect(result).toBe('A|C____')
 	})
 
+	it('Backspace does not corrupt before or after buffer', async () => {
+		const vm = await loadedVm
+		const buf = givenEditBuffer(vm, 'AB|C')
+		
+		whenTyped(vm, CODES.BACKSPACE)
+
+		const result = getBufferString(vm, buf)
+		// TODO: check not corruption.
+		// Or do we just check this as part of helper functions?
+		// TODO: do the same for insertions!
+	})
+
 	it('Backspace at end deletes one (no problem copying)', async () => {
 		const vm = await loadedVm
 		const buf = givenEditBuffer(vm, 'ABC|')

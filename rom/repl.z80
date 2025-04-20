@@ -284,7 +284,6 @@ TRY_INSERT:
 	dec	c	; Characters after cursor
 	jr	z,.after_ins_move	; If zero, nothing to move.
 	push	hl
-	push	de
 	push	bc
 	ld	b,0	; C already has letters-to-end.
 	ex	de,hl
@@ -292,9 +291,8 @@ TRY_INSERT:
 	ld	d,h
 	ld	e,l
 	dec	hl
-	lddr
+	lddr		; DE ends up pointing to insertion point afterwards.
 	pop	bc
-	pop	de
 	pop	hl
 .after_ins_move:
 	pop	af
@@ -328,13 +326,12 @@ DEL_BACKSPACE:
 	exx
 
 .del_move:
-	inc	c
-	dec	c	; Characters after cursor
-	jr	z,.after_del_move	; If zero, nothing to move.
 	push	hl
 	push	de
 	push	bc
 	ld	b,0	; C already has letters-to-end.
+	inc	c	; Increase by one (to avoid probelm if BC=0).
+			; At worst, this copies a junk byte into previous last position.
 	ld	h,d
 	ld	l,e
 	inc	hl
@@ -342,7 +339,7 @@ DEL_BACKSPACE:
 	pop	bc
 	pop	de
 	pop	hl
-.after_del_move:
+
 	call	HIDE_CURSOR
 	ld	a,SCR_REDRAW_TEXT|SCR_SHOW_CURSOR
 	ret
