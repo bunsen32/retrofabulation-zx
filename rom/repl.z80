@@ -1,4 +1,5 @@
 TEXT_BUFFER	EQU	$5B80
+LINE_OFFSET_STACK	EQU	$5C80
 
 SCR_CUR_UP	EQU	0b0001
 SCR_CUR_DOWN	EQU	0b0011
@@ -19,12 +20,15 @@ REPL:
 	ld	bc,768
 	ldir		; Clear screen to all white (16123 t-states)
 .init_buffer:
-	ld	de, TEXT_BUFFER
-	ld	bc, 0	; prior-chars := 0; subsequent-chars := 0
+	ld	de,TEXT_BUFFER
+	ld	bc,0	; prior-chars := 0; subsequent-chars := 0
+	ld	a,b
 	exx
+	ld	de,LINE_OFFSET_STACK
+	ld	(de),a
 	ld	b,$ff	; Max length
 	ld	c,1	; Current line number
-	ld	hl, $0300
+	ld	hl, $0300	; First line start coords
 	push	hl
 	exx
 	pop	hl
@@ -42,8 +46,6 @@ REPL:
 	pop	de
 	pop	bc
 
-	; Push first line buffer position onto stack:
-	push	de	; PUSH INITIAL LINE BUFFER POINTER
 
 	; Buffer: [xxxxxx|xxxx-----]
 	; A: scratch register
@@ -61,7 +63,7 @@ REPL_LOOP:
 	or	a
 	call	nz,LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
 	or	a
-	jr	nz,.screen_cmd
+	call	nz,.screen_cmd
 .await	halt		; Wait for some potential keyboard input.
 	call	CURSOR_ANIM_FRAME
 	jr	.check_key
@@ -100,31 +102,27 @@ REPL_LOOP:
 
 .wrap_to_next_ln:
 	dec	de	; Go 1 char to left in buffer (we’ll go back at the end)
-	push	de	; PUSH LINE BUFFER POINTER
 	dec	b
 	inc	c	; Adjust B & C to match
-	exx
-	inc	h	; Line start down by 1 line
-	push	hl
-	exx
-	pop	hl	; Cursor position to start of new line.
+	call	LINE_STACK_PUSH	; PUSH LINE BUFFER POINTER (and HL := start of next line)
 	jr	.right_by_one	; Now go 1 right, to original buffer position.
 
 .wrap_to_prev_ln:
-	pop	hl	; DISCARD (POP) LINE BUFFER POINTER
-	pop	hl	; READ LINE BUFFER POINTER
-	push	hl	; …and stick it back on the stack.
-	exx
-	dec	h	; Previous line row-number
-	push	hl	; (SP) := coords of start of previous line
-	exx
-	ex	de,hl	; HL: current p (buffer); DE: prev line start (buffer)
+	call	LINE_STACK_POP	; DISCARD (POP) LINE BUFFER POINTER (A := start of line position)
+	push	hl	; Push start-of-line coords
+	sub	b
+	neg		; A := distance (in chars) to start of line
+	ex	de,hl	; HL: current buffer position
+	ld	d,0
+	ld	e,a	; DE := distance (in chars) to start of line
 	or	a	; (clear carry flag)
-	sbc	hl,de	; HL: distance along previous line in characters (<256 so only L is significant)
+	sbc	hl,de	; HL := start of line buffer pointer
+	ex	de,hl	; DE := start of line buffer pointer
+
 	push	bc
-	ld	b,l	; B := distance along prev line in characters
+	ld	b,a	; B := distance along line in characters
 	ld	c,64	; C := maximum line width (= "no limit")
-	call	MEASURE_SPAN	; DE := cursor buffer position; C := offset from left margin
+	call	MEASURE_SPAN	; DE := cursor buffer position; C := measured width of line
 	ld	a,c	; A := measured width of line
 	pop	bc
 	pop	hl	; HL := HL'
@@ -151,27 +149,16 @@ REPL_LOOP:
 .end_screen_cmd:	; Set new cursor position & display it:
 	ld	(CURSOR_XY),hl
 	call	SHOW_CURSOR
-	jr	.await
+	ret
 
 .mov_vertical:	rra		; Bit A+1: 0=UP 1=DOWN
 	jr	c,.mv_down
 
 .mv_up:	; First: Move to start of CURRENT line:
-	pop	hl	; READ LINE BUFFER POINTER
-	push	hl	; (keep it on the stack)
-	call	MV_HOME
-	inc	b
-	dec	b	; Check non-zero number of prior characters (and hence prior lines)	
+	call	LINE_START	; MOVE LINE BUFFER POINTER TO START OF LINE (Z = start of buffer)
 	jr	z,.set_ideal_x	; No prior lines? Stop here (with cursor at start of first line)
-
-	; Next: Move to start of PREVIOUS line:
-	exx
-	dec	h	; Move up a line
-	exx
-	pop	hl	; DISCARD (POP) LINE BUFFER POINTER
-	pop	hl	; READ LINE BUFFER POINTER
-	push	hl	; (keep it on the stack)
-	call	MV_HOME
+	call	LINE_STACK_POP	; PREVIOUS LINE LINE BUFFER POINTER
+	call	LINE_START	; MOVE LINE BUFFER POINTER TO START OF LINE
 
 	; Last: Find desired cursor position:
 	jr	.mv_to_ideal_x
@@ -188,18 +175,13 @@ REPL_LOOP:
 	ld	l,a	; L := position of end of line
 	ld	a,b	; A := chars to end of line
 	pop	bc
-	call	.fixup_bc
+	call	MV_BC_FWD
 	inc	c
 	dec	c	; Check non-zero number of subsequent characters (and hence subsequent lines)	
 	jr	z,.set_ideal_x	; No subsequent lines? Stop here (with cursor at end of last line)
 
 	; Next: Position cursor at start of NEXT line:
-	push	de	; PUSH LINE BUFFER POINTER
-	exx
-	inc	h
-	push	hl	; (Push start of line coords)
-	exx
-	pop	hl	; (Pop start of line coords)
+	call	LINE_STACK_PUSH	; PUSH LINE BUFFER POINTER
 
 .mv_to_ideal_x	; Last: Find desired cursor position:
 	push	bc
@@ -213,44 +195,21 @@ REPL_LOOP:
 	ld	l,a	; L (cursor X) := desired position
 	ld	a,b	; A := count of characters to desired position
 	pop	bc
-	call	.fixup_bc
+	call	MV_BC_FWD
 
 	jr	.end_screen_cmd
 
-.fixup_bc:	; Add A to B; Subtract A from C. (Only save 1 byte by making this subroutine with 2 uses!)
+MV_BC_FWD:	; Add A to B; Subtract A from C.
+	; Trashes A
+	; Z set if B becomes 0
 	push	af
-	add	b
-	ld	b,a	; B := B + (char count)
-	pop	af
 	neg
 	add	c
-	ld	c,a	; C := C + (char count)
-	ret
-
-	; Move to the start of the line.
-	; Takes:
-	; HL: Start-of-line buffer position
-	; DE: Current (mid-line) buffer position
-	; B & C: Current ‘prior’ & ‘subsequent’ character counts.
-	; RETURNS
-	; DE: New buffer position
-	; HL: New cursor coords
-	; B & C: Fixed-up ‘prior’ & ‘subsequent’ character counts.
-	; A: <trashed>
-MV_HOME:	ex	de,hl	; DE := buffer position start of line (HL := prev buffer posn)
-	or	a	; clear carry flag
-	sbc	hl,de	; L := characters to start of line
-	ld	a,b
-	sub	l
-	ld	b,a	; B := characters prior to start of line
-	ld	a,c
-	add	l
-	ld	c,a	; C := characters
-	exx
-	push	hl
-	exx
-	pop	hl	; HL := screen coords for start of line
-	ret
+	ld	c,a	; C := C - (char count)
+	pop	af
+	add	b
+	ld	b,a	; B := B + (char count)
+	ret		; Z := (B == 0)
 
 	// Subroutine for the movement and editing operations within a single line.
 	// If we require a movement between lines, (or redraw of other lines),
@@ -395,6 +354,57 @@ CONTROL_KEY_ROUTINES:
 	jr	KEY_CAPS_LOCK	; $0e CAPS LOCK
 	jr	KEY_GRAPHICS	; $0f GRAPHICS
 .end
+
+LINE_STACK_PUSH:	ld	a,b
+	exx
+	inc	de
+	ld	(de),a
+	inc	h
+	push	hl
+	exx
+	pop	hl
+	ret
+
+LINE_STACK_POP:	; Pop one entry of line start stack into A (not B!)
+	; Returns:
+	; A = previous line, buffer index
+	; HL = previous line, start coordinates
+	; HL' = HL
+	; <no other registers changed>
+	exx
+	dec	de
+	ld	a,(de)
+	dec	h
+	push	hl
+	exx
+	pop	hl
+	ret
+
+LINE_START:	; Moves buffer pointer and screen coordinates to start of current editing line
+	; Returns:
+	; DE, B, C: start of line buffer posn
+	; HL: Start of line coords
+	; Z flag if at start of buffer
+	ld	a,b	; A := current buffer index
+	exx
+	ex	de,hl
+	sub	(hl)	; A := distance (chars) to start of line
+			; Carry flag must be false here: buffer index ≥ start-of-line index
+	ex	de,hl
+	push	hl	; Push coords of start of line
+	exx
+
+	ex	de,hl
+	ld	d,0
+	ld	e,a
+	sbc	hl,de
+	ex	de,hl	; DE := buffer pointer for start-of-line
+
+	neg
+	call	MV_BC_FWD	; Update B & C; Z := (is start of buffer)
+
+	pop	hl	; HL := Screen coords of start of line
+	ret		; Z flag set if at start of text
 
 	; Renders multiple lines of text, until the end of the buffer:
 	; Takes:
