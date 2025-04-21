@@ -92,7 +92,7 @@ REPL_LOOP:
 	// move it to the end of the previous line (minus one character); if it’s
 	// to the right of allowed screen area, move it to start of next line (plus one
 	// character). Assumes that previous code has checked that it’s a valid character
-	// position.
+	// position. The right edge (64) IS a valid cursor position.
 .fixup_cursor:	ex	af,af'
 	ld	a,l
 	cp	-4
@@ -268,8 +268,8 @@ TRY_INSERT:
 	ret
 
 DEL_BACKSPACE:
-	dec	b
-	inc	b
+	xor	a
+	cp	b
 	ret	z	; Nothing to delete.
 	dec	b	; characters to left -= 1
 
@@ -447,8 +447,7 @@ TWO_SPACES	db	' ', ' '
 
 CURSOR_LEFT:
 	xor	a	; (In case we need to exit early with NOP)
-	dec	b
-	inc	b
+	cp	b
 	ret	z	; We’ve hit the left limit
 
 	dec	b	; 1 more left
@@ -463,8 +462,7 @@ CURSOR_LEFT:
 
 CURSOR_RIGHT:
 	xor	a	; (In case we need to exit early with NOP)
-	dec	c
-	inc	c
+	cp	c
 	ret	z	; We’ve hit the right limit
 
 	dec	c	; 1 more right
@@ -474,7 +472,7 @@ CURSOR_RIGHT:
 	inc	de	; Forward 1 char byte
 	add	l
 	ld	l,a
-	jr	HIDE_AND_LD_CUR	; (Tail call)
+	; Fallthrough...
 
 HIDE_AND_LD_CUR:	call	HIDE_CURSOR
 	ld	(CURSOR_XY), hl
@@ -486,13 +484,11 @@ HIDE_AND_LD_CUR:	call	HIDE_CURSOR
 	; (Extend the displayed lifespan.)
 	; Trashes: A
 SHOW_CURSOR:
-	push	hl
-	ld	hl, CURSOR_FRAMES
-	ld	a, (hl)
-	ld	(hl), (CURSOR_FLASH_RATE << 1) | 1
+	ld	a, (CURSOR_FRAMES)
 	rra		; Examine previous value of bit zero…
-	jr	nc,CURSOR_XOR.after_pushes_HL
-	pop	hl
+	ld	a, (CURSOR_FLASH_RATE << 1) | 1
+	ld	(CURSOR_FRAMES), a
+	jr	nc,CURSOR_XOR
 	ret
 
 	; Hide the cursor, if it is shown.
@@ -508,21 +504,18 @@ HIDE_CURSOR:
 	; Decrement the frame counter and show or hide the cursor
 	; Trashes: A
 CURSOR_ANIM_FRAME:
-	push	hl
-	ld	hl, CURSOR_FRAMES
-	ld	a, (hl)
+	ld	a, (CURSOR_FRAMES)
 	srl	a
 	dec	a
 	jr	z, .statechange
 	rla		; Put <carry> back into posn 0
-	ld	(hl), a	; And store back in variable.
-	pop	hl
+	ld	(CURSOR_FRAMES), a	; And store back in variable.
 	ret
 .statechange:
 	rla		; Move <carry> back into low bit
 	xor	(CURSOR_FLASH_RATE << 1) | 1	; Add back in count and invert bit zero
-.store_and_xor:	ld	(hl), a
-	jr	CURSOR_XOR.after_pushes_HL
+.store_and_xor:	ld	(CURSOR_FRAMES), a
+	; Fallthrough...
 
 	; Invert cursor pixels. Current cursor posn is held in (CURSOR_XY)
 	; Trashes: A
