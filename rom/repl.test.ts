@@ -193,18 +193,6 @@ describe('LINE_EDIT', () => {
 		expect(result).toBe('A|C____')
 	})
 
-	it('Backspace does not corrupt before or after buffer', async () => {
-		const vm = await loadedVm
-		const buf = givenEditBuffer(vm, 'AB|C')
-		
-		whenTyped(vm, CODES.BACKSPACE)
-
-		const result = getBufferString(vm, buf)
-		// TODO: check not corruption.
-		// Or do we just check this as part of helper functions?
-		// TODO: do the same for insertions!
-	})
-
 	it('Backspace at end deletes one (no problem copying)', async () => {
 		const vm = await loadedVm
 		const buf = givenEditBuffer(vm, 'ABC|')
@@ -363,10 +351,13 @@ function givenEditBuffer(vm: Vm, bufferWithCursor: string): EditBuffer {
 	})
 	vm.setRam(start, bufferChars)
 
-	return {
+	const buffer = {
 		start: 0x9000,
 		length: bufferCapacity as byte
 	}
+	// Set safety zone before and after buffer
+	writeSafetyMargin(vm, buffer)
+	return buffer
 }
 
 function givenCursorPosition(vm: Vm, p: TextCoords) {
@@ -391,6 +382,8 @@ function getBufferString(vm: Vm, buffer: EditBuffer): string {
 	const stringLength = B + C
 	expect(stringLength).toBeLessThanOrEqual(buffer.length)
 
+	checkSafetyMargin(vm, buffer)
+
 	const bufferChars = asString(vm.getRam(buffer.start, stringLength)) + '_'.repeat(buffer.length - stringLength)
 	return bufferChars.substring(0,cursorPosition) + '|' + bufferChars.substring(cursorPosition)
 }
@@ -400,4 +393,21 @@ function getCursorPosition(vm: Vm): TextCoords {
 	const cursorWord = vm.peekWord(rom.CURSOR_XY)
 	expect(HL).toBe(cursorWord)
 	return {row: H, column: L}
+}
+
+function writeSafetyMargin(vm: Vm, buffer: EditBuffer) {
+	const start = buffer.start
+	const end = start + buffer.length
+	vm.setRam(start - 4, '0123')
+	vm.setRam(end, '6789')
+}
+
+function checkSafetyMargin(vm: Vm, buffer: EditBuffer) {
+	const start = buffer.start
+	const end = start + buffer.length
+	const before = asString( vm.getRam(start - 4, 4))
+	const after = asString(vm.getRam(end, 4))
+
+	expect(before).toEqual('0123')
+	expect(after).toEqual('6789')
 }
