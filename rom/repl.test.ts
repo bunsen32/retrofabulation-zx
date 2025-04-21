@@ -10,6 +10,17 @@ const flashRate = rom.CURSOR_FLASH_RATE.addr
 
 describe("Cursor XOR", () => {
 
+	it("Cursor onto blank background, column zero", async () => {
+		const vm = await loadedVm
+		vm.pokeWord(rom.CURSOR_XY, 0x01700)
+		cls(vm)
+
+		cursorXor(vm)
+
+		const actual = getScreenMono(vm)
+		await assertExpectedImage("black-on-white-cursor-zero", actual)
+	})
+
 	it("Cursor onto blank background, aligned", async () => {
 		const vm = await loadedVm
 		vm.pokeWord(rom.CURSOR_XY, 0x0302)
@@ -18,7 +29,7 @@ describe("Cursor XOR", () => {
 		cursorXor(vm)
 
 		const actual = getScreenMono(vm)
-		await assertExpectedImage("black-on-white-cursor-0", actual)
+		await assertExpectedImage("black-on-white-cursor-even", actual)
 	})
 
 	it("Cursor onto blank background, offset", async () => {
@@ -29,7 +40,7 @@ describe("Cursor XOR", () => {
 		cursorXor(vm)
 
 		const actual = getScreenMono(vm)
-		await assertExpectedImage("black-on-white-cursor-1", actual)
+		await assertExpectedImage("black-on-white-cursor-odd", actual)
 	})
 
 	it("Cursor onto filled background, aligned", async () => {
@@ -40,7 +51,7 @@ describe("Cursor XOR", () => {
 		cursorXor(vm)
 
 		const actual = getScreenMono(vm)
-		await assertExpectedImage("white-on-black-cursor-0", actual)
+		await assertExpectedImage("white-on-black-cursor-even", actual)
 	})
 
 	it("Cursor onto filled background, offset", async () => {
@@ -51,7 +62,7 @@ describe("Cursor XOR", () => {
 		cursorXor(vm)
 
 		const actual = getScreenMono(vm)
-		await assertExpectedImage("white-on-black-cursor-1", actual)
+		await assertExpectedImage("white-on-black-cursor-odd", actual)
 	})
 })
 
@@ -66,7 +77,7 @@ describe("Cursor animation", () => {
 		cursorAnimFrame(vm)
 
 		const actual = getScreenMono(vm)
-		await assertExpectedImage("black-on-white-cursor-0", actual)
+		await assertExpectedImage("black-on-white-cursor-even", actual)
 	})
 
 	it("If 2 frames in count, does not render", async () => {

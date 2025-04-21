@@ -525,42 +525,37 @@ CURSOR_ANIM_FRAME:
 	jr	CURSOR_XOR.after_pushes_HL
 
 	; Invert cursor pixels. Current cursor posn is held in (CURSOR_XY)
-	; TODO: Doesn’t show cursor on last col of screen (64). SHould do.
 	; Trashes: A
 CURSOR_XOR:
 	push	hl
-.after_pushes_HL
 	push	de
 	push	bc
-	ld	b, 8
 	ld	hl, (CURSOR_XY)
-	call	ROWCOL_ADDR
+
+	ld	c,0b10000000
+	xor	a
+	cp	l	; Is X coordinate zero?
+	jr	z,.get_addr
+
+	dec	l
+	ld	c,0b00010000
+
+.get_addr:	call	ROWCOL_ADDR
 	bit	5, d
-	jr	nz, .halfcol
-.cellboundary:
-.loop0:	ld	a, (de)
-	xor	0b10000000
+	jr	z, .render
+	ld	c,0b00000001
+
+.render:	res	5, d
+	ld	b, 8
+
+.loop1:	ld	a, (de)
+	xor	c
 	ld	(de), a
 	inc	d
-	djnz	.loop0
-	dec	e
-	jp	m,.pop_and_return	; Return if we were in the first column
-	ld	b, 8	; Otherwise…
-.loop0B:	dec	d
-	ld	a, (de)
-	xor	1
-	ld	(de), a
-	djnz	.loop0B
-.pop_and_return:
+	djnz	.loop1
+
 	pop	bc
 	pop	de
 	pop	hl
 	ret
-.halfcol:
-	res	5, d
-.loop1:	ld	a, (de)
-	xor	0b00011000
-	ld	(de), a
-	inc	d
-	djnz	.loop1
-	jr	.pop_and_return
+
