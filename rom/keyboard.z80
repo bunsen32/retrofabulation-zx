@@ -167,11 +167,7 @@ KEYBOARD:
 	ld	a, (hl)
 .no_CAPS_shift
 .save_char:	pop	hl
-	inc	l	; hl := KEY_CHAR
-	ld	(hl),a	; KEY_CHAR := <decoded character>
-	inc	l
-	ld	(hl),b	; KEY_SHIFTS := <shift flags>
-	ret
+	jr	.write_keynshift
 	
 .try_repeat:
 	inc	l	; Points now to ‘KEY_RPT_NEXT’
@@ -185,11 +181,15 @@ KEYBOARD:
 	inc	l	; Points now to ‘KEY_RPT_CODE’
 	ld	(hl),c	; KEY_RPT_CODE := 0
 	inc	l
-.repeat_wait:
-	inc	l	; Points now to ‘KEY_CHAR’
-	ld	(hl),c	; KEY_CHAR := 0
+.repeat_wait:	ld	a,c	; KEY_CHAR := 0
+
+.write_keynshift:	inc	l	; Points now to ‘KEY_CHAR’
+	ld	(hl),a	; KEY_CHAR
 	inc	l
-	ld	(hl),b	; KEY_SHIFTS := <shift flags>
+	ld	a,(hl)
+	and	0b11111100	; Mask out previous shifts
+	or	b 
+	ld	(hl),a	; KEY_SHIFTS := <shift flags>
 	ret
 
 .disambiguate:	; Two keys are pressed at once… so deal with that!
