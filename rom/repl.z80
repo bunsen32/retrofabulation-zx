@@ -327,9 +327,9 @@ KEY_TRU_VID:	xor	a
 KEY_ENTER:	ld	a,$0a
 	jr	TRY_INSERT
 
-KEY_CAPS_LOCK:	ld	a,(KEY_SHIFTS)
+KEY_CAPS_LOCK:	ld	a,(KEY_MODIFIERS)
 	xor	0b01000000
-	ld	(KEY_SHIFTS),a
+	ld	(KEY_MODIFIERS),a
 	xor	a
 	ret
 
@@ -561,16 +561,16 @@ CURSOR_XOR:
 	; If CAPS_LOCK status has changed, change visual state.
 	; Trashes A
 CAPS_SHIFT_ANIM:
-	ld	a, (KEY_SHIFTS)
+	ld	a, (KEY_MODIFIERS)
 	and	0b11000000	; (Also resets the carry flag!)
 	ret	pe	; If the two bits are the same, just return.
 
 	push	hl
 	push	de
 	push	bc
-	ld	a, (KEY_SHIFTS)
+	ld	a, (KEY_MODIFIERS)
 	xor	0b10000000
-	ld	(KEY_SHIFTS),a
+	ld	(KEY_MODIFIERS),a
 
 .on:	ld	de,KEYMAP_SHIFTED_NUMS+2	; CAPS-LOCK icon
 	ld	b,1	; One character to render.

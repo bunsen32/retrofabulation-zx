@@ -206,8 +206,9 @@ export class Vm {
 			0xCD, (sub & 0xff) as byte, (sub >> 8) as byte, // call sub
 			0x76, // HALT
 		])
+		const tStatesPlusOverhead = forTStates + 17 + 4 // Add overhead for CALL + HALT
 		this.setRegisters({SP: stackTop})
-		this.runPcAt({addr:0x8000}, forTStates)
+		this.runPcAt({addr:0x8000}, tStatesPlusOverhead)
 
 		expect(this.core.getHalted(), `Should have HALTED (PC=${this.core.getPC()})`).toBe(1)
 	}
