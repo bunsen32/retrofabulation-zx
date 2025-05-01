@@ -3,7 +3,7 @@ INT_00:
 	di
 	xor	a
 	ld	i, a	; Avoid ULA ‘snow’ when I in (40, 7F]
-	im	1	; This appears to enable interrupts too (maybe just in certain emulators?)
+	im	1	;
 	jr	RAM_TEST
 
 	PADTO	$0008
@@ -46,8 +46,7 @@ fast_clear_loop:
 	jp	(hl)
 
 RAM_TEST
-	di		; We were seeing interrupts enabled here for some reason (!)
-	ld	a, %000	; black
+	xor	a	; black
 	out	($fe), a	; set border
 
 	ld	hl, .test_bytes
@@ -57,7 +56,7 @@ RAM_TEST
 	WIPE_SP_BC	(48 * 1024)
 	jr	WIPE_SP_32
 .test_bytes:
-	ld	bc, (48 * 1024 / 2 / 256)
+	ld	bc, 48 * 1024 / 2 / 256	; DO NOT put brackets round this!
 .loop:
 	pop	de
 	cp	d
