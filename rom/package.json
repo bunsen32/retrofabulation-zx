@@ -12,7 +12,7 @@
 	"scripts": {
 		"test": "jest --config ../jest.config.ts *.test.ts",
 		"genfont": "deno run build/makefont.ts >generated/font.z80",
-		"symtojs": "cat generated/symbols.txt | deno run build/symbolstojs.ts >generated/symbols.ts",
+		"symtojs": "cat generated/symbols.txt | deno run --allow-env build/symbolstojs.ts >generated/symbols.ts",
 		"assemble": "sjasmplus --msg=war --nologo --outprefix=dist/ --sym=generated/symbols.txt -Wno-fwdref root.z80 && deno task symtojs"
 	}
 }
