@@ -9,29 +9,30 @@ SPLASH_INIT:
 	push	de
 	djnz	.cls_black
 
-	ld	h,3	; Loop over 3 screen-thirds
+	ld	h,3	; 3 screen-thirds (loop counter)
 .loop_screen_thirds:
+	exx		; [[START...
 	ld	de,$0f0f
-	exx
+	exx		; ...END]]
 	ld	de,$ffff
 	ld	l,4	; 4 pattern repeats in screen-third (loop counter)
 .loop_lines_in_cell:
 	ld	a,16	; 16 pairs of identical pixel bytes in screen third (loop counter)
 .loop_cells_in_third:
-	ld	b,32/4
+	ld	b,32/4	; 4-byte (32-bit) ‘words’ in the pixel line (loop counter)
 .loop_words_in_line:
 	push	de
 	push	de
 	djnz	.loop_words_in_line
-.next_pixel_row:	exx
+.next_pixel_row:	exx		; BALANCED BECAUSE EVEN # LOOP ITERATIONS (16)
 	dec	a
 	jr	nz,.loop_cells_in_third
 	srl	e
 	ld	d,e
-	exx
+	exx		; [[START...
 	srl	e
 	ld	d,e
-	exx
+	exx		; ...END]]
 	dec	l
 	jr	nz,.loop_lines_in_cell
 	dec	h
