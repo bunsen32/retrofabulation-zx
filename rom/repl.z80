@@ -345,7 +345,7 @@ CONTROL_KEY_ROUTINES:
 	jr	KEY_INV_VID	; $05 INV VIDEO
 	jr	KEY_TRU_VID	; $06 TRU VIDEO
 
-	xor a		; $07
+	xor a		; $07 BREAK
 	ret
 
 	jr	DEL_BACKSPACE	; $08 BACKSPACE
@@ -353,7 +353,7 @@ CONTROL_KEY_ROUTINES:
 	jr	KEY_ENTER	; $0a LINEFEED
 	jr	KEY_ESC_EDIT	; $0b ESCAPE
 
-	xor a		; $0c
+	xor a		; $0c EXTENDED MODE SHIFT
 	ret
 
 	jr	KEY_ENTER	; $0d ENTER

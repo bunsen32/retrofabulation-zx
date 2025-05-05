@@ -20,13 +20,13 @@ export const CODES: {[key: string]: byte} = {
 	UP: 0x04,
 	INV_VIDEO: 0x05,
 	TRUE_VIDEO: 0x06,
-	_7: 0x07,	// BELL. Leave unassigned, because it’s annoying.
-	BACKSPACE: 0x08,	// ‘Delete’
+	BREAK: 0x07,	// SHIFT-SPACE => BREAK into PROGRAM
+	BACKSPACE: 0x08,	// ‘DELETE’
 	TAB: 0x09,
-	LINEFEED: 0x0A,	// Going with Unix-style line-endings!	
+	LINEFEED: 0x0A,	// Aka: ‘ENTER’ (Going with Unix-style line-endings!)
 	ESCAPE: 0x0B,	// Aka: ‘EDIT’
-	_12: 0x0C,	// Form-feed. Could actually be useful for printers.
-	ENTER: 0x0D,	// This is the key. Maps to $0A (LINEFEED) in output.
+	EXTENDED_MODE: 0x0C,	// Two shifts => ‘extended’ symbol mode.
+	_13: 0x0D,
 	CAPS_LOCK: 0x0E,
 	GRAPHICS: 0x0F,
 
