@@ -101,11 +101,11 @@
 						</label>
 					</span>
 					<br />
-					<button onclick="rotateDown();return false;">rotate down</button>
-					<button onclick="rotateUp();return false;">rotate up</button>
+					<button id="rotate-down">rotate down</button>
+					<button id="rotate-up">rotate up</button>
 				</div>
 				<div id="actions">
-					<button id="save-font" onclick="saveFont();return false">Save font</button>
+					<button id="save-font">Save font</button>
 					<button id="render-button">Test render</button>
 					<button id="parse-and-render">Parse &amp; Render</button>
 				</div>
@@ -135,12 +135,14 @@ let b% = b% & $f077</textarea>
 	<script type="module">
 		console.log('Loaded page…?')
 
-		import { doTestRender, parseAndRender, selectChar, saveFont, toggleWidth } from './fonts.js'
+		import { doTestRender, parseAndRender, selectChar, saveFont, toggleWidth, rotateDown, rotateUp } from './fonts.js'
 		import { Charset } from './encoding.js'
 
 		document.getElementById('render-button').addEventListener('click', doTestRender)
 		document.getElementById('parse-and-render').addEventListener('click', parseAndRender)
 		document.getElementById('save-font').addEventListener('click', saveFont)
+		document.getElementById('rotate-up').addEventListener('click', rotateUp)
+		document.getElementById('rotate-down').addEventListener('click', rotateDown)
 		document.getElementById('char-size-h').addEventListener('click', () => toggleWidth('h'))
 		document.getElementById('char-size-n').addEventListener('click', () => toggleWidth('n'))
 		document.getElementById('char-size-w').addEventListener('click', () => toggleWidth('w'))
