@@ -10,6 +10,12 @@
 		"deploy": {
 			"command": "cp dist/neo48.rom ../dist/jsspeccy/roms/48.rom",
 			"dependencies": ["assemble"]
+		},
+		"genfont": "deno run build/makefont.ts >generated/font.z80",
+		"symtojs": "cat generated/symbols.txt | deno run --allow-env build/symbolstojs.ts >generated/symbols.ts",
+		"assemble": {
+			"command": "sjasmplus --msg=war --nologo --outprefix=dist/ --sym=generated/symbols.txt -Wno-fwdref root.z80 && deno task symtojs",
+			"dependencies": ["genfont"]
 		}
 	}
 }
