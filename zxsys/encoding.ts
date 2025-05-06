@@ -45,7 +45,7 @@ export const NARROW_HASH = String.fromCharCode(CODES.NARROW_HASH)
 export const NARROW_DOLLAR = String.fromCharCode(CODES.NARROW_DOLLAR)
 
 export const Charset = [
-	NUL, '⇦', '⇨', '⇩', '⇧', '☀︎', '☼', '␇', '⌫','\t', _LF, '␛', _FF, '↵', '⇪', ' ',
+	NUL, '⇦', '⇨', '⇩', '⇧', '☀︎', '☼', '␇', '⌫','⇥', '↵', '␛', _FF, ' ', '⇪', ' ',
 	NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, '&', '?', '%', '#', '$',
 	...Ascii.slice(0x20, 0x7F), '░',
 	// 80 hex:
