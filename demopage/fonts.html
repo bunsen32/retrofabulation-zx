@@ -2,7 +2,6 @@
 	<meta charset="utf8" />
 	<style>
 		.char, .no-char {
-			display: inline-block;
 			width: 20px;
 			height: 20px;
 			padding: 2px;
@@ -10,6 +9,7 @@
 			border: 1px solid #000;
 			text-align:center;
 			text-decoration: none;
+			cursor: pointer;
 		}
 		.char.selected {
 			background-color: #000;
@@ -60,25 +60,30 @@
 	<body>
 		<div id="form">
 			<div id="left">
-				<div>
-					<script>
-						for(let i = 0x10; i < 0x1b; i++) {
-							const c = String.fromCharCode(i)
-							document.write(`<span class='no-char'> </span>`);
-							if (i % 16 == 15) document.write("<br/>")
+				<table>
+					<thead>
+						<tr>
+							<th></th>
+							<script>
+								for(let d = 0; d < 16; d++) {
+									document.write(`<th>${d.toString(16)}</th>`)
+								}
+							</script>
+						</tr>
+					</thead>
+					<tbody>
+						<script>
+						for(let h = 0x00; h <= 0xb0; h+=0x10) {
+							document.write(`<tr>`);
+							document.write(`<th>${((h>>4).toString(16))}</th>`);
+							for(let i = h; i < h + 16; i++) {
+								document.write(`<td class='char' id="char-${i}">X</td>`)
+							}
+							document.write(`</tr>`);
 						}
-						for(let i = 0x1b; i <= 0x1f; i++) {
-							const c = String.fromCharCode(i)
-							document.write(`<span class='char' id="char-${i}">X</span>`);
-							if (i % 16 == 15) document.write("<br/>")
-						}
-						for(let i = 0x20; i <= 0xbf; i++) {
-							const c = String.fromCharCode(i)
-							document.write(`<span class='char' id="char-${i}">X</span>`);
-							if (i % 16 == 15) document.write("<br/>")
-						}
-					</script>
-				</div>
+						</script>
+					</tbody>
+				</table>
 				<div id="char-edit">
 					<canvas id="editor" width="192" height="128"></canvas>
 					Width: 
@@ -146,7 +151,7 @@ let b% = b% & $f077</textarea>
 		document.getElementById('char-size-h').addEventListener('click', () => toggleWidth('h'))
 		document.getElementById('char-size-n').addEventListener('click', () => toggleWidth('n'))
 		document.getElementById('char-size-w').addEventListener('click', () => toggleWidth('w'))
-		for(let i = 0x1b; i <= 0xbf; i++) {
+		for(let i = 0x00; i <= 0xbf; i++) {
 			const span = document.getElementById("char-"+i)
 			span.addEventListener("click", () => selectChar(i));
 			span.innerText = Charset[i]
