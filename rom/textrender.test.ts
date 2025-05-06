@@ -256,6 +256,7 @@ describe("Text rendering", () => {
 		expect(registers.HL_).toBe(0x9999)
 	})
 
+	// TODO: Add test for rendering out-of-range glyphs & on-range-boundary glyphs.
 })
 
 describe("Measure single char", () => {
@@ -289,6 +290,8 @@ describe("Measure single char", () => {
 		const result = vm.getRegisters().A
 		expect(result).toBe(3)
 	})
+
+	// TODO: Add test for measuring out-of-range glyphs & on-range-boundary glyphs.
 })
 
 describe("Measure span of characters", () => {

@@ -32,7 +32,7 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 
 	out.write("FONT_LOOKUP:\n")
 	out.write(`	DB	${hex(min)}	; First glyph codepoint\n`)
-	out.write(`	DB	${hex(count)}	; Glyph count\n`)
+	out.write(`	DB	${hex(count - 1)}	; Index of last glyph (= count - 1)\n`)
 	let offset = 0
 	let minDelta = 0, maxDelta = 0
 	for (let i = 0; i < count; i++) {
