@@ -1,4 +1,6 @@
 	; Keyboard & default interrupt handler
+	; Obviously saves and restores any used registers.
+	; But also: does not depend upon any particular values in IX, IY or exx registers.
 DEFAULT_INTERRUPT_HANDLER:
 	push	hl
 	push	af
@@ -8,7 +10,8 @@ DEFAULT_INTERRUPT_HANDLER:
 	ld	a,l
 	or	h
 	jr	nz, .low_bits_only
-	;;inc	(IY+CLOCK_TICKS+2)	; TODO! 
+	ld	hl, CLOCK_TICKS+2
+	inc	(hl)
 .low_bits_only:	push	bc
 	push	de
 	call	KEYBOARD
