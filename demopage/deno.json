@@ -3,6 +3,6 @@
 	"version": "1.0.0",
 	"exports": "",
 	"tasks":{
-		"build": "deno run --allow-read --allow-write --allow-env --allow-run esbuild.config.ts",
+		"build": "deno run --allow-read --allow-write --allow-env --allow-run esbuild.config.ts"
 	}
 }
