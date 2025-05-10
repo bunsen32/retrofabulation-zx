@@ -20,6 +20,8 @@ REPL:
 	ld	bc,768
 	ldir		; Clear screen to all white (16123 t-states)
 .init_buffer:
+	ld	hl,$0000
+	ld	(CAPS_ICON_XY),hl
 	ld	de,TEXT_BUFFER
 	ld	bc,0	; prior-chars := 0; subsequent-chars := 0
 	ld	a,b
@@ -66,6 +68,7 @@ REPL_LOOP:
 	call	nz,.screen_cmd
 .await	halt		; Wait for some potential keyboard input.
 	call	CURSOR_ANIM_FRAME
+	call	CAPS_SHIFT_ANIM
 	jr	.check_key
 
 	; Cycle back round again and move cursor right
@@ -324,8 +327,11 @@ KEY_TRU_VID:	xor	a
 KEY_ENTER:	ld	a,$0a
 	jr	TRY_INSERT
 
-KEY_CAPS_LOCK:	ld	a,$e
-	jr	TRY_INSERT
+KEY_CAPS_LOCK:	ld	a,(KEY_MODIFIERS)
+	xor	0b01000000
+	ld	(KEY_MODIFIERS),a
+	xor	a
+	ret
 
 KEY_GRAPHICS:	xor	a
 	jr	TRY_INSERT
@@ -552,3 +558,31 @@ CURSOR_XOR:
 	pop	hl
 	ret
 
+	; If CAPS_LOCK status has changed, change visual state.
+	; Trashes A
+CAPS_SHIFT_ANIM:
+	ld	a, (KEY_MODIFIERS)
+	and	0b11000000	; (Also resets the carry flag!)
+	ret	pe	; If the two bits are the same, just return.
+
+	push	hl
+	push	de
+	push	bc
+	ld	a, (KEY_MODIFIERS)
+	xor	0b10000000
+	ld	(KEY_MODIFIERS),a
+
+.on:	ld	de,KEYMAP_SHIFTED_NUMS+2	; CAPS-LOCK icon
+	ld	b,1	; One character to render.
+	rlca		; Is CAPS_LOCK bit set?
+	ld	a,0b00101000	; Black text on cyan
+	jr	c,.draw	; Draw if CAPS_LOCK
+.off:	ld	de,TWO_SPACES	; Otherwise, change to printing a space.
+	ld	a,0b00111111	; White on white
+.draw:
+	ld	hl,(CAPS_ICON_XY)
+	call	RENDER_TEXT
+	pop	bc
+	pop	de
+	pop	hl
+	ret

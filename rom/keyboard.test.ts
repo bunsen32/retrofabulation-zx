@@ -313,7 +313,7 @@ function getKeyboardState(vm: Vm): KeyboardState {
 		repeatCountdown: vm.peekByte(rom.KEY_RPT_NEXT),
 		currentChar: charByte,
 		currentCharUnicode: Charset[charByte],
-		currentShifts: vm.peekByte(rom.KEY_SHIFTS)
+		currentShifts: vm.peekByte(rom.KEY_MODIFIERS)
 	}
 }
 
@@ -327,7 +327,7 @@ function setKeyboardState(vm: Vm, state: Partial<KeyboardState>) {
 	tryPoke(rom.KEY_RPT_CODE, state.repeatKeyCode)
 	tryPoke(rom.KEY_RPT_NEXT, state.repeatCountdown)
 	tryPoke(rom.KEY_CHAR, state.currentChar)
-	tryPoke(rom.KEY_SHIFTS, state.currentShifts)
+	tryPoke(rom.KEY_MODIFIERS, state.currentShifts)
 	if (state.currentCharUnicode != undefined)
 		tryPoke(rom.KEY_CHAR, CharsetFromUnicode[state.currentCharUnicode])
 }
@@ -339,7 +339,7 @@ function callKeyboardWith(vm: Vm, pressed: KeyPressState, shiftState?: 0|1|2|3) 
 		B: (shiftState || 0),
 		F: pressed.tooManyPressed ? 0x00 : 0xff,
 	})
-	vm.callSubroutine(rom.KEYBOARD.after_scan, 340)
+	vm.callSubroutine(rom.KEYBOARD.after_scan, 372)
 }
 
 async function loadedVmWithKeyboardState(keyboardState: Partial<KeyboardState>): Promise<Vm> {

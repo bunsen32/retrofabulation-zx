@@ -11,13 +11,14 @@ REPDEL	db	0
 REPPER	db	0
 I_HANDLER	db	0, 0, 0, 0, 0	; Enough for CALL XXXX, EI, RET	
 
+KEY_MODIFIERS	db	0	; <capslock_old><capslock_new>0000<sym><caps>
 END_NEED_INIT:
 KEY_SUPERSEDED	db	0
 KEY_RPT_CODE	db	0
 KEY_RPT_NEXT	db	0
 KEY_CHAR	db	0
-KEY_SHIFTS	db	0	; 000000<sym><caps>
 
+CAPS_ICON_XY	db	0, 0	; Position (in text coordinates) of CAPS-LOCK indicator.
 CURSOR_XY	db	0, 0	; Position (in text coordinates) of current cursor.
 CURSOR_FRAMES	db	0	; bits <count><X> where 
 			; <count> is frames to wait til next cursor state
