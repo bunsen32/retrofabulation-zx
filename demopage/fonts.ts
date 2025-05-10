@@ -5,6 +5,8 @@ import { type Line, tokeniseLine, type LineComment } from '@zx/interpreter'
 import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '@zx/sys'
 import type { byte } from "../zxsys/Byte.ts";
 
+export { Charset } from '@zx/sys'
+
 const store = globalThis.localStorage
 
 const scale = 16
