@@ -5,6 +5,8 @@ import {getScreenMono, type Bitmap, cls1, getScreenColour, assertBitmapImageMatc
 import {rom} from './generated/symbols.ts'
 
 const loadedVm = loadVm()
+const YELLOW_ON_YELLOW = 0b00110110 // yellow ink & paper
+const CYAN_ON_YELLOW = 0b00101110
 
 describe("Splash-screen", () => {
 
@@ -40,10 +42,10 @@ describe("Splash-screen", () => {
 	it("Splash stripe mid", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
-		clearAttrs(vm, 0b00110110) // yellow ink & paper
+		clearAttrs(vm, YELLOW_ON_YELLOW)
 
-		vm.setRegisters({A: 0x14, BC:0b00101110_00101101})
-		vm.runPcAt(rom.STRIPE, 1500)
+		vm.setRegisters({A: 20, C: CYAN_ON_YELLOW})
+		vm.callSubroutine(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("stripe-mid", actual)
@@ -52,10 +54,10 @@ describe("Splash-screen", () => {
 	it("Splash stripe 0", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
-		clearAttrs(vm, 0b00110110) // yellow ink & paper
+		clearAttrs(vm, YELLOW_ON_YELLOW)
 
-		vm.setRegisters({A: 0x00, BC:0b00000000_00101110})
-		vm.runPcAt(rom.STRIPE, 1500)
+		vm.setRegisters({A: 0, C: CYAN_ON_YELLOW})
+		vm.callSubroutine(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("stripe-0", actual)
@@ -64,10 +66,10 @@ describe("Splash-screen", () => {
 	it("Splash stripe 10", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
-		clearAttrs(vm, 0b00110110) // yellow ink & paper
+		clearAttrs(vm, YELLOW_ON_YELLOW)
 
-		vm.setRegisters({A: 0x0A, BC:0b00000000_00101110})
-		vm.runPcAt(rom.STRIPE, 1500)
+		vm.setRegisters({A: 10, C: CYAN_ON_YELLOW})
+		vm.callSubroutine(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("stripe-10", actual)
@@ -76,10 +78,10 @@ describe("Splash-screen", () => {
 	it("Splash stripe 32", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
-		clearAttrs(vm, 0b00110110) // yellow ink & paper
+		clearAttrs(vm, YELLOW_ON_YELLOW)
 
-		vm.setRegisters({A: 0x20, BC:0b00000000_00101110})
-		vm.runPcAt(rom.STRIPE, 1500)
+		vm.setRegisters({A: 32, C: CYAN_ON_YELLOW})
+		vm.callSubroutine(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("stripe-32", actual)
@@ -88,10 +90,10 @@ describe("Splash-screen", () => {
 	it("Splash stripe 35", async () => {
 		const vm = await loadedVm
 		writeZigzags(vm)
-		clearAttrs(vm, 0b00110110) // yellow ink & paper
+		clearAttrs(vm, YELLOW_ON_YELLOW)
 
-		vm.setRegisters({A: 0x23, BC:0b00000000_00101110})
-		vm.runPcAt(rom.STRIPE, 1500)
+		vm.setRegisters({A: 35, C: CYAN_ON_YELLOW})
+		vm.callSubroutine(rom.STRIPE, 1500)
 
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("stripe-35", actual)
