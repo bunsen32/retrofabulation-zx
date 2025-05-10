@@ -90,16 +90,16 @@ render_common_char:
 	ld	hl, FONT_LOOKUP	; Character index table
 
 	; Force character (in A) to be in range of glyphs:
-	sub	(hl)		; First character represented
-	jr	nc, rep1
-	xor	a
-rep1:	inc	hl
-	inc	a
-	cp	(hl)		; #number characters represented
-	jr	c, rep2
-	ld	a, 1
-rep2:
+	sub	(hl)	; First character represented
+	inc	hl	; (DOES NOT AFFECT CARRY)
+	jr	c, .replace
+	cp	(hl)	; #number characters represented - 1
+	jr	c, .lookup	; (Limit should be > index...)
+	jr	z, .lookup	; (...or equal to it.)
+.replace:	xor	a	; ...Otherwise replace with the first glyph.
+.lookup:
 	; Look up glyph data:
+	inc	a
 	ld	c, a
 	ld	b, 0
 	add	hl, bc
@@ -652,16 +652,16 @@ MEASURE_CHAR:
 	ld	hl, FONT_LOOKUP	; Character index table
 
 	; Force character (in A) to be in range of glyphs:
-	sub	(hl)		; First character represented
-	jr	nc, .rep1
-	xor	a
-.rep1:	inc	hl
-	inc	a
-	cp	(hl)		; #number characters represented - 1
-	jr	c, .rep2
-	ld	a, 1
-.rep2:
+	sub	(hl)	; First character represented
+	inc	hl	; (DOES NOT AFFECT CARRY)
+	jr	c, .replace
+	cp	(hl)	; #number characters represented - 1
+	jr	c, .lookup	; (Limit should be > index...)
+	jr	z, .lookup	; (...or equal to it.)
+.replace:	xor	a	; ...Otherwise replace with the first glyph.
+.lookup:
 	; Look up glyph data:
+	inc	a
 	ld	c, a
 	ld	b, 0
 	add	hl, bc

@@ -1,9 +1,11 @@
 
-import { Attr, SpecScreen } from './SpecScreen.ts'
+import { type Attr, SpecScreen } from './SpecScreen.ts'
 import { glyphs } from '@zx/fonts'
-import { Line, tokeniseLine, LineComment } from '@zx/interpreter'
+import { type Line, tokeniseLine, type LineComment } from '@zx/interpreter'
 import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '@zx/sys'
-import { byte } from "../zxsys/Byte.ts";
+import type { byte } from "../zxsys/Byte.ts";
+
+export { Charset } from '@zx/sys'
 
 const store = globalThis.localStorage
 
@@ -224,9 +226,20 @@ export function saveFont() {
 		const char = loadChar(c)
 		if (!char) continue
 		if (s) s+= ",\n"
-		s += `\t${c}: {"width": "${char.width}", "bytes": [${char.bytes}]}`.replace(/NaN/g,"0")
+		const asString = escapeCharacterToJavaScriptString(c as byte)
+		s += `\t${c}: {"width": "${char.width}", "bytes": [${char.bytes}], "char": "${asString}"}`.replace(/NaN/g,"0")
 	}
 	textEditor.value = `{\n${s}\n}`
+}
+
+function escapeCharacterToJavaScriptString(c: byte) {
+	const character = String.fromCodePoint(c)
+	if (character == '"' || character == '\\') return `\\${character}`
+	if (c >= 32 && c < 128) return character
+	const hex = c.toString(16)
+	return hex.length === 1
+		? `\\x0${hex}`
+		: `\\x${hex}`
 }
 
 function cls(paper?: Attr){
