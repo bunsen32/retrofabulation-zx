@@ -34,20 +34,15 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 	out.write(`	DB	${hex(min)}	; First glyph codepoint\n`)
 	out.write(`	DB	${hex(count - 1)}	; Index of last glyph (= count - 1)\n`)
 	let offset = 0
-	let minDelta = 0, maxDelta = 0
 	for (let i = 0; i < count; i++) {
 		const toFontData = (count - i) * 2
 		const enc = encoded[i]
 		const dataPointer = enc.bytes ? offset : 0
 		const c = enc.codepoint
 		const w = enc.width ?? encoded[0].width
-		const delta = dataPointer - (i * 6)
-		minDelta = Math.min(delta, minDelta)
-		maxDelta = Math.max(delta, maxDelta)
-		out.write(`	DW	(${toFontData} + ${dataPointer}) | (${w} << 14)	; character ${c} (${hex(c)} ‘${repr(c)}’)   delta ${delta}\n`)
+		out.write(`	DW	(${toFontData} + ${dataPointer}) | (${w} << 14)	; character ${c} (${hex(c)} ‘${repr(c)}’)\n`)
 		offset += enc.bytes?.length ?? 0
 	}
-	out.write(`	; delta from 6* = [${minDelta}..${maxDelta}]\n`)
 	out.write("\n")
 	out.write("FONT_DATA:\n")
 	for (const enc of encoded) {
