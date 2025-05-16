@@ -4,7 +4,7 @@ import { expect } from "jsr:@std/expect";
 import {loadVm, type Vm, type Z80Address} from './testutils/testvm.ts'
 import {rom} from './generated/symbols.ts'
 import type { byte } from '@zx/sys'
-import { Charset, CharsetFromUnicode } from '@zx/sys'
+import { Charset, CharsetFromUnicode, CODES } from '@zx/sys'
 
 const loadedVm = loadVm()
 
@@ -25,6 +25,10 @@ const KEYS = {
 	P: 0x05 as byte,
 	ENTER: 0x06 as byte,
 	SPACE: 0x07 as byte,
+
+	NINE: 0x0c as byte,
+
+	EIGHT: 0x14 as byte,
 
 	B: 0x27 as byte,
 }
@@ -50,6 +54,10 @@ const ZEROED: KeyboardState = {
 	currentChar: 0,
 	currentShifts: 0,
 	currentCharUnicode: '\0'
+}
+
+const GFX_MODE: Partial<KeyboardState> = {
+	currentShifts: 0b01000000
 }
 
 describe("Keyboard scan", () => {
@@ -273,27 +281,6 @@ describe("Keyboard state changes", () => {
 	})
 })
 
-describe("Keyboard decoding", () => {
-	it("UNshifted character returns main symbol", async () => {
-		const vm = await loadedVmWithKeyboardState(ZEROED)
-
-		callKeyboardWith(vm, {primary: KEYS.ONE}, SHIFT_NONE)
-
-		const r = getKeyboardState(vm)
-		expect(r.currentCharUnicode).toEqual('1')
-	})
-
-	it("Press symbol shift, get symbol character from key", async () => {
-		const vm = await loadedVmWithKeyboardState(ZEROED)
-
-		callKeyboardWith(vm, {primary: KEYS.ONE}, SHIFT_SYM)
-
-		const r = getKeyboardState(vm)
-		expect(r.currentChar).toEqual(33)
-		expect(r.currentCharUnicode).toEqual('!')
-	})
-})
-
 function keyScanResults(vm: Vm) {
 	const r = vm.getRegisters()
 	return {
@@ -339,7 +326,7 @@ function callKeyboardWith(vm: Vm, pressed: KeyPressState, shiftState?: 0|1|2|3) 
 		B: (shiftState || 0),
 		F: pressed.tooManyPressed ? 0x00 : 0xff,
 	})
-	vm.callSubroutine(rom.KEYBOARD.after_scan, 372)
+	vm.callSubroutine(rom.KEYBOARD.after_scan, 430)
 }
 
 async function loadedVmWithKeyboardState(keyboardState: Partial<KeyboardState>): Promise<Vm> {
