@@ -31,6 +31,7 @@ CHAR_DOWN	equ	$03
 
 MOD_CAPSSHIFT_B	equ	0
 MOD_SYMSHIFT_B	equ	1
+MOD_CAPS_STATE_B	equ	3
 MOD_EXTRES_B	equ	4
 MOD_EXTMODE_B	equ	5
 MOD_GFXMODE_B	equ	6
@@ -38,26 +39,13 @@ MOD_CAPSLOCK_B	equ	7
 
 MOD_CAPSSHIFT_F	equ	1 << MOD_CAPSSHIFT_B
 MOD_SYMSHIFT_F	equ	1 << MOD_SYMSHIFT_B
+MOD_CAPS_STATE_F	equ	1 << MOD_CAPS_STATE_B
 MOD_EXTRES_F	equ	1 << MOD_EXTRES_B
 MOD_EXTMODE_F	equ	1 << MOD_EXTMODE_B
 MOD_GFXMODE_F	equ	1 << MOD_GFXMODE_B
 MOD_CAPSLOCK_F	equ	1 << MOD_CAPSLOCK_B
 
 MOD_MODEBITS	equ	MOD_EXTMODE_F | MOD_GFXMODE_F
-
-KEYMAP_SHIFTED_NUMS:
-	SAME_PAGE	.end
-	db	$08	; 0: DELETE (BACKSPACE)
-	db	$0b	; 1: EDIT/ESC
-	db	$0e	; 2: CAPS LOCK
-	db	$05	; 3: INV VIDEO
-	db	$06	; 4: TRUE VIDEO
-	db	$01	; 5: LEFT
-	db	$03	; 6: DOWN
-	db	$04	; 7: UP
-	db	$02	; 8: RIGHT
-	db	$0f	; 9: GRAPHICS
-.end
 
 KEYMAP_L:
 	db	' ', 'a', 'q', '1', '0', 'p', $0a, ' '
@@ -92,9 +80,9 @@ KEYMAP_CTRL:
 	db	$08	; 0: DELETE (BACKSPACE)
 	db	$0e	; 2: CAPS LOCK
 	db	$0f	; 9: GRAPHICS
-	db	$05	; 3: INV VIDEO
+	db	$06	; 3: TRUE VIDEO
 	db	$02	; 8: RIGHT
-	db	$06	; 4: TRUE VIDEO
+	db	$05	; 4: INV VIDEO
 	db	$04	; 7: UP
 	db	$01	; 5: LEFT
 	db	$03	; 6: DOWN
