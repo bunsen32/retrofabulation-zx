@@ -1,8 +1,9 @@
 import { describe, it } from "jsr:@std/testing/bdd";
 import { expect } from "jsr:@std/expect";
 import {literal16, Op, BoolOp, NumPres, load16, store16} from "../zxsys/parsing.ts"
-import {loadVm} from './testutils/testvm.ts'
+import {type CpuSnapshot, loadVm, logSnapshots, stackTop, type Vm} from './testutils/testvm.ts'
 import type {byte} from '@zx/sys'
+import { rom } from "./generated/symbols.ts";
 
 const loadedVm = loadVm()
 
@@ -30,13 +31,13 @@ describe('New ROM!', () => {
 	it('interprets the bytestream', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([ Op.HALT ], 80)
+		interpret(vm, [ Op.HALT ], 80)
 	})
 
 	it('int16 literal16', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([ literal16(NumPres.Hex), 0x44, 0x99, Op.HALT], 200)
+		interpret(vm, [ literal16(NumPres.Hex), 0x44, 0x99, Op.HALT], 200)
 
 		expect(vm.getStack()).toEqual([0x9944])
 	})
@@ -44,7 +45,7 @@ describe('New ROM!', () => {
 	it('int16 add', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			literal16(NumPres.Hex), 0x44, 0x99,
 			literal16(NumPres.Hex), 0x22, 0x33,
 			Op.IntAdd,
@@ -56,98 +57,98 @@ describe('New ROM!', () => {
 	it('int16 eq (true)', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			literal16(NumPres.Hex), 0x44, 0x99,
 			literal16(NumPres.Hex), 0x44, 0x99,
 			Op.IntEq,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
 
-		expect(vm.getStackBoolean()).toBeTruthy()
+		expect(getStackBoolean(vm)).toBeTruthy()
 	})
 
 	it('int16 eq (false)', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			literal16(NumPres.Hex), 0x44, 0x99,
 			literal16(NumPres.Hex), 0x41, 0x99,
 			Op.IntEq,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
 
-		expect(vm.getStackBoolean()).toBeFalsy()
+		expect(getStackBoolean(vm)).toBeFalsy()
 	})
 
 	it('int16 ne (true)', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			literal16(NumPres.Hex), 0x12, 0x89,
 			literal16(NumPres.Hex), 0xab, 0xcd,
 			Op.IntNe,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
 
-		expect(vm.getStackBoolean()).toBeTruthy()
+		expect(getStackBoolean(vm)).toBeTruthy()
 	})
 
 	it('int16 ne (false)', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			literal16(NumPres.Hex), 0x12, 0x78,
 			literal16(NumPres.Hex), 0x12, 0x78,
 			Op.IntNe,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
 
-		expect(vm.getStackBoolean()).toBeFalsy()
+		expect(getStackBoolean(vm)).toBeFalsy()
 	})
 
 	it('int16 lt (A < B)', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			literal16(NumPres.Hex), 0x10, 0x78,
 			literal16(NumPres.Hex), 0x12, 0x78,
 			Op.IntLt,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
 
-		expect(vm.getStackBoolean()).toBeTruthy()
+		expect(getStackBoolean(vm)).toBeTruthy()
 	})
 
 	it('int16 lt (A = B)', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			literal16(NumPres.Hex), 0xAB, 0xCD,
 			literal16(NumPres.Hex), 0xAB, 0xCD,
 			Op.IntLt,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
 
-		expect(vm.getStackBoolean()).toBeFalsy()
+		expect(getStackBoolean(vm)).toBeFalsy()
 	})
 
 	it('int16 lt (A > B)', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			literal16(NumPres.Hex), 0xFF, 0xCD,
 			literal16(NumPres.Hex), 0xAB, 0xCD,
 			Op.IntLt,
 			BoolOp.BoolPush,
 			Op.HALT], 500)
 
-		expect(vm.getStackBoolean()).toBeFalsy()
+		expect(getStackBoolean(vm)).toBeFalsy()
 	})
 
 	it('if true', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			Op.LiteralTrue,
 			BoolOp.If, 0x01,
 			literal16(NumPres.Hex), 0x10, 0x32,
@@ -159,7 +160,7 @@ describe('New ROM!', () => {
 	it('if false', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			Op.LiteralFalse,
 			BoolOp.If, 0x02,
 			Op.HALT,
@@ -172,7 +173,7 @@ describe('New ROM!', () => {
 	it('if false (big-jump)', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			Op.LiteralFalse,
 			(BoolOp.If | 0x0f)as byte, 0x02,
 			Op.HALT,
@@ -186,7 +187,7 @@ describe('New ROM!', () => {
 	it('Loop 10 times', async () => {
 		const vm = await loadedVm
 
-		vm.interpret([
+		interpret(vm, [
 			Op.LiteralInt0,
 			store16(0),
 			load16(0),
@@ -204,3 +205,30 @@ describe('New ROM!', () => {
 /*
 */
 })
+
+function traceInterpret(vm: Vm, bytes: byte[], forTStates: number): CpuSnapshot[] {
+	const address = 0x8000
+	vm.setRam(address, bytes)
+	vm.setRegisters({ HL: address, SP: stackTop })
+	return vm.tracePcAt(rom.interpreter, forTStates)
+}
+
+function interpret(vm: Vm, bytes: byte[], forTStates: number = 200) {
+	const address = 0x8000
+	vm.setRam(address, bytes)
+	vm.setRegisters({ HL: address, SP: stackTop })
+	vm.runPcAt(rom.interpreter, forTStates)
+	if (vm.core.getHalted()) return
+
+	const trace = traceInterpret(vm, bytes, forTStates)
+	logSnapshots(trace)
+	expect(vm.core.getHalted()).toBe(1)
+}
+
+function getStackBoolean(vm: Vm): boolean {
+	const stack = vm.getStack()
+	expect(stack).toHaveLength(1)
+	const zeroFlag = stack[0] & 0b01000000
+	return !zeroFlag
+}
+

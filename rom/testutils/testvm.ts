@@ -4,12 +4,11 @@ import {readFileSync} from 'node:fs'
 export const FRAME_BUFFER_SIZE = 0x6600;
 
 import {Charset, CharsetFromUnicode, type byte} from '@zx/sys'
-import {rom} from '../generated/symbols.ts'
 export type word = number
 
 export type Z80Address = { addr: number }
 
-const REGISTER_PAIRS = [
+const REGISTER_PAIRS: RegisterName[][] = [
 	['AF', 'A', 'F'],
 	['BC', 'B', 'C'],
 	['DE', 'D', 'E'],
@@ -48,7 +47,7 @@ export class Vm {
 		this.core.setTapeTraps(false)
 	}
 
-	async loadRom(filename: string, page: number) {
+	loadRom(filename: string, page: number) {
 		const romBytes = readFileSync(filename)
 		const bytes = new Uint8Array(romBytes as unknown as ArrayBuffer)
 		this.memoryData.set(bytes, this.core.MACHINE_MEMORY + page * 0x4000)
@@ -68,13 +67,6 @@ export class Vm {
 			result.push(v16)
 		}
 		return result
-	}
-
-	getStackBoolean(): boolean {
-		const stack = this.getStack()
-		expect(stack).toHaveLength(1)
-		const zeroFlag = stack[0] & 0b01000000
-		return !zeroFlag
 	}
 
 	getRegisters(): RegisterSet {
@@ -181,25 +173,6 @@ export class Vm {
 		return trace
 	}
 	
-	traceInterpret(bytes: byte[], forTStates: number): CpuSnapshot[] {
-		const address = 0x8000
-		this.setRam(address, bytes)
-		this.setRegisters({ HL: address, SP: stackTop })
-		return this.tracePcAt(rom.interpreter, forTStates)
-	}
-	
-	interpret(bytes: byte[], forTStates: number = 200) {
-		const address = 0x8000
-		this.setRam(address, bytes)
-		this.setRegisters({ HL: address, SP: stackTop })
-		this.runPcAt(rom.interpreter, forTStates)
-		if (this.core.getHalted()) return
-	
-		const trace = this.traceInterpret(bytes, forTStates)
-		logSnapshots(trace)
-		expect(this.core.getHalted()).toBe(1)
-	}
-
 	callSubroutine(address: Z80Address, forTStates: number) {
 		const sub = address.addr
 		this.setRam(0x8000, [
@@ -228,7 +201,10 @@ export type RegisterSet = {
 	BC_: number,
 	DE_: number,
 	HL_: number,
+	IX: number,
+	IY: number,
 	SP: number,
+	IR: number,
 	A: byte,
 	F: byte,
 	B: byte,
@@ -244,8 +220,15 @@ export type RegisterSet = {
 	D_: byte,
 	E_: byte,
 	H_: byte,
-	L_: byte
+	L_: byte,
+	IXh: byte,
+	IXl: byte,
+	IYh: byte,
+	IYl: byte,
+	I: byte,
+	R: byte,
 }
+type RegisterName = keyof RegisterSet
 export type PartialRegisterSet = Partial<RegisterSet>
 export type CpuSnapshot = RegisterSet & {
 	t: number,
