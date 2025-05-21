@@ -45,12 +45,15 @@ const SHIFT_CAPS = 0b01
 const SHIFT_SYM = 0b10
 const SHIFT_BOTH = 0b11
 
+const MODIFIERS_EXTMODE_RESET = 0b01_0000
+const MODIFIERS_EXTMODE = 0b10_0000
+
 interface KeyboardState {
 	supersededKeyCode: byte,
 	repeatKeyCode: byte,
 	repeatCountdown: byte,
 	currentChar: byte,
-	currentShifts: byte,
+	modifierFlags: byte,
 	currentCharUnicode: string,
 }
 
@@ -59,12 +62,12 @@ const ZEROED: KeyboardState = {
 	repeatCountdown: 0,
 	repeatKeyCode: 0,
 	currentChar: 0,
-	currentShifts: 0,
+	modifierFlags: 0,
 	currentCharUnicode: '\0'
 }
 
 const GFX_MODE: Partial<KeyboardState> = {
-	currentShifts: 0b01000000
+	modifierFlags: 0b01000000
 }
 
 describe("Keyboard decoding", () => {
@@ -95,6 +98,48 @@ describe("Keyboard decoding", () => {
 
 			const r = getKeyboardState(vm)
 			expect(r.currentChar).toEqual(0x0a)
+		})
+	})
+
+	describe('EXT-mode state changes', () => {
+		it('Sets the EXT-mode reset when no key pressed', async () => {
+			const vm = await loadedVmWithKeyboardState({modifierFlags: 0})
+
+			callDecode(vm, 0, 0)
+
+			const k = getKeyboardState(vm)
+			expect(k.modifierFlags & MODIFIERS_EXTMODE_RESET).toBeTruthy()
+		})
+
+		it('Leaves the EXT-mode reset unmodified when single shift pressed', async () => {
+			for(const originalValue of [MODIFIERS_EXTMODE_RESET, 0])
+			for(const shifts of [SHIFT_CAPS, SHIFT_SYM]) {
+				const vm = await loadedVmWithKeyboardState({modifierFlags: originalValue as byte})
+
+				callDecode(vm, 0, shifts as (1|2))
+
+				const k = getKeyboardState(vm)
+				expect(k.modifierFlags & MODIFIERS_EXTMODE_RESET).toEqual(originalValue)
+			}
+		})
+
+		it ('Sets EXT-mode when both shifts pressed and EXT-mode-reset enabled', async () => {
+			const vm = await loadedVmWithKeyboardState({modifierFlags: MODIFIERS_EXTMODE_RESET})
+
+			callDecode(vm, 0, SHIFT_BOTH)
+
+			const k = getKeyboardState(vm)
+			expect(k.modifierFlags & MODIFIERS_EXTMODE).toEqual(MODIFIERS_EXTMODE)
+		})
+
+		it ('Clears EXT-mode when both shifts pressed and EXT-mode-reset enabled', async () => {
+			const original = MODIFIERS_EXTMODE_RESET | MODIFIERS_EXTMODE
+			const vm = await loadedVmWithKeyboardState({modifierFlags: original as byte})
+
+			callDecode(vm, 0, SHIFT_BOTH)
+
+			const k = getKeyboardState(vm)
+			expect(k.modifierFlags & MODIFIERS_EXTMODE).toEqual(0)
 		})
 	})
 
@@ -304,7 +349,7 @@ function getKeyboardState(vm: Vm): KeyboardState {
 		repeatCountdown: vm.peekByte(rom.KEY_RPT_NEXT),
 		currentChar: charByte,
 		currentCharUnicode: Charset[charByte],
-		currentShifts: vm.peekByte(rom.KEY_MODIFIERS)
+		modifierFlags: vm.peekByte(rom.KEY_MODIFIERS)
 	}
 }
 
@@ -318,7 +363,7 @@ function setKeyboardState(vm: Vm, state: Partial<KeyboardState>) {
 	tryPoke(rom.KEY_RPT_CODE, state.repeatKeyCode)
 	tryPoke(rom.KEY_RPT_NEXT, state.repeatCountdown)
 	tryPoke(rom.KEY_CHAR, state.currentChar)
-	tryPoke(rom.KEY_MODIFIERS, state.currentShifts)
+	tryPoke(rom.KEY_MODIFIERS, state.modifierFlags)
 	if (state.currentCharUnicode != undefined)
 		tryPoke(rom.KEY_CHAR, CharsetFromUnicode[state.currentCharUnicode])
 }
@@ -334,7 +379,7 @@ function callKeyboardWith(vm: Vm, pressed: KeyPressState, shiftState?: 0|1|2|3) 
 		B: (shiftState || 0),
 		F: pressed.tooManyPressed ? 0x00 : 0xff,
 	})
-	vm.callSubroutine(rom.KEYBOARD.after_scan, 430)
+	vm.callSubroutine(rom.KEYBOARD.after_scan, 450)
 }
 
 async function loadedVmWithKeyboardState(keyboardState: Partial<KeyboardState>): Promise<Vm> {

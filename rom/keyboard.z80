@@ -31,7 +31,6 @@ CHAR_DOWN	equ	$03
 
 MOD_CAPSSHIFT_B	equ	0
 MOD_SYMSHIFT_B	equ	1
-MOD_CAPS_STATE_B	equ	3
 MOD_EXTRES_B	equ	4
 MOD_EXTMODE_B	equ	5
 MOD_GFXMODE_B	equ	6
@@ -39,7 +38,6 @@ MOD_CAPSLOCK_B	equ	7
 
 MOD_CAPSSHIFT_F	equ	1 << MOD_CAPSSHIFT_B
 MOD_SYMSHIFT_F	equ	1 << MOD_SYMSHIFT_B
-MOD_CAPS_STATE_F	equ	1 << MOD_CAPS_STATE_B
 MOD_EXTRES_F	equ	1 << MOD_EXTRES_B
 MOD_EXTMODE_F	equ	1 << MOD_EXTMODE_B
 MOD_GFXMODE_F	equ	1 << MOD_GFXMODE_B
@@ -62,14 +60,14 @@ KEYMAP_SYM1:
 	db	'/', '}', '>', '%', '&', '[', '^', '*'
 
 KEYMAP_SYM2:	; TODO: Extended mode
-	db	' ', '~', $a8, '!', '_', '"', $0a, ' '
+	db	' ', '~', $a8, '!', '_', $09, $0a, ' '
 	db	':', '|', $81, '@', ')', ';', '=', ' '
 	db	$a3, '\', $b8, '#', '(', '`', '+', '.'
 	db	'?', '{', '<', '$', "'", ']', '-', ','
 	db	'/', '}', '>', '%', '&', '[', '^', '*'
 
 KEYMAP_SYM3:	; TODO: Extended mode + shift
-	db	' ', '~', $a8, '!', '_', '"', $0a, ' '
+	db	' ', '~', $a8, '!', '_', $a9, $0a, ' '
 	db	':', '|', $81, '@', ')', ';', '=', ' '
 	db	$a3, '\', $b8, '#', '(', '`', '+', '.'
 	db	'?', '{', '<', '$', "'", ']', '-', ','
@@ -161,13 +159,14 @@ KEYBOARD:
 	and	0b11111100	; Mask out previous shifts
 	or	b 
 	ld	b,a
-	ld	(hl),b	; KEY_MODIFIERS := <shift flags>
-	inc	l	; Points now to ‘KEY_SUPERSEDED’
 	
 	xor	a
 	ld	c, a	; Indicator of ‘no key’
 	cp	e
-	jr	z,.keyup	; No keys (or only shift keys) pressed.
+	jr	z,.shifts_only	; No keys (or only shift keys) pressed.
+
+	ld	(hl),b	; KEY_MODIFIERS := <shift flags>
+	inc	l	; Points now to ‘KEY_SUPERSEDED’
 
 	cp	d	; Two keys pressed at once?
 	jr	nz,.disambiguate
@@ -208,7 +207,27 @@ KEYBOARD:
 	ld	a,(REPPER)
 	ld	(hl),a	; KEY_RPT_NEXT := (REPPER)
 	jr	.decode
-.keyup:
+.shifts_only:
+	ld	a,b
+	rra
+	jr	c,.shifts_1or2	; CAPS shift is pressed.
+.shifts_0or1:	rra
+	jr	c,.shifts_save	; Only SYM shift pressed, so do nothing special
+.shifts_zero:	set	MOD_EXTRES_B,b	; No shift keys pressed, so set the "EXT-mode reset flag"
+	jr	.shifts_save
+
+.shifts_1or2:	rra
+	jr	nc,.shifts_save	; Only CAPS shift pressed, so do nothing special
+.shifts_both:	ld	a,b	; Both shifts pressed, so invert EXT mode—if ‘EXT-mode reset’ is set.
+	ASSERT	MOD_EXTMODE_F == MOD_EXTRES_F << 1
+	and	MOD_EXTRES_F	; (happens to RESET CARRY FLAG)
+	rla
+	xor	b
+	ld	b,a	; TODO: Issue "EXT-SHIFT" character here, and let editor deal with it.
+	res	MOD_EXTRES_B,b	; Clear the ‘EXT-mode reset’ flag in case it was set.
+
+.shifts_save:	ld	(hl),b	; KEY_MODIFIERS := <shift flags>
+	inc	l	; Points now to ‘KEY_SUPERSEDED’
 	ld	(hl),c	; KEY_SUPERSEDED := 0
 	inc	l	; Points now to ‘KEY_RPT_CODE’
 	ld	(hl),c	; KEY_RPT_CODE := 0
@@ -263,6 +282,8 @@ KEY_DECODE:	; trashes HL, returns result in A
 
 .decode_E:	; Decode key in E (extended) mode
 	ld	a,b
+	and	~MOD_EXTMODE_F	; Clear the EXT mode state
+	ld	(KEY_MODIFIERS),a
 	and	3	; Low 2 bits
 	ld	hl,KEYMAP_SYM2
 	jp	pe,.look_up	; Parity even = none or both shift keys pressed

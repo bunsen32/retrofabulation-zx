@@ -334,18 +334,18 @@ KEY_ENTER:	ld	a,$0a
 KEY_BREAK	ld	a,$07
 	jr	TRY_INSERT
 
-KEY_EXT	ld	a,$0c
-	jr	TRY_INSERT
+KEY_EXT:	ld	a,(KEY_MODIFIERS)
+	xor	MOD_EXTMODE_F
+	and	~MOD_EXTRES_F
+	jr	KEY_MODIFIER
 
 KEY_CAPS_LOCK:	ld	a,(KEY_MODIFIERS)
 	xor	MOD_CAPSLOCK_F
-	ld	(KEY_MODIFIERS),a
-	xor	a
-	ret
+	jr	KEY_MODIFIER
 
 KEY_GRAPHICS:	ld	a,(KEY_MODIFIERS)
 	xor	MOD_GFXMODE_F
-	ld	(KEY_MODIFIERS),a
+KEY_MODIFIER:	ld	(KEY_MODIFIERS),a
 	xor	a
 	ret
 
@@ -575,8 +575,7 @@ CURSOR_XOR:
 CAPS_SHIFT_ANIM:	ld	hl, KEY_MODIFIERS
 	ld	a, (KEY_MODIFIERS_PR)
 	xor	(hl)
-	and	MOD_EXTMODE_F | MOD_CAPSLOCK_F | MOD_GFXMODE_F	; (Also resets the carry flag!)
-	ret	z	; If the two bits are the same, just return.
+	ret	z	; If these bits are the same in both bytes, return
 
 .update_screen:	push	de
 	push	bc
@@ -598,7 +597,6 @@ CAPS_SHIFT_ANIM:	ld	hl, KEY_MODIFIERS
 	; KEYBOARD MODE ICON
 	ld	a, (KEY_MODIFIERS)
 	rlca		; Move two mode bits to the top of the byte
-	ld	de,TWO_SPACES	; Blank mode icon
 	ld	b,1	; One character to render.
 	ld	hl,(MODE_ICON_XY)
 
@@ -606,15 +604,20 @@ CAPS_SHIFT_ANIM:	ld	hl, KEY_MODIFIERS
 	jr	c, .gfx_mode
 
 	rlca		; Is EXT mode bit set?
-	ld	a,0b00111111	; White on white
-	jr	nc,.draw_mode	; ‘L’ mode
+	jr	nc,.l_mode	; ‘L’ mode
 
-.ext_mode:	ld	de,EXT_MODE_CHAR	; EXT-mode indicator
+.ext_mode:	and	3 << 3	; And Z = !symbol shift set
+	ld	de,EXT_MODE_CHAR	; EXT-mode indicator
 	ld	a,0b01000100	; Bright green text on black
-	jr	.draw_mode	; Draw if CAPS_LOCK
+	jp	pe,.draw_mode	; Green if both shifts or neither
+	ld	a,0b01000010	; Bright red text on black
+	jr	.draw_mode
 
 .gfx_mode:	ld	de,KEYMAP_CTRL+3	; GFX-mode indicator
 	ld	a,0b01000111	; White on black
+	jr	.draw_mode	; TODO: save 1 byte/2 tstates by making this JP NC (shrug).
+
+.l_mode:	ld	a,0b00111111	; White on white
 
 .draw_mode:	call	RENDER_TEXT
 
