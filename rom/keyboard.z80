@@ -28,6 +28,7 @@ CHAR_LEFT	equ	$01
 CHAR_RIGHT	equ	$02
 CHAR_UP	equ	$04
 CHAR_DOWN	equ	$03
+CHAR_EXT	equ	$0c
 
 MOD_CAPSSHIFT_B	equ	0
 MOD_SYMSHIFT_B	equ	1
@@ -200,40 +201,36 @@ KEYBOARD:
 .break_key:	ld	a,7
 	jr	.save_char		
 
-.try_repeat:
+.try_repeat:	xor	a	; Clear A in case we need to save it as character.
 	inc	l	; Points now to ‘KEY_RPT_NEXT’
 	dec	(hl)	; Count down the frames to next repetition
 	jr	nz,.repeat_wait	; Not reached zero count yet, so mark character as <none>
 	ld	a,(REPPER)
 	ld	(hl),a	; KEY_RPT_NEXT := (REPPER)
 	jr	.decode
-.shifts_only:
-	ld	a,b
-	rra
-	jr	c,.shifts_1or2	; CAPS shift is pressed.
-.shifts_0or1:	rra
-	jr	c,.shifts_save	; Only SYM shift pressed, so do nothing special
-.shifts_zero:	set	MOD_EXTRES_B,b	; No shift keys pressed, so set the "EXT-mode reset flag"
+
+.shifts_only:	ld	a,b
+	or	0b11111100
+	jp	po,.shifts_save	; Odd parity -> a single shift key pressed. Save state & exit.
+	inc	a	; Otherwise it’s 11111100 or 11111111
+	jr	z,.shifts_both	; If adding 1 then got us to zero, both shifts had been pressed.
+	set	MOD_EXTRES_B,b	; Else NO shift keys pressed, so set the "EXT-mode reset flag"
 	jr	.shifts_save
 
-.shifts_1or2:	rra
-	jr	nc,.shifts_save	; Only CAPS shift pressed, so do nothing special
-.shifts_both:	ld	a,b	; Both shifts pressed, so invert EXT mode—if ‘EXT-mode reset’ is set.
-	ASSERT	MOD_EXTMODE_F == MOD_EXTRES_F << 1
-	and	MOD_EXTRES_F	; (happens to RESET CARRY FLAG)
-	rla
-	xor	b
-	ld	b,a	; TODO: Issue "EXT-SHIFT" character here, and let editor deal with it.
+.shifts_both:	bit	MOD_EXTRES_B,b	; Both shifts pressed, so issue "EXT" key—if ‘EXT-mode reset’ is set.
 	res	MOD_EXTRES_B,b	; Clear the ‘EXT-mode reset’ flag in case it was set.
+	ld	a,CHAR_EXT
+	jr	nz,.shifts_save_1
 
-.shifts_save:	ld	(hl),b	; KEY_MODIFIERS := <shift flags>
+.shifts_save:	xor	a	
+.shifts_save_1:	ld	(hl),b	; KEY_MODIFIERS := <shift flags>
 	inc	l	; Points now to ‘KEY_SUPERSEDED’
 	ld	(hl),c	; KEY_SUPERSEDED := 0
 	inc	l	; Points now to ‘KEY_RPT_CODE’
 	ld	(hl),c	; KEY_RPT_CODE := 0
 	inc	l	; Points now to ‘KEY_RPT_NEXT’
 .repeat_wait	inc	l	; Points now to ‘KEY_CHAR’
-	ld	(hl),c	; KEY_CHAR := 0
+	ld	(hl),a	; KEY_CHAR := <character>
 	ret
 
 .disambiguate:	; Two keys are pressed at once… so deal with that!
