@@ -22,6 +22,8 @@ REPL:
 .init_buffer:
 	ld	hl,$0000
 	ld	(CAPS_ICON_XY),hl
+	ld	hl,$0004
+	ld	(MODE_ICON_XY),hl
 	ld	de,TEXT_BUFFER
 	ld	bc,0	; prior-chars := 0; subsequent-chars := 0
 	ld	a,b
@@ -67,8 +69,10 @@ REPL_LOOP:
 	or	a
 	call	nz,.screen_cmd
 .await	halt		; Wait for some potential keyboard input.
+	push	hl
 	call	CURSOR_ANIM_FRAME
 	call	CAPS_SHIFT_ANIM
+	pop	hl
 	jr	.check_key
 
 	; Cycle back round again and move cursor right
@@ -315,26 +319,35 @@ KEY_ARROW_DOWN:	ld	a,SCR_CUR_DOWN	; Screen command: move down
 KEY_TAB:	ld	a,$09
 	jr	TRY_INSERT
 
-KEY_ESC_EDIT:	xor	a
+KEY_ESC_EDIT:	ld	a,$0b
 	jr	TRY_INSERT
 
-KEY_INV_VID:	xor	a
+KEY_INV_VID:	ld	a,$05
 	jr	TRY_INSERT
 
-KEY_TRU_VID:	xor	a
+KEY_TRU_VID:	ld	a,$06
 	jr	TRY_INSERT
 
 KEY_ENTER:	ld	a,$0a
 	jr	TRY_INSERT
 
-KEY_CAPS_LOCK:	ld	a,(KEY_MODIFIERS)
-	xor	0b01000000
-	ld	(KEY_MODIFIERS),a
+KEY_BREAK	ld	a,$07
+	jr	TRY_INSERT
+
+KEY_EXT:	ld	a,MOD_EXTMODE_F
+	jr	TOGGLE_MODIFIER
+
+KEY_CAPS_LOCK:	ld	a,MOD_CAPSLOCK_F
+	jr	TOGGLE_MODIFIER
+
+KEY_GRAPHICS:	ld	a,MOD_GFXMODE_F
+TOGGLE_MODIFIER:	push	hl
+	ld	hl,KEY_MODIFIERS
+	xor	(hl)
+	ld	(hl),a
+	pop	hl
 	xor	a
 	ret
-
-KEY_GRAPHICS:	xor	a
-	jr	TRY_INSERT
 
 CONTROL_KEY_ROUTINES:
 	SAME_PAGE	.end
@@ -344,19 +357,16 @@ CONTROL_KEY_ROUTINES:
 	jr	KEY_ARROW_UP	; $04 UP
 	jr	KEY_INV_VID	; $05 INV VIDEO
 	jr	KEY_TRU_VID	; $06 TRU VIDEO
-
-	xor a		; $07 BREAK
-	ret
-
+	jr	KEY_BREAK	; $07 BREAK
 	jr	DEL_BACKSPACE	; $08 BACKSPACE
 	jr	KEY_TAB	; $09 TAB
 	jr	KEY_ENTER	; $0a LINEFEED
 	jr	KEY_ESC_EDIT	; $0b ESCAPE
+	jr	KEY_EXT	; $0c EXTENDED MODE SHIFT
 
-	xor a		; $0c EXTENDED MODE SHIFT
+	xor a		; $0d <unused>
 	ret
-
-	jr	KEY_ENTER	; $0d ENTER
+	
 	jr	KEY_CAPS_LOCK	; $0e CAPS LOCK
 	jr	KEY_GRAPHICS	; $0f GRAPHICS
 .end
@@ -450,6 +460,7 @@ PRINT_WRAP:
 	ret
 
 TWO_SPACES	db	' ', ' '
+EXT_MODE_CHAR	db	$0c
 
 CURSOR_LEFT:
 	xor	a	; (In case we need to exit early with NOP)
@@ -508,19 +519,20 @@ HIDE_CURSOR:
 	jr	CURSOR_XOR
 
 	; Decrement the frame counter and show or hide the cursor
-	; Trashes: A
+	; Trashes: A, HL
 CURSOR_ANIM_FRAME:
-	ld	a, (CURSOR_FRAMES)
+	ld	hl, CURSOR_FRAMES
+	ld	a, (hl)
 	srl	a
 	dec	a
 	jr	z, .statechange
 	rla		; Put <carry> back into posn 0
-	ld	(CURSOR_FRAMES), a	; And store back in variable.
+	ld	(hl), a	; And store back in variable.
 	ret
 .statechange:
 	rla		; Move <carry> back into low bit
 	xor	(CURSOR_FLASH_RATE << 1) | 1	; Add back in count and invert bit zero
-.store_and_xor:	ld	(CURSOR_FRAMES), a
+.store_and_xor:	ld	(hl), a
 	; Fallthrough...
 
 	; Invert cursor pixels. Current cursor posn is held in (CURSOR_XY)
@@ -559,30 +571,56 @@ CURSOR_XOR:
 	ret
 
 	; If CAPS_LOCK status has changed, change visual state.
-	; Trashes A
-CAPS_SHIFT_ANIM:
-	ld	a, (KEY_MODIFIERS)
-	and	0b11000000	; (Also resets the carry flag!)
-	ret	pe	; If the two bits are the same, just return.
+	; Trashes A, HL
+CAPS_SHIFT_ANIM:	ld	hl, KEY_MODIFIERS
+	ld	a, (KEY_MODIFIERS_PR)
+	xor	(hl)
+	ret	z	; If these bits are the same in both bytes, return
 
-	push	hl
-	push	de
+.update_screen:	push	de
 	push	bc
-	ld	a, (KEY_MODIFIERS)
-	xor	0b10000000
-	ld	(KEY_MODIFIERS),a
+	ld	a, (hl)
+	ld	(KEY_MODIFIERS_PR),a
 
-.on:	ld	de,KEYMAP_SHIFTED_NUMS+2	; CAPS-LOCK icon
+	; CAPS LOCK ICON
+.on:	ld	de,KEYMAP_CTRL+2	; CAPS-LOCK icon
 	ld	b,1	; One character to render.
 	rlca		; Is CAPS_LOCK bit set?
 	ld	a,0b00101000	; Black text on cyan
-	jr	c,.draw	; Draw if CAPS_LOCK
+	jr	c,.draw_caps	; Draw if CAPS_LOCK
 .off:	ld	de,TWO_SPACES	; Otherwise, change to printing a space.
 	ld	a,0b00111111	; White on white
-.draw:
+.draw_caps:
 	ld	hl,(CAPS_ICON_XY)
 	call	RENDER_TEXT
+
+	; KEYBOARD MODE ICON
+	ld	a, (KEY_MODIFIERS)
+	rlca		; Move two mode bits to the top of the byte
+	ld	b,1	; One character to render.
+	ld	hl,(MODE_ICON_XY)
+
+	rlca		; Is GFX mode bit set?
+	jr	c, .gfx_mode
+
+	rlca		; Is EXT mode bit set?
+	jr	nc,.l_mode	; ‘L’ mode
+
+.ext_mode:	and	3 << 3	; And Z = !symbol shift set
+	ld	de,EXT_MODE_CHAR	; EXT-mode indicator
+	ld	a,0b01000100	; Bright green text on black
+	jp	pe,.draw_mode	; Green if both shifts or neither
+	ld	a,0b01000010	; Bright red text on black
+	jr	.draw_mode
+
+.gfx_mode:	ld	de,KEYMAP_CTRL+3	; GFX-mode indicator
+	ld	a,0b01000111	; White on black
+	jr	.draw_mode	; TODO: save 1 byte/2 tstates by making this JP NC (shrug).
+
+.l_mode:	ld	a,0b00111111	; White on white
+
+.draw_mode:	call	RENDER_TEXT
+
 	pop	bc
 	pop	de
-	pop	hl
 	ret

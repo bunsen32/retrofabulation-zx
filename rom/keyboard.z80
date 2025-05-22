@@ -28,35 +28,63 @@ CHAR_LEFT	equ	$01
 CHAR_RIGHT	equ	$02
 CHAR_UP	equ	$04
 CHAR_DOWN	equ	$03
+CHAR_EXT	equ	$0c
 
-KEYMAP_SHIFTED_NUMS:
-	SAME_PAGE	.end
-	db	$08	; 0: DELETE (BACKSPACE)
-	db	$0b	; 1: EDIT/ESC
-	db	$0e	; 2: CAPS LOCK
-	db	$05	; 3: INV VIDEO
-	db	$06	; 4: TRUE VIDEO
-	db	$01	; 5: LEFT
-	db	$03	; 6: DOWN
-	db	$04	; 7: UP
-	db	$02	; 8: RIGHT
-	db	$0f	; 9: GRAPHICS
-.end
+MOD_CAPSSHIFT_B	equ	0
+MOD_SYMSHIFT_B	equ	1
+MOD_EXTRES_B	equ	4
+MOD_EXTMODE_B	equ	5
+MOD_GFXMODE_B	equ	6
+MOD_CAPSLOCK_B	equ	7
 
-KEYMAP:
+MOD_CAPSSHIFT_F	equ	1 << MOD_CAPSSHIFT_B
+MOD_SYMSHIFT_F	equ	1 << MOD_SYMSHIFT_B
+MOD_EXTRES_F	equ	1 << MOD_EXTRES_B
+MOD_EXTMODE_F	equ	1 << MOD_EXTMODE_B
+MOD_GFXMODE_F	equ	1 << MOD_GFXMODE_B
+MOD_CAPSLOCK_F	equ	1 << MOD_CAPSLOCK_B
+
+MOD_MODEBITS	equ	MOD_EXTMODE_F | MOD_GFXMODE_F
+
+KEYMAP_L:
 	db	' ', 'a', 'q', '1', '0', 'p', $0a, ' '
 	db	'z', 's', 'w', '2', '9', 'o', 'l', ' '
 	db	'x', 'd', 'e', '3', '8', 'i', 'k', 'm'
 	db	'c', 'f', 'r', '4', '7', 'u', 'j', 'n'
 	db	'v', 'g', 't', '5', '6', 'y', 'h', 'b'
 
-KEYMAP_SYM:
+KEYMAP_SYM1:
 	db	' ', '~', $a8, '!', '_', '"', $0a, ' '
 	db	':', '|', $81, '@', ')', ';', '=', ' '
 	db	$a3, '\', $b8, '#', '(', '`', '+', '.'
 	db	'?', '{', '<', '$', "'", ']', '-', ','
 	db	'/', '}', '>', '%', '&', '[', '^', '*'
 
+KEYMAP_SYM2:	; TODO: Extended mode
+	db	' ', '~', $a8, '!', '_', $09, $0a, ' '
+	db	':', '|', $81, '@', ')', ';', '=', ' '
+	db	$a3, '\', $b8, '#', '(', '`', '+', '.'
+	db	'?', '{', '<', '$', "'", ']', '-', ','
+	db	'/', '}', '>', '%', '&', '[', '^', '*'
+
+KEYMAP_SYM3:	; TODO: Extended mode + shift
+	db	' ', '~', $a8, '!', '_', $a9, $0a, ' '
+	db	':', '|', $81, '@', ')', ';', '=', ' '
+	db	$a3, '\', $b8, '#', '(', '`', '+', '.'
+	db	'?', '{', '<', '$', "'", ']', '-', ','
+	db	'/', '}', '>', '%', '&', '[', '^', '*'
+
+KEYMAP_CTRL:
+	db	$0b	; 1: EDIT/ESC
+	db	$08	; 0: DELETE (BACKSPACE)
+	db	$0e	; 2: CAPS LOCK
+	db	$0f	; 9: GRAPHICS
+	db	$06	; 3: TRUE VIDEO
+	db	$02	; 8: RIGHT
+	db	$05	; 4: INV VIDEO
+	db	$04	; 7: UP
+	db	$01	; 5: LEFT
+	db	$03	; 6: DOWN
 
 ; Interrogate the hardware for the current keyboard state
 ; Collects state of both shift keys (in A), and 0, 1, or 2 other keys (in D & E)
@@ -109,7 +137,7 @@ KEY_SCAN:
 	jr	.next_line
 .sym_shift:
 	pop	af
-	add	2	; Set bit 1
+	add	MOD_SYMSHIFT_F	; Set bit 1
 	push	af
 	ld	a, KCODE_SYM + 8
 	jr	.maybe_last
@@ -132,13 +160,14 @@ KEYBOARD:
 	and	0b11111100	; Mask out previous shifts
 	or	b 
 	ld	b,a
-	ld	(hl),b	; KEY_MODIFIERS := <shift flags>
-	inc	l	; Points now to ‘KEY_SUPERSEDED’
 	
 	xor	a
 	ld	c, a	; Indicator of ‘no key’
 	cp	e
-	jr	z,.keyup	; No keys (or only shift keys) pressed.
+	jr	z,.shifts_only	; No keys (or only shift keys) pressed.
+
+	ld	(hl),b	; KEY_MODIFIERS := <shift flags>
+	inc	l	; Points now to ‘KEY_SUPERSEDED’
 
 	cp	d	; Two keys pressed at once?
 	jr	nz,.disambiguate
@@ -157,51 +186,50 @@ KEYBOARD:
 .decode
 	ld	d,c	; d := <zero>
 	push	hl	; Push address of "KEY_RPT_NEXT"
-	ld	hl,KEYMAP
-	bit	1,b
-	jr	z,.look_up
-	ld	hl,KEYMAP_SYM	; Override with the symbol shift lookup.
-.look_up:	add	hl,de
-	ld	a,(hl)
-
-	cp	'A'
-	jr	c, .not_alpha
-.alpha:
-	bit	0,b
-	jr	nz, .capitalise
-	bit	7,b
-	jr	z, .save_char
-.capitalise:	sub	'a'-'A'
-	jr	.save_char	
-.not_alpha:
-	bit	0,b
-	jr	z, .no_CAPS_shift
-	cp	'0'
-	jr	c,.no_CAPS_shift	; Skip this bit if SPACE or ENTER
-	ld	h, (KEYMAP_SHIFTED_NUMS - '0') >> 8
-	add	(KEYMAP_SHIFTED_NUMS - '0') & $ff
-	ld	l, a
-	ld	a, (hl)
-.no_CAPS_shift
+	call	KEY_DECODE
+	cp	32	; shift
+	jr	z,.possible_break
 .save_char:	pop	hl
-.write_final_key:	inc	l	; Points now to ‘KEY_CHAR’
+	inc	l	; Points now to ‘KEY_CHAR’
 	ld	(hl),a	; KEY_CHAR
 	ret
+.possible_break:	ld	a,b
+	and	3
+	dec	a	; Compare shift state to 1 => CAPS-only
+	ld	a,32
+	jr	nz,.save_char
+.break_key:	ld	a,7
+	jr	.save_char		
 
-.try_repeat:
+.try_repeat:	xor	a	; Clear A in case we need to save it as character.
 	inc	l	; Points now to ‘KEY_RPT_NEXT’
 	dec	(hl)	; Count down the frames to next repetition
 	jr	nz,.repeat_wait	; Not reached zero count yet, so mark character as <none>
 	ld	a,(REPPER)
 	ld	(hl),a	; KEY_RPT_NEXT := (REPPER)
 	jr	.decode
-.keyup:
+
+.shifts_only:	ld	a,b
+	and	0b11
+	ld	a,0	; Set A, WITHOUT affecting flags.
+	jp	po,.shifts_save	; Odd parity -> a single shift key pressed. Save state & exit.
+	jr	nz,.shifts_both	; Otherwise, both shifts pressed.
+	set	MOD_EXTRES_B,b	; Else NO shift keys pressed, so set the "EXT-mode reset flag"
+	jr	.shifts_save
+
+.shifts_both:	bit	MOD_EXTRES_B,b	; Both shifts pressed, so issue "EXT" key—if ‘EXT-mode reset’ is set.
+	res	MOD_EXTRES_B,b	; Clear the ‘EXT-mode reset’ flag in case it was set.
+	jr	z,.shifts_save
+	ld	a,CHAR_EXT
+
+.shifts_save:	ld	(hl),b	; KEY_MODIFIERS := <shift flags>
+	inc	l	; Points now to ‘KEY_SUPERSEDED’
 	ld	(hl),c	; KEY_SUPERSEDED := 0
 	inc	l	; Points now to ‘KEY_RPT_CODE’
 	ld	(hl),c	; KEY_RPT_CODE := 0
 	inc	l	; Points now to ‘KEY_RPT_NEXT’
 .repeat_wait	inc	l	; Points now to ‘KEY_CHAR’
-	ld	(hl),c	; KEY_CHAR := 0
+	ld	(hl),a	; KEY_CHAR := <character>
 	ret
 
 .disambiguate:	; Two keys are pressed at once… so deal with that!
@@ -221,3 +249,86 @@ KEYBOARD:
 	jr	nz, .end_superseded	; Doesn’t match either primary or secondary? Clear superseded state.
 	ld	e, d	; Replace primary key with secondary one.
 	jr	.keypress
+
+
+KEY_DECODE:	; trashes HL, returns result in A
+	ld	hl,KEYMAP_L	; Default to ‘L’ (‘natural’) keymap
+	bit	MOD_GFXMODE_B,b
+	jr	nz, .decode_G
+	; check modifiers for CAPS but not SYM shift
+	ld	a,b
+	and	0b11
+	dec	a	; Compare to 1
+	jr	nz, .not_ctrl_char	; SYM was pressed or CAPS was not pressed
+	; check key for numeric key
+	ld	a,e
+	inc	a	; So that digit keys are xxx100 and xxx101
+	and	0b110	; Mod 8, and mask out lsb
+	cp	4	; Since we masked out lsb, this will match 4 OR 5
+	jr	z, .decode_CTRL	; CAPS+numeric => decode as natural keys
+.not_ctrl_char:
+	bit	MOD_EXTMODE_B,b
+	jr	nz,.decode_E
+	bit	MOD_SYMSHIFT_B,b
+	jr	z,.decode_L
+.decode_S1:	ld	hl,KEYMAP_SYM1
+	jr	.look_up
+
+.other:	nop	; TODO: what are we left with here…?
+
+.decode_E:	; Decode key in E (extended) mode
+	ld	a,b
+	and	~MOD_EXTMODE_F	; Clear the EXT mode state
+	ld	(KEY_MODIFIERS),a
+	and	3	; Low 2 bits
+	ld	hl,KEYMAP_SYM2
+	jp	pe,.look_up	; Parity even = none or both shift keys pressed
+.decode_S3:	ld	hl,KEYMAP_SYM3	; Otherwise, a single shift key was pressed
+.look_up	add	hl,de
+	ld	a,(hl)
+	ret
+
+.decode_CTRL:	; Decode Control key (CAPS+number)
+	srl	e
+	srl	e
+	ld	hl,KEYMAP_CTRL
+	add	hl,de
+	ld	a,(hl)
+	ret
+
+.decode_L:	; Decode key in L (‘natural’) mode
+	; (Does NOT include numeric CTRL characters. They’re .decode_CTRL)
+	add	hl,de
+	ld	a,b
+	and	0b10000001	; Either CAPS_LOCK or CAPS_SHIFT?
+	ld	a,(hl)
+	ret	z	; If no shift, just return base character.
+.capitalise:	cp	'a'
+	ret	c	; If SPACE or ENTER, do not transform.
+.is_alpha:	sub	'a'-'A'
+	ret
+
+.decode_G:	; Decode key in G (graphics) mode
+	add	hl,de
+	ld	a,(hl)
+	cp	'0'	; Delete
+	ret	c	; Just return A (key code) if <0 (SPACE or ENTER)
+	jr	z,.key_DELETE	; 0 key is delete
+	cp	'9'
+	jr	c,.block_char
+	jr	z,.key_GFX
+.gfx_alpha:	cp	'a'+16
+	ret	nc	; Just return alphabetic character if ≥ 'a'+16
+	add	0xe0 - 'a'	; Map to User-Defined-Gfx area
+	ret		; And return it.
+.block_char:	and	0x07	; Reduce ASCII number to low 3 bits (and particularly '8' -> 0x00)
+	add	0xd0	; Look up block graphic
+	bit	0,b	; Check CAPS_SHIFT
+	ret	z	; Return the ‘tru video’ version
+	neg
+	add	0xaf	; Otherwise transform into ‘inv video’ character
+	ret
+.key_DELETE:	ld	a,$08
+	ret
+.key_GFX:	ld	a,$0f
+	ret
