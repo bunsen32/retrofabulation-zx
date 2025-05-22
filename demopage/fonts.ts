@@ -222,7 +222,7 @@ export function rotateUp() {
 export function saveFont() {
 	saveCurrentChar()
 	let s = ""
-	for (let c = 0x00; c <= 0xbf; c++) {
+	for (let c = 0x00; c <= 0xff; c++) {
 		const char = loadChar(c)
 		if (!char) continue
 		if (s) s+= ",\n"

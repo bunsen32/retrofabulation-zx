@@ -73,7 +73,7 @@
 					</thead>
 					<tbody>
 						<script>
-						for(let h = 0x00; h <= 0xb0; h+=0x10) {
+						for(let h = 0x00; h <= 0xf0; h+=0x10) {
 							document.write(`<tr>`);
 							document.write(`<th>${((h>>4).toString(16))}</th>`);
 							for(let i = h; i < h + 16; i++) {
@@ -150,7 +150,7 @@ let b% = b% & $f077</textarea>
 		document.getElementById('char-size-h').addEventListener('click', () => toggleWidth('h'))
 		document.getElementById('char-size-n').addEventListener('click', () => toggleWidth('n'))
 		document.getElementById('char-size-w').addEventListener('click', () => toggleWidth('w'))
-		for(let i = 0x00; i <= 0xbf; i++) {
+		for(let i = 0x00; i <= 0xff; i++) {
 			const span = document.getElementById("char-"+i)
 			span.addEventListener("click", () => selectChar(i));
 			span.innerText = Charset[i]

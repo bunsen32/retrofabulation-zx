@@ -32,9 +32,10 @@
 	INCLUDE "four-shift-lookup.z80"	; 0600 to 07FF
 	PADTO $0800
 	INCLUDE "textrender.z80"	; 0800 to 0a00
-	INCLUDE "generated/font.z80"	; 0a00 to 0fFF
 	INCLUDE "startup.z80"
 	INCLUDE "keyboard.z80"
 	INCLUDE "repl.z80"
+
+	INCLUDE "generated/font.z80"	; 0a00 to 0fFF
 
 	INCLUDE "globals.z80"	; Global variable table in RAM

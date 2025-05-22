@@ -349,6 +349,16 @@ TOGGLE_MODIFIER:	push	hl
 	xor	a
 	ret
 
+LINE_STACK_PUSH:	ld	a,b
+	exx
+	inc	de
+	ld	(de),a
+	inc	h
+	push	hl
+	exx
+	pop	hl
+	ret
+
 CONTROL_KEY_ROUTINES:
 	SAME_PAGE	.end
 	jr	CURSOR_LEFT	; $01 LEFT
@@ -370,16 +380,6 @@ CONTROL_KEY_ROUTINES:
 	jr	KEY_CAPS_LOCK	; $0e CAPS LOCK
 	jr	KEY_GRAPHICS	; $0f GRAPHICS
 .end
-
-LINE_STACK_PUSH:	ld	a,b
-	exx
-	inc	de
-	ld	(de),a
-	inc	h
-	push	hl
-	exx
-	pop	hl
-	ret
 
 LINE_STACK_POP:	; Pop one entry of line start stack into A (not B!)
 	; Returns:
