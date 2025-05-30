@@ -86,28 +86,42 @@
 				</table>
 				<div id="char-edit">
 					<canvas id="editor" width="192" height="128"></canvas>
-					Width: 
-					<span class="char-size">
-						<label>
-							<input type="radio" name="char-size" id="char-size-h" value="h" />
-							&nbsp;4px
-						</label>
-					</span>
-					<span class="char-size">
-						<label>
-							<input type="radio" name="char-size" id="char-size-n" value="n" />
-							&nbsp;8px
-						</label>
-					</span>
-					<span class="char-size">
-						<label>
-							<input type="radio" name="char-size" id="char-size-w" value="w" />
-							&nbsp;12px
-						</label>
-					</span>
-					<br />
-					<button id="rotate-down">rotate down</button>
-					<button id="rotate-up">rotate up</button>
+					<div>
+						<label for="type-visible">
+							<input type="radio" name="type" id="type-visible" />
+							Glyph</label>
+						<label for="type-missing">
+							<input type="radio" name="type" id="type-missing" />
+							Missing</label>
+						<label for="type-sameas">
+							<input type="radio" name="type" id="type-sameas" />
+							Same-as…</label>
+						<input type="text" id="sameas" size="4" placeholder="0x00" />
+					</div>
+					<div id="visible-glyph-controls">
+						Width: 
+						<span class="char-size">
+							<label>
+								<input type="radio" name="char-size" id="char-size-h" value="h" />
+								&nbsp;4px
+							</label>
+						</span>
+						<span class="char-size">
+							<label>
+								<input type="radio" name="char-size" id="char-size-n" value="n" />
+								&nbsp;8px
+							</label>
+						</span>
+						<span class="char-size">
+							<label>
+								<input type="radio" name="char-size" id="char-size-w" value="w" />
+								&nbsp;12px
+							</label>
+						</span>
+						<br />
+						<button id="rotate-down">rotate down</button>
+						<button id="rotate-up">rotate up</button>
+					</div>
 				</div>
 				<div id="actions">
 					<button id="save-font">Save font</button>
@@ -140,7 +154,11 @@ let b% = b% & $f077</textarea>
 	<script type="module">
 		console.log('Loaded page…?')
 
-		import { doTestRender, parseAndRender, selectChar, saveFont, toggleWidth, rotateDown, rotateUp, Charset } from './fonts.js'
+		import { 
+			doTestRender, parseAndRender, selectChar, saveFont,
+			toggleWidth, toggleType, rotateDown, rotateUp, editSameas,
+			Charset
+		 } from './fonts.js'
 
 		document.getElementById('render-button').addEventListener('click', doTestRender)
 		document.getElementById('parse-and-render').addEventListener('click', parseAndRender)
@@ -150,6 +168,10 @@ let b% = b% & $f077</textarea>
 		document.getElementById('char-size-h').addEventListener('click', () => toggleWidth('h'))
 		document.getElementById('char-size-n').addEventListener('click', () => toggleWidth('n'))
 		document.getElementById('char-size-w').addEventListener('click', () => toggleWidth('w'))
+		document.getElementById('type-visible').addEventListener('click', () => toggleType('visible'))
+		document.getElementById('type-missing').addEventListener('click', () => toggleType('missing'))
+		document.getElementById('type-sameas').addEventListener('click', () => toggleType('sameas'))
+		document.getElementById('sameas').addEventListener('change', () => editSameas())
 		for(let i = 0x00; i <= 0xff; i++) {
 			const span = document.getElementById("char-"+i)
 			span.addEventListener("click", () => selectChar(i));

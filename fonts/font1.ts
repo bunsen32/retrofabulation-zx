@@ -2,7 +2,8 @@
 export interface Glyph {
 	width: 'h'|'n'|'w'
 	bytes: Array<number>,
-	char?: string
+	char?: string,
+	sameas?: number
 }
 
 export const glyphs: Record<number, Glyph> =
