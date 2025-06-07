@@ -7,24 +7,24 @@ CLOCK_TICKS	db	0, 0, 0
 	; Global variables which need initised (to something other than zero)
 	; Initial values are copied from ‘INITIAL_GLOBAL_VALUES’ in startup ‘GLOBALS_INIT’ code.
 NEED_INIT:
-REPDEL	db	0
-REPPER	db	0
-I_HANDLER	db	0, 0, 0, 0, 0	; Enough for CALL XXXX, EI, RET	
+REPDEL:	db	0
+REPPER:	db	0
+I_HANDLER:	db	0, 0, 0, 0, 0	; Enough for CALL XXXX, EI, RET	
 
-KEY_MODIFIERS_PR	db	0	; previous state of modifiers, to avoid frequent display updates.
-KEY_MODIFIERS	db	0	; <capslock><gfx><ext><ext_toggle>00<sym><caps>
+KEY_MODIFIERS_PR:	db	0	; previous state of modifiers, to avoid frequent display updates.
+KEY_MODIFIERS:	db	0	; <capslock><gfx><ext><ext_toggle>00<sym><caps>
 END_NEED_INIT:
-KEY_SUPERSEDED	db	0
-KEY_RPT_CODE	db	0
-KEY_RPT_NEXT	db	0
-KEY_CHAR	db	0
+KEY_SUPERSEDED:	db	0
+KEY_RPT_CODE:	db	0
+KEY_RPT_NEXT:	db	0
+KEY_CHAR:	db	0
 
-CAPS_ICON_XY	db	0, 0	; Position (in text coordinates) of CAPS-LOCK indicator.
-MODE_ICON_XY	db	0, 0	; Position (in text coordinates) of keyboard mode indicator.
-CURSOR_XY	db	0, 0	; Position (in text coordinates) of current cursor.
-CURSOR_FRAMES	db	0	; bits <count><X> where 
+CAPS_ICON_XY:	db	0, 0	; Position (in text coordinates) of CAPS-LOCK indicator.
+MODE_ICON_XY:	db	0, 0	; Position (in text coordinates) of keyboard mode indicator.
+CURSOR_XY:	db	0, 0	; Position (in text coordinates) of current cursor.
+CURSOR_FRAMES:	db	0	; bits <count><X> where 
 			; <count> is frames to wait til next cursor state
 			; <X> is 0: cursor is off; 1: cursor is on.
-IDEAL_CUR_X	db	0	; When moving up or down, column to aim for.
+IDEAL_CUR_X:	db	0	; When moving up or down, column to aim for.
 
-CURSOR_FLASH_RATE	equ	40
+CURSOR_FLASH_RATE:	equ	40
