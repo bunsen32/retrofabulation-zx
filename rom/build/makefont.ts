@@ -58,6 +58,9 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 	for (const enc of ordered) {
 		const bytes = enc.bytes
 
+		if (enc.codepoints.has(firstUdg)) {
+			out.write('.udg_start:\n')
+		}
 		for(const c of enc.codepoints) {
 			out.write(`	; character ${c} (${hex(c)} ‘${repr(c)}’)\n`)
 		}

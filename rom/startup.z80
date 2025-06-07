@@ -45,6 +45,7 @@ GLOBALS_INIT:
 	ldir
 
 	ld	sp, $f000	; Placeholder stack top.
+	call	RESET_UDG
 	ei
 
 SPLASH_ANIM:
@@ -214,3 +215,57 @@ INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
 .repper:	db	5
 .i_handler:	jp	DEFAULT_INTERRUPT_HANDLER
 .length
+
+	; Copies User Defined Graphics into RAM
+	; We depend on the destination buffer fitting inside a 256-byte page, and do all-8-bit maths.
+	ASSERT	(UDG_RAM_START & $ff) + UDG_RAM_LENGTH <= 256
+RESET_UDG:	push	hl
+	push	de
+	push	bc
+	ld	hl,UDG_RAM_START
+	push	hl
+	ld	b,UDG_RAM_LENGTH
+.initial_wipe:	ld	(hl),0
+	inc	l
+	djnz	.initial_wipe
+
+	pop	hl
+	ld	de,FONT_DATA.udg_start
+
+	ld	b,16	; Number of UDG characters
+.each_char:	push	bc
+	ld	(hl),8<<3 + 0	; Each UDG char is transformed to 8 pixels high, no leading
+	inc	l	; HL := start of output pixel data
+	ld	a,l
+	add	8
+	ld	c,a	; Next glyph header (effectively in register "HC")
+	
+	ld	a,(de)
+	rra
+	rra
+	rra
+	and	$f
+	jr	z,.end_pixels	; If no pixels in glyph, skip the work.
+	ld	b,a	; Number of bytes to copy
+
+	ld	a,(de)
+	and	7	; Get leading for character
+	add	l
+	ld	l,a	; Skip leading when writing
+
+.pixels:	inc	de
+	ld	a,(de)
+	ld	(hl),a
+	inc	l
+	djnz	.pixels
+
+.end_pixels:	inc	de	; DE := point to next glyph header (input)
+	ld	l,c	; HL := point to next glyph header (output)
+
+	pop	bc
+	djnz	.each_char
+
+	pop	bc
+	pop	de
+	pop	hl
+	ret
