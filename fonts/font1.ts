@@ -1,13 +1,20 @@
 
-export interface Glyph {
+export type MissingGlyph = { char?: string } | undefined
+export interface SameasGlyph {
+	char?: string
+	sameas: number
+}
+export interface VisibleGlyph {
+	char?: string
 	width: 'h'|'n'|'w'
 	bytes: Array<number>,
-	char?: string,
-	sameas?: number
 }
+
+export type Glyph = (MissingGlyph | SameasGlyph | VisibleGlyph)
 
 export const glyphs: Record<number, Glyph> =
 {
+	// Control characters
 	0: {"width": "n", "bytes": [0,0,126,0,66,0,66,0,66,0,66,0,126,0,0,0]},
 	1: {"width": "n", "bytes": [16,0,48,0,94,0,130,0,130,0,94,0,48,0,16,0]},
 	2: {"width": "n", "bytes": [16,0,24,0,244,0,130,0,130,0,244,0,24,0,16,0]},
@@ -28,6 +35,8 @@ export const glyphs: Record<number, Glyph> =
 	29: {"width": "h", "bytes": [0,0,192,0,192,0,32,0,64,0,48,0,48,0,0,0]},
 	30: {"width": "h", "bytes": [32,0,176,0,224,0,176,0,224,0,160,0,128,0,0,0]},
 	31: {"width": "h", "bytes": [0,0,64,0,160,0,192,0,64,0,96,0,160,0,64,0]},
+
+	// Printable ASCII characters
 	32: {"width": "h", "bytes": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
 	33: {"width": "h", "bytes": [0,0,64,0,64,0,64,0,64,0,0,0,64,0,0,0]},
 	34: {"width": "h", "bytes": [0,0,80,0,80,0,0,0,0,0,0,0,0,0,0,0]},
@@ -124,6 +133,8 @@ export const glyphs: Record<number, Glyph> =
 	125: {"width": "h", "bytes": [0,0,128,0,64,0,128,0,96,0,128,0,64,0,128,0]},
 	126: {"width": "n", "bytes": [0,0,50,0,76,0,0,0,0,0,0,0,0,0,0,0]},
 	127: {"width": "n", "bytes": [170,0,85,192,170,64,85,64,170,64,85,64,170,64,85,192]},
+
+	// Extended character set
 	128: {"width": "n", "bytes": [0,0,60,0,66,0,248,0,0,0,248,0,66,0,60,0]},
 	129: {"width": "n", "bytes": [0,0,0,0,8,0,124,0,16,0,124,0,32,0,0,0]},
 	130: {"width": "h", "bytes": [0,0,0,0,0,0,0,0,0,0,96,0,32,0,64,0]},
@@ -188,6 +199,8 @@ export const glyphs: Record<number, Glyph> =
 	189: {"width": "n", "bytes": [0,0,64,0,192,0,92,0,68,0,8,0,30,0,0,0]},
 	190: {"width": "n", "bytes": [0,0,224,0,32,0,80,0,52,0,212,0,30,0,4,0]},
 	191: {"width": "n", "bytes": [0,0,0,0,16,0,0,0,16,0,32,0,68,0,56,0]},
+
+	// Block graphics
 	208: {"width": "n", "bytes": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], "char": "\xd0"},
 	209: {"width": "n", "bytes": [15,0,15,0,15,0,15,0,0,0,0,0,0,0,0,0], "char": "\xd1"},
 	210: {"width": "n", "bytes": [240,0,240,0,240,0,240,0,0,0,0,0,0,0,0,0], "char": "\xd2"},
@@ -203,5 +216,24 @@ export const glyphs: Record<number, Glyph> =
 	220: {"width": "n", "bytes": [0,0,0,0,0,0,0,0,255,0,255,0,255,0,255,0], "char": "\xdc"},
 	221: {"width": "n", "bytes": [15,0,15,0,15,0,15,0,255,0,255,0,255,0,255,0], "char": "\xdd"},
 	222: {"width": "n", "bytes": [240,0,240,0,240,0,240,0,255,128,255,0,255,0,255,0], "char": "\xde"},
-	223: {"width": "n", "bytes": [255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0], "char": "\xdf"}
+	223: {"width": "n", "bytes": [255,0,255,0,255,0,255,0,255,0,255,0,255,0,255,0], "char": "\xdf"},
+
+	// User-Defined Graphics
+	224: {"sameas": 65, "char": "\xe0"},
+	225: {"sameas": 66, "char": "\xe1"},
+	226: {"sameas": 67, "char": "\xe2"},
+	227: {"sameas": 68, "char": "\xe3"},
+	228: {"sameas": 69, "char": "\xe4"},
+	229: {"sameas": 70, "char": "\xe5"},
+	230: {"sameas": 71, "char": "\xe6"},
+	231: {"sameas": 72, "char": "\xe7"},
+	232: {"width": "n", "bytes": [0,0,124,0,16,0,16,0,16,0,16,0,124,0,0,0], "char": "\xe8"},
+	233: {"sameas": 74, "char": "\xe9"},
+	234: {"sameas": 75, "char": "\xea"},
+	235: {"sameas": 76, "char": "\xeb"},
+	236: {"sameas": 77, "char": "\xec"},
+	237: {"sameas": 78, "char": "\xed"},
+	238: {"sameas": 79, "char": "\xee"},
+	239: {"sameas": 80, "char": "\xef"},
+
 }

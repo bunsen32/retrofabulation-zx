@@ -36,6 +36,6 @@
 	INCLUDE "keyboard.z80"
 	INCLUDE "repl.z80"
 
-	INCLUDE "generated/font.z80"	; 0a00 to 0fFF
+	INCLUDE "generated/font.z80"	; 38xx to 3fff
 
 	INCLUDE "globals.z80"	; Global variable table in RAM

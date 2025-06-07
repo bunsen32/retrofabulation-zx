@@ -1,9 +1,13 @@
-import { glyphs, type Glyph } from '@zx/fonts'
+import { glyphs, type VisibleGlyph, type Glyph } from '@zx/fonts'
 import { Charset } from '@zx/sys'
 import * as process from 'node:process'
 
+const firstUdg = 0xe0
+const lastUdg = 0xef
+const UDG_RAM_START = 0x5B70	// TODO: Could position just BEFORE the other globals?
+
 interface Writeable {
-	write(chunk: string, callback?: (error: Error | null | undefined) => void): boolean;
+	write(chunk: string, callback?: (error: Error | null | undefined) => void): boolean
 }
 const outfile: Writeable = process.stdout
 writeFile(outfile)
@@ -15,42 +19,48 @@ function writeFile(out: Writeable){
 }
 
 function writeFontTo(out: Writeable, font: Record<number, Glyph>){
-	let min = 255, max = 0
-	for (let c = 0; c < 256; c++) {
-		if (font[c]) {
-			min = Math.min(c, min)
-			max = Math.max(c, max)
+	const allEncoded = encodeAll(font)
+	const count = allEncoded.lastChar - allEncoded.firstChar + 1
+	if (count <= 0) throw "No glyphs found in the font!"
+
+	const ordered = reorderForUdg(allEncoded.orderedGlyphData)
+	const codepointDataOffsets: Record<number, number> = []
+	const characterWidths: Record<number, number> = []
+	let offset = 0
+	for(const glyph of ordered) {
+		for (const codepoint of glyph.codepoints) {
+			codepointDataOffsets[codepoint] = offset
+			characterWidths[codepoint] = glyph.width
 		}
+		offset += glyph.bytes.length
 	}
-	if (min > max) throw "No glyphs found in the font!"
-	const count = max - min + 1
+	const pixelDataSize = offset
+	const min = allEncoded.firstChar
+	const firstGlyphWidth = characterWidths[min]
+	if (firstGlyphWidth === undefined) throw "Failed assertion: first glyph must always have a width!"
 
-	const encoded: EncodedGlyph[] = []
-	for (let c = min; c <= max; c++){
-		encoded.push(encodedChar(c, font[c]))
-	}
-
+	adjustUdgOffsets(codepointDataOffsets, pixelDataSize)
+	const font_size = pixelDataSize + (count * 2) + 2
+	
+	out.write(`	PADTO	$4000 - ${font_size}	; Position just before the end of ROM\n`)
 	out.write("FONT_LOOKUP:\n")
 	out.write(`	DB	${hex(min)}	; First glyph codepoint\n`)
 	out.write(`	DB	${hex(count - 1)}	; Index of last glyph (= count - 1)\n`)
-	let offset = 0
 	for (let i = 0; i < count; i++) {
 		const toFontData = (count - i) * 2
-		const enc = encoded[i]
-		const dataPointer = enc.bytes ? offset : 0
-		const c = enc.codepoint
-		const w = enc.width ?? encoded[0].width
+		const c = min + i
+		const dataPointer = codepointDataOffsets[c] ?? 0
+		const w = characterWidths[c] ?? firstGlyphWidth
 		out.write(`	DW	(${toFontData} + ${dataPointer}) | (${w} << 14)	; character ${c} (${hex(c)} ‘${repr(c)}’)\n`)
-		offset += enc.bytes?.length ?? 0
 	}
 	out.write("\n")
 	out.write("FONT_DATA:\n")
-	for (const enc of encoded) {
-		const c = enc.codepoint
+	for (const enc of ordered) {
 		const bytes = enc.bytes
-		if (!bytes) continue
 
-		out.write(`	; character ${c} (${hex(c)} ‘${repr(c)}’)\n`)
+		for(const c of enc.codepoints) {
+			out.write(`	; character ${c} (${hex(c)} ‘${repr(c)}’)\n`)
+		}
 		out.write(`	DB	${hex(bytes[0])}`)
 		for (let i = 1; i < bytes.length; i++) {
 			out.write(`, ${hex(bytes[i])}`)
@@ -72,14 +82,56 @@ function repr(codepoint: number): string {
 }
 
 interface EncodedGlyph {
-	codepoint: number
-	width?: 0|1|2|3
-	bytes?: number[]
+	codepoints: Set<number>
+	width: 0|1|2|3
+	bytes: number[]
 }
 
-function encodedChar(codepoint: number, glyph: Glyph): EncodedGlyph {
-	if (!glyph) return { codepoint: codepoint }
 
+interface FullEncoding {
+	orderedGlyphData: EncodedGlyph[]
+	firstChar: number
+	lastChar: number
+}
+
+function encodeAll(repertoire: Record<number,Glyph>): FullEncoding {
+	let min = 256
+	let max = 0
+	const glyphs: EncodedGlyph[] = []
+	const lookup: (EncodedGlyph|undefined)[] = []
+
+	for(let i = 0; i < 256; i ++) {
+		const glyph = repertoire[i]
+		const isVisible = !!glyph && 'bytes' in glyph
+		const isSameas = !!glyph && 'sameas' in glyph
+		const isMissing = !(isVisible || isSameas)
+		if (isMissing) continue
+
+		min = Math.min(min, i)
+		max = Math.max(max, i)
+		if (isVisible) {
+			const encoded = encodedChar(i, glyph)
+			glyphs.push(encoded)
+			lookup[i] = encoded
+
+		} else if (isSameas) {
+			const sameas = glyph.sameas
+			if (sameas == i) throw `Glyph ${i} cannot be ‘sameas’ itself.`
+			if (sameas > i) throw `Forward references (${i} -> ${sameas}) are not currently supported.`
+			const existing = lookup[glyph.sameas]
+			if (!existing) throw `Glyph ${i} marked ‘sameas’ nonexistent glyph ${sameas}`
+			existing.codepoints.add(i)
+		}
+	}
+
+	return {
+		orderedGlyphData: glyphs,
+		firstChar: min,
+		lastChar: max
+	}
+}
+
+function encodedChar(codepoint: number, glyph: VisibleGlyph): EncodedGlyph {
 	const raw = glyph.bytes
 	const encoded: number[] = []
 	const nWidth = glyph.width == 'h' ? 1 : glyph.width == 'n' ? 2 : 3
@@ -123,9 +175,58 @@ function encodedChar(codepoint: number, glyph: Glyph): EncodedGlyph {
 			break;
 	}
 
-	return { codepoint, bytes: encoded, width: nWidth }
+	return { codepoints: new Set([codepoint]), bytes: encoded, width: nWidth }
 }
 
 function hex(n: number): string {
 	return '$' + n.toString(16)
+}
+
+/**
+ * Reorders glyphs such that all the User Defined Graphics glyphs are sorted together, in order.
+ * @param naivelyOrdered The Glyphs in their original order of appearance.
+ * @returns The same glyphs, reordered.
+ */
+function reorderForUdg(naivelyOrdered: EncodedGlyph[]): EncodedGlyph[] {
+	const beforeUdg: EncodedGlyph[] = []
+	const udg: EncodedGlyph[] = []
+	const afterUdg: EncodedGlyph[] = []
+	let countedUdg = 0
+
+	for(const glyph of naivelyOrdered) {
+		const udgCodepoint = userDefinedGraphicCodepoint(glyph.codepoints)
+		if (udgCodepoint) {
+			udg[udgCodepoint - firstUdg] = glyph
+			countedUdg += 1
+
+		} else if (!countedUdg) {
+			beforeUdg.push(glyph)
+		} else {
+			afterUdg.push(glyph)
+		}
+	}
+	if (countedUdg !== (lastUdg - firstUdg + 1)) throw `Only found ${countedUdg} User Defined Graphics characters defined.`
+	if (countedUdg !== udg.length) throw `Failed assertion: found ${countedUdg} UDGs but ${udg.length} items in array`
+
+	return [...beforeUdg, ...udg, ...afterUdg]
+
+	function userDefinedGraphicCodepoint(codepoints: Set<number>): number|undefined {
+		for(const n of codepoints) {
+			if (n >= firstUdg && n <= lastUdg) return n
+		}
+		return undefined
+	}
+}
+
+function adjustUdgOffsets(codepointDataOffsets: Record<number, number>, pixelDataSize: number) {
+	// Address (in ROM) where all of the pixel data is stored. Our offsets are initially relative to this:
+	const romDataAddress = 0x4000 - pixelDataSize
+	const offsetToFirstUdgGlyph = UDG_RAM_START - romDataAddress
+
+	let offset = offsetToFirstUdgGlyph
+	for(let c = firstUdg; c <= lastUdg; c++) {
+		if (!codepointDataOffsets[c]) throw `Did not have glyph or ‘sameas’ defined for UDG ${c - firstUdg}`
+		codepointDataOffsets[c] = offset
+		offset += 9 // Each UDG character is 1 byte of metadata + 8 byte lines of pixel data.
+	}
 }
