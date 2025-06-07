@@ -1,5 +1,10 @@
 # TODOs
 
+## Build process
+
+* How we define global variables is a bit broken (it essentially allocates ROM-space). There should be a mechanism
+  in the assembler for defining a ‘structure’, I think?
+
 ## Reset & Startup
 
 * RAM test needs to at least allow 16 kB and 32 kB Spectrum models to boot. Should set RAMTOP variable
@@ -7,13 +12,17 @@
   * "RAM TEST 1|2|3" then on the next line "RAM FAIL" or "16kB"|"32kB"|"48kB"
   * Text rendering routine _does_ use stack, but only simply, and we could construct a fake stack in ROM.
 * Nice-to-have: If too restrictive a RAMTOP (<16 k? Less than 8 k ?) could show disagnostic/HALT
-* Need to copy user-defined graphics characters into RAM.
+* ~~Need to copy user-defined graphics characters into RAM.~~ [Done: 2025.06.07]
+* Move User Defined Graphics characters to just after screen memory, as a buffer before the global variables.
 
 ## Text-rendering
 
 * Endpoint for rendering up to a particular column (instead of, at the moment, rendering to certain # of columns, or right edge of screen)
 * Render accents/diacritics on characters. (Implementation thought: can store diacritics prerotated to each 2-px offset, since there should be so few of them, and they occupy so few pixels.)
 * Render clipped 1-cell and 1.5-cell characters, and expose rendering endpoint for that.
+* Malformed font data can cause renderer to clobber random memory. Would be good to make it more robust. Could special-
+  case all-zero metadata byte and render as blank character, perhaps. Otherwise mask height to 0b111 and add 1 (and
+	ignore spurious other bits).
 
 ## Font & font-generation
 * Diacritics: 0-width characters & pre-rotation encoding
