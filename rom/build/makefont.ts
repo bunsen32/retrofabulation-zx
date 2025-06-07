@@ -34,7 +34,7 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 		}
 		offset += glyph.bytes.length
 	}
-	const pixelDataSize = offset
+	const pixelDataSize = offset + (128 /*TODO: remove this hack!*/)
 	const min = allEncoded.firstChar
 	const firstGlyphWidth = characterWidths[min]
 	if (firstGlyphWidth === undefined) throw "Failed assertion: first glyph must always have a width!"
