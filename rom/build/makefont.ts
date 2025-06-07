@@ -137,11 +137,17 @@ function encodeAll(repertoire: Record<number,Glyph>): FullEncoding {
 function encodedChar(codepoint: number, glyph: VisibleGlyph): EncodedGlyph {
 	const raw = glyph.bytes
 	const encoded: number[] = []
-	const nWidth = glyph.width == 'h' ? 1 : glyph.width == 'n' ? 2 : 3
+	const nWidth = glyph.width === 'h' ? 1 : glyph.width === 'n' ? 2 : 3
 
 	let firstPixelLine = 8, lastPixelLine = 0
 	for (let i = 0; i < 8; i++) {
-		const hasPixels = raw[i * 2 + 0] != 0 || raw[i * 2 + 1] != 0
+		const ix = i * 2
+		// Ensure that we treat pixel data consistently & coerce any ‘undefined’s to zero:
+		const b0 = raw[ix + 0] & 0xff
+		const b1 = raw[ix + 1] & 0xff
+		const hasPixels =
+			(b0 !== 0) ||
+			(nWidth === 3 && b1 !== 0)
 		if (hasPixels) {
 			firstPixelLine = Math.min(i, firstPixelLine)
 			lastPixelLine = Math.max(i, lastPixelLine)
