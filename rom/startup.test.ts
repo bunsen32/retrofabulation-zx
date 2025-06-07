@@ -3,6 +3,11 @@ import { describe, it } from "jsr:@std/testing/bdd";
 import {loadVm, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, type Bitmap, cls1, getScreenColour, assertBitmapImageMatches, clearAttrs} from "./testutils/screen.ts"
 import {rom} from './generated/symbols.ts'
+import { existsSync } from "node:fs";
+import { readLinesFromFile } from "./testutils/files.ts";
+import { expect } from "jsr:@std/expect/expect";
+
+const rootActualMismatchFiles = "./testout"
 
 const loadedVm = loadVm()
 const YELLOW_ON_YELLOW = 0b00110110 // yellow ink & paper
@@ -98,10 +103,44 @@ describe("Splash-screen", () => {
 		const actual = getScreenColour(vm)
 		await assertExpectedImage("stripe-35", actual)
 	})
+
+	it('Correctly copies User Defined Graphics', async () => {
+		const vm = await loadedVm
+
+		vm.callSubroutine(rom.RESET_UDG, 10000)
+
+		const mem = vm.getRam(rom.UDG_RAM_START.addr, rom.UDG_RAM_LENGTH.addr)
+		const lines = []
+		for(let i=0; i < 16; i++){
+			let line = ''
+			for (let b=0; b < 9; b++){
+				line += (b === 0 ? '' : ' ') + `${hex16(mem[i * 9 + b])}`
+			}
+			lines.push(line)
+		}
+		await assertExpectedLines('user-defined-graphics', lines)
+	})
 })
 
 async function assertExpectedImage(expectedPngFilename: string, actualOutput: Bitmap): Promise<void> {
 	await assertBitmapImageMatches('startup.test', expectedPngFilename, actualOutput)
+}
+
+export async function assertExpectedLines(filename: string, actualOutput: string[]): Promise<void> {
+	const expectFilePath = `startup.test/${filename}-expected.txt`
+	try{
+		if (!existsSync(expectFilePath)) throw `Not found: ${expectFilePath}`
+		const expected = await readLinesFromFile(expectFilePath)
+		expect(actualOutput).toEqual(expected)
+
+	} catch(problem) {
+		const actualFilePath = expectFilePath.replace('-expected.', '-actual.')
+		const actualFullPath = `${rootActualMismatchFiles}/${actualFilePath}`
+		for(const line of actualOutput) {
+			console.error(line)
+		}
+		throw problem
+	}
 }
 
 function writeZigzags(vm: Vm) {
@@ -115,4 +154,11 @@ function writeZigzags(vm: Vm) {
 			p++
 		}
 	}
+}
+
+export function hex16(word: number): string {
+	const hex = word.toString(16)
+	return hex.length === 1
+		? `0${hex}`
+		: hex
 }

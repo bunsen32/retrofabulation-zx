@@ -6,6 +6,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { expect } from "jsr:@std/expect";
 import type { byte } from '@zx/sys'
+import { readStream, writeStream } from "./files.ts";
 
 const rootExpectedFiles = "./"
 const rootActualMismatchFiles = "./testout"
@@ -170,24 +171,4 @@ function lineAddressFromY(y: number) {
 function attrLineAddressFromY(y: number) {
 	const row = y >> 3
 	return 0x5800 + (row * 32)
-}
-
-function readStream(filename: string): [fs.ReadStream, Promise<void>] {
-	const stream = createReadStream(filename)
-	const closure =  new Promise<void>((accept, reject) => {
-		stream
-			.on("close", accept)
-			.on("error", reject)
-	})
-	return [stream, closure]
-}
-
-function writeStream(filename: string): [fs.WriteStream, Promise<void>] {
-	const stream = createWriteStream(filename)
-	const closure =  new Promise<void>((accept, reject) => {
-		stream
-			.on("close", accept)
-			.on("error", reject)
-	})
-	return [stream, closure]
 }
