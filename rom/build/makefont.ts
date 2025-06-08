@@ -23,7 +23,7 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 	const count = allEncoded.lastChar - allEncoded.firstChar + 1
 	if (count <= 0) throw "No glyphs found in the font!"
 
-	const ordered = reorderForUdg(allEncoded.orderedGlyphData)
+	const [ordered, allUdgOk] = reorderForUdg(allEncoded.orderedGlyphData)
 	const codepointDataOffsets: Record<number, number> = []
 	const characterWidths: Record<number, number> = []
 	let offset = 0
@@ -59,6 +59,7 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 		const bytes = enc.bytes
 
 		if (enc.codepoints.has(firstUdg)) {
+			out.write(`.udg_are_all_6px_high_with_1px_leading	equ	${allUdgOk ? 1 : 0}\n`)
 			out.write('.udg_start:\n')
 		}
 		for(const c of enc.codepoints) {
@@ -196,17 +197,19 @@ function hex(n: number): string {
  * @param naivelyOrdered The Glyphs in their original order of appearance.
  * @returns The same glyphs, reordered.
  */
-function reorderForUdg(naivelyOrdered: EncodedGlyph[]): EncodedGlyph[] {
+function reorderForUdg(naivelyOrdered: EncodedGlyph[]): [EncodedGlyph[], boolean] {
 	const beforeUdg: EncodedGlyph[] = []
 	const udg: EncodedGlyph[] = []
 	const afterUdg: EncodedGlyph[] = []
 	let countedUdg = 0
+	let allMatchRequirements = true
 
 	for(const glyph of naivelyOrdered) {
 		const udgCodepoint = userDefinedGraphicCodepoint(glyph.codepoints)
 		if (udgCodepoint) {
 			udg[udgCodepoint - firstUdg] = glyph
 			countedUdg += 1
+			allMatchRequirements &&= matchesUdgRequirements(glyph)
 
 		} else if (!countedUdg) {
 			beforeUdg.push(glyph)
@@ -217,7 +220,7 @@ function reorderForUdg(naivelyOrdered: EncodedGlyph[]): EncodedGlyph[] {
 	if (countedUdg !== (lastUdg - firstUdg + 1)) throw `Only found ${countedUdg} User Defined Graphics characters defined.`
 	if (countedUdg !== udg.length) throw `Failed assertion: found ${countedUdg} UDGs but ${udg.length} items in array`
 
-	return [...beforeUdg, ...udg, ...afterUdg]
+	return [[...beforeUdg, ...udg, ...afterUdg], allMatchRequirements]
 
 	function userDefinedGraphicCodepoint(codepoints: Set<number>): number|undefined {
 		for(const n of codepoints) {
@@ -238,4 +241,8 @@ function adjustUdgOffsets(codepointDataOffsets: Record<number, number>, pixelDat
 		codepointDataOffsets[c] = offset
 		offset += 9 // Each UDG character is 1 byte of metadata + 8 byte lines of pixel data.
 	}
+}
+
+function matchesUdgRequirements(glyph: EncodedGlyph) {
+	return glyph.bytes[0] === 0b110_001 && glyph.width === 2
 }

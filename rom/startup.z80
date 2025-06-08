@@ -218,52 +218,34 @@ INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
 
 	; Copies User Defined Graphics into RAM
 	; We depend on the destination buffer fitting inside a 256-byte page, and do all-8-bit maths.
+	; We also depend on ALL UDG template characters being 2 half-cells wide, 6 pixels tall and
+	; 1 pixel of top leading.
 	ASSERT	(UDG_RAM_START & $ff) + UDG_RAM_LENGTH <= 256
+	ASSERT	FONT_DATA.udg_are_all_6px_high_with_1px_leading == 1
 RESET_UDG:	push	hl
 	push	de
 	push	bc
-	ld	hl,UDG_RAM_START
-	push	hl
-	ld	b,UDG_RAM_LENGTH
-.initial_wipe:	ld	(hl),0
-	inc	l
-	djnz	.initial_wipe
 
-	pop	hl
 	ld	de,FONT_DATA.udg_start
+	ld	hl,UDG_RAM_START
+	ld	c,16	; Count of UDG characters
+	xor	a	; Start with empty pixel line
+.each_char:
+	ld	(hl),%1000000	; Transformed to 8-pixels-high and 0 leading
+	inc	l
+	ld	b,7	; 7 pixels tall INCLUDING leading
 
-	ld	b,16	; Number of UDG characters
-.each_char:	push	bc
-	ld	(hl),8<<3 + 0	; Each UDG char is transformed to 8 pixels high, no leading
-	inc	l	; HL := start of output pixel data
-	ld	a,l
-	add	8
-	ld	c,a	; Next glyph header (effectively in register "HC")
-	
+.pixel_data:	ld	(hl),a
+	inc	l
+	inc	de	; First iteration, this skips past glyph header
 	ld	a,(de)
-	rra
-	rra
-	rra
-	and	$f
-	jr	z,.end_pixels	; If no pixels in glyph, skip the work.
-	ld	b,a	; Number of bytes to copy
+	djnz	.pixel_data
 
-	ld	a,(de)
-	and	7	; Get leading for character
-	add	l
-	ld	l,a	; Skip leading when writing
-
-.pixels:	inc	de
-	ld	a,(de)
+	xor	a
 	ld	(hl),a
 	inc	l
-	djnz	.pixels
-
-.end_pixels:	inc	de	; DE := point to next glyph header (input)
-	ld	l,c	; HL := point to next glyph header (output)
-
-	pop	bc
-	djnz	.each_char
+	dec	c
+	jr	nz,.each_char
 
 	pop	bc
 	pop	de
