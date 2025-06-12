@@ -23,11 +23,15 @@ const screen = new SpecScreen(screenCx)
 screenCx.imageSmoothingEnabled = false
 
 const textEditor = document.getElementById("text-editor") as HTMLTextAreaElement
+const glyphEditingControls = document.getElementsByClassName('')
 
 type GlyphWidth = 'h'|'n'|'w'
+type GlyphType = 'missing'|'visible'|'sameas'
 interface Glyph {
+	type: GlyphType
 	width: GlyphWidth
 	bytes: byte[]
+	sameas?: byte
 }
 
 function drawGrid(widthPixels: number){
@@ -76,6 +80,11 @@ function byteAndBitFromXAndY(x: number, y: number)
 	return [byte, bit]
 }
 
+function updateEditorUi(data: Glyph) {
+	document.getElementById('visible-glyph-controls')!.style.visibility = (data.type === 'visible') ? 'visible' : 'hidden'
+	;(document.getElementById('sameas') as HTMLInputElement).disabled = (data.type !== 'sameas')
+}
+
 function renderToEditor(data: Glyph){
 	const w = widthPixels(data.width)
 	for (let y = 0; y < 8; y++){
@@ -101,6 +110,7 @@ function renderToScreen(data: Glyph, left: number, top: number){
 
 function emptyChar(): Glyph{
 	return {
+		type: 'missing',
 		width: "n",
 		bytes: [0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0]
 	}
@@ -110,14 +120,31 @@ let selected: number|undefined
 let data = emptyChar()
 let isDirty = false
 
-function encode(data: Glyph){
-	const w = data.width
-	const s = data.bytes.map(b => b.toString(16)).join(",")
-	console.log("encoding...", w, s)
-	return `${w}${s}`
+function encode(data: Glyph): string {
+	switch(data.type) {
+		case 'missing': {
+			return ''
+		}
+		case 'visible': {
+			const w = data.width
+			const s = data.bytes.map(b => b.toString(16)).join(",")
+			console.log("encoding...", w, s)
+			return `${w}${s}`
+		}
+		case 'sameas': {
+			return `sameas:${data.sameas}`
+		}
+	}
 }
 
 function decode(str: string): Glyph {
+	if (!str) return {...emptyChar(), type: 'missing'}
+
+	if (str.startsWith('sameas:')) {
+		const sameas = parseInt(str.substring(7)) as byte
+		return {...emptyChar(), type: 'sameas', sameas: sameas}
+	}
+
 	let width: 'h'|'n'|'w', byteString
 	switch(str[0]) {
 		case 'h': case 'n': case 'w':
@@ -130,12 +157,11 @@ function decode(str: string): Glyph {
 			break
 	}
 
-	const result = {
+	return {
+		type: 'visible',
 		width: width,
 		bytes: byteString.split(",").map(b => parseInt(b, 16) as byte)
 	}
-	//console.log("decoded: ", result)
-	return result
 }
 
 function saveChar(i: number, data: Glyph){
@@ -157,16 +183,25 @@ function loadCurrentChar(i: number) {
 	data = loadChar(i) ?? emptyChar()
 	drawGrid(widthPixels(data.width));
 	(document.getElementById(`char-size-${data.width}`) as HTMLInputElement).checked = true
+	;(document.getElementById(`type-${data.type}`) as HTMLInputElement).checked = true
+	;(document.getElementById('sameas') as HTMLInputElement).value = data.type === 'sameas'
+		? '0x'+(data.sameas || 0 as byte).toString(16)
+		: ''
 	selected = i
 	isDirty = false
 }
 
 function loadChar(i: number): Glyph|null {
-	if (i == undefined) return null
+	if (i == undefined || i < 0 || i > 255) return null
 	const data = store.getItem(`char${i}`)
 	if (data) return decode(data)
-	const obj = glyphs[i] as Glyph
-	return obj || null
+	
+	// Otherwise copy from built-in font:
+	const obj = glyphs[i]
+	if (!obj) return {...emptyChar(), type: 'missing'}
+	if ('sameas' in obj) return {...emptyChar(), type: 'sameas', sameas: obj.sameas as byte}
+	if ('bytes' in obj) return {type: 'visible', width: obj.width, bytes: obj.bytes as byte[]}
+	return {...emptyChar(), type: 'missing'}
 }
 
 export function selectChar(i: number){
@@ -180,15 +215,30 @@ export function selectChar(i: number){
 	const newC = document.getElementById(`char-${i}`)
 	newC?.classList.add("selected")
 	console.log("data: "+ data)
+	updateEditorUi(data)
 	renderToEditor(data)
 }
 
 export function toggleWidth(newW: GlyphWidth){
-	if (data.width == newW) return
+	if (data.width === newW) return
 	data.width = newW
 	drawGrid(widthPixels(newW))
 	isDirty = true
 	renderToEditor(data)
+}
+
+export function toggleType(newType: GlyphType) {
+	if (data.type === newType) return
+	data.type = newType
+	isDirty = true
+	updateEditorUi(data)
+}
+
+export function editSameas() {
+	const text = (document.getElementById('sameas') as HTMLInputElement).value
+	const v = text && (parseInt(text) & 0xff) || undefined
+	data.sameas = v as (byte | undefined)
+	isDirty = true
 }
 
 function togglePixel(event: MouseEvent){
@@ -227,7 +277,19 @@ export function saveFont() {
 		if (!char) continue
 		if (s) s+= ",\n"
 		const asString = escapeCharacterToJavaScriptString(c as byte)
-		s += `\t${c}: {"width": "${char.width}", "bytes": [${char.bytes}], "char": "${asString}"}`.replace(/NaN/g,"0")
+		let properties: string
+		switch (char.type) {
+			case "missing":
+				properties = ''
+				break
+			case "visible":
+				properties = `"width": "${char.width}", "bytes": [${char.bytes}]`
+				break
+			case "sameas":
+				properties = `"sameas": ${char.sameas}`
+				break
+		}
+		s += `\t${c}: {${properties}, "char": "${asString}"}`.replace(/NaN/g,"0")
 	}
 	textEditor.value = `{\n${s}\n}`
 }

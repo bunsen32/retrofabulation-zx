@@ -28,3 +28,6 @@ CURSOR_FRAMES:	db	0	; bits <count><X> where
 IDEAL_CUR_X:	db	0	; When moving up or down, column to aim for.
 
 CURSOR_FLASH_RATE:	equ	40
+	ASSERT	$ < UDG_RAM_START
+UDG_RAM_START:	equ	$5B70
+UDG_RAM_LENGTH:	equ	16*9

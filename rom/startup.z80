@@ -45,6 +45,7 @@ GLOBALS_INIT:
 	ldir
 
 	ld	sp, $f000	; Placeholder stack top.
+	call	RESET_UDG
 	ei
 
 SPLASH_ANIM:
@@ -214,3 +215,39 @@ INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
 .repper:	db	5
 .i_handler:	jp	DEFAULT_INTERRUPT_HANDLER
 .length
+
+	; Copies User Defined Graphics into RAM
+	; We depend on the destination buffer fitting inside a 256-byte page, and do all-8-bit maths.
+	; We also depend on ALL UDG template characters being 2 half-cells wide, 6 pixels tall and
+	; 1 pixel of top leading.
+	ASSERT	(UDG_RAM_START & $ff) + UDG_RAM_LENGTH <= 256
+	ASSERT	FONT_DATA.udg_are_all_6px_high_with_1px_leading == 1
+RESET_UDG:	push	hl
+	push	de
+	push	bc
+
+	ld	de,FONT_DATA.udg_start
+	ld	hl,UDG_RAM_START
+	ld	c,16	; Count of UDG characters
+	xor	a	; Start with empty pixel line
+.each_char:
+	ld	(hl),%1000000	; Transformed to 8-pixels-high and 0 leading
+	inc	l
+	ld	b,7	; 7 pixels tall INCLUDING leading
+
+.pixel_data:	ld	(hl),a
+	inc	l
+	inc	de	; First iteration, this skips past glyph header
+	ld	a,(de)
+	djnz	.pixel_data
+
+	xor	a
+	ld	(hl),a
+	inc	l
+	dec	c
+	jr	nz,.each_char
+
+	pop	bc
+	pop	de
+	pop	hl
+	ret
