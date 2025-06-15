@@ -123,23 +123,26 @@ describe("Keyboard decoding", () => {
 			}
 		})
 
-		it ('Sets EXT-mode when both shifts pressed and EXT-mode-reset enabled', async () => {
-			const vm = await loadedVmWithKeyboardState({modifierFlags: MODIFIERS_EXTMODE_RESET})
+		it ('Issues EXT-mode ‘key’ when both shifts pressed and EXT-mode-reset enabled (non-EXT-mode)', async () => {
+			const original = MODIFIERS_EXTMODE_RESET | 0
+			const vm = await loadedVmWithKeyboardState({modifierFlags: original as byte})
 
 			callDecode(vm, 0, SHIFT_BOTH)
 
 			const k = getKeyboardState(vm)
-			expect(k.modifierFlags & MODIFIERS_EXTMODE).toEqual(MODIFIERS_EXTMODE)
+			expect(k.modifierFlags & MODIFIERS_EXTMODE).toBeFalsy() // Actual EXT mode has not changed
+			expect(k.currentChar).toEqual(CODES.EXTENDED_MODE) // But keycode was issued
 		})
 
-		it ('Clears EXT-mode when both shifts pressed and EXT-mode-reset enabled', async () => {
+		it ('Issues EXT-mode ‘key’ when both shifts pressed and EXT-mode-reset enabled (in EXT-mode)', async () => {
 			const original = MODIFIERS_EXTMODE_RESET | MODIFIERS_EXTMODE
 			const vm = await loadedVmWithKeyboardState({modifierFlags: original as byte})
 
 			callDecode(vm, 0, SHIFT_BOTH)
 
 			const k = getKeyboardState(vm)
-			expect(k.modifierFlags & MODIFIERS_EXTMODE).toEqual(0)
+			expect(k.modifierFlags & MODIFIERS_EXTMODE).toBeTruthy() // Actual EXT mode has not changed
+			expect(k.currentChar).toEqual(CODES.EXTENDED_MODE) // But keycode was issued
 		})
 	})
 
