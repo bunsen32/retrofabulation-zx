@@ -13,7 +13,7 @@
   * Text rendering routine _does_ use stack, but only simply, and we could construct a fake stack in ROM.
 * Nice-to-have: If too restrictive a RAMTOP (<16 k? Less than 8 k ?) could show disagnostic/HALT
 * ~~Need to copy user-defined graphics characters into RAM.~~ [Done: 2025.06.07]
-* Move User Defined Graphics characters to just after screen memory, as a buffer before the global variables.
+* ~~Move User Defined Graphics characters to just after screen memory, as a buffer before the global variables.~~ [Done: 2025.06.19]
 
 ## Text-rendering
 
@@ -23,10 +23,11 @@
 * Malformed font data can cause renderer to clobber random memory. Would be good to make it more robust. Could special-
   case all-zero metadata byte and render as blank character, perhaps. Otherwise mask height to 0b111 and add 1 (and
 	ignore spurious other bits).
+* Could represent 1.5-cell character as 2 parts (1-cell + 0.5-cell) and render separately, which would reduce amount of rendering code at minimal cost to font data size (1 byte extra per such character), and minimal rendering cost, since wide characters occur infrequently. Also, if we want to draw clipped characters, that’s also fewer cases to handle: we just need logic to slice 1-cell glyph, really.
 
 ## Font & font-generation
 * Diacritics: 0-width characters & pre-rotation encoding
-* User-defined graphics characters (needs substitute, fixed-width "I", possibly fixed-width "M" if that ends up being wider)
+* ~~User-defined graphics characters (needs substitute, fixed-width "I", possibly fixed-width "M" if that ends up being wider)~~ [Done! 2025.06.12]
 * ~~Block graphics characters~~ [Done! 2025.05.22 1fa4fe]
 * Wider, 1.5-cell ‘M’ & ‘W’?
 
