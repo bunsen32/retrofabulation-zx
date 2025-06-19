@@ -40,7 +40,7 @@ SPLASH_INIT:
 
 GLOBALS_INIT:
 	ld	hl, INITIAL_GLOBAL_VALUES
-	ld	de, NEED_INIT
+	ld	de, G.need_init
 	ld	bc, INITIAL_GLOBAL_VALUES.length
 	ldir
 
@@ -138,7 +138,7 @@ COPYRIGHT:
 	; Wait a frame, check for (keyboard) input, and quit to REPL as soon as that happens.
 FRAME_CHECK:	halt
 	ex	af,af'
-	ld	a, (KEY_CHAR)
+	ld	a, (G.KEY_CHAR)
 	or	a
 	jp	nz,POP_AND_REPL
 	ex	af,af'

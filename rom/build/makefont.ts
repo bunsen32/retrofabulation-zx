@@ -4,7 +4,7 @@ import * as process from 'node:process'
 
 const firstUdg = 0xe0
 const lastUdg = 0xef
-const UDG_RAM_START = 0x5B70	// TODO: Could position just BEFORE the other globals?
+const UDG_RAM_START = 0x5B00	// Placed just after screen memory and directly before global variables.
 
 interface Writeable {
 	write(chunk: string, callback?: (error: Error | null | undefined) => void): boolean
@@ -34,7 +34,7 @@ function writeFontTo(out: Writeable, font: Record<number, Glyph>){
 		}
 		offset += glyph.bytes.length
 	}
-	const pixelDataSize = offset + (128 /*TODO: remove this hack!*/)
+	const pixelDataSize = offset
 	const min = allEncoded.firstChar
 	const firstGlyphWidth = characterWidths[min]
 	if (firstGlyphWidth === undefined) throw "Failed assertion: first glyph must always have a width!"

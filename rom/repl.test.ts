@@ -6,13 +6,14 @@ import { rom } from "./generated/symbols.ts";
 import { expect } from "jsr:@std/expect/expect";
 
 const loadedVm = loadVm()
+const globals = rom.G
 const flashRate = rom.CURSOR_FLASH_RATE.addr
 
 describe("Cursor XOR", () => {
 
 	it("Cursor onto blank background, column zero", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x01700)
+		vm.pokeWord(globals.CURSOR_XY, 0x01700)
 		cls(vm)
 
 		cursorXor(vm)
@@ -23,7 +24,7 @@ describe("Cursor XOR", () => {
 
 	it("Cursor onto blank background, aligned", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0302)
+		vm.pokeWord(globals.CURSOR_XY, 0x0302)
 		cls(vm)
 
 		cursorXor(vm)
@@ -34,7 +35,7 @@ describe("Cursor XOR", () => {
 
 	it("Cursor onto blank background, offset", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0303)
+		vm.pokeWord(globals.CURSOR_XY, 0x0303)
 		cls(vm)
 
 		cursorXor(vm)
@@ -45,7 +46,7 @@ describe("Cursor XOR", () => {
 
 	it("Cursor onto filled background, aligned", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0302)
+		vm.pokeWord(globals.CURSOR_XY, 0x0302)
 		cls1(vm)
 
 		cursorXor(vm)
@@ -56,7 +57,7 @@ describe("Cursor XOR", () => {
 
 	it("Cursor onto filled background, offset", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0303)
+		vm.pokeWord(globals.CURSOR_XY, 0x0303)
 		cls1(vm)
 
 		cursorXor(vm)
@@ -70,8 +71,8 @@ describe("Cursor animation", () => {
 
 	it("If 1 frame in count, renders", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, animState(1, 'on'))
+		vm.pokeWord(globals.CURSOR_XY, 0x0302)
+		vm.pokeByte(globals.CURSOR_FRAMES, animState(1, 'on'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
@@ -82,8 +83,8 @@ describe("Cursor animation", () => {
 
 	it("If 2 frames in count, does not render", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, animState(2, 'on'))
+		vm.pokeWord(globals.CURSOR_XY, 0x0302)
+		vm.pokeByte(globals.CURSOR_FRAMES, animState(2, 'on'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
@@ -94,47 +95,47 @@ describe("Cursor animation", () => {
 
 	it("If multiple frames in count (and on), decrements count", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, animState(12, 'on'))
+		vm.pokeWord(globals.CURSOR_XY, 0x0302)
+		vm.pokeByte(globals.CURSOR_FRAMES, animState(12, 'on'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
 
-		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(animState(11, 'on'))
+		expect(vm.peekByte(globals.CURSOR_FRAMES)).toBe(animState(11, 'on'))
 	})
 
 	it("If multiple frames in count (and off), decrements count", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, animState(12, 'off'))
+		vm.pokeWord(globals.CURSOR_XY, 0x0302)
+		vm.pokeByte(globals.CURSOR_FRAMES, animState(12, 'off'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
 
-		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(animState(11, 'off'))
+		expect(vm.peekByte(globals.CURSOR_FRAMES)).toBe(animState(11, 'off'))
 	})
 
 
 	it("If 1 frame in count (and on), resets count", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, animState(1, 'on'))
+		vm.pokeWord(globals.CURSOR_XY, 0x0302)
+		vm.pokeByte(globals.CURSOR_FRAMES, animState(1, 'on'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
 
-		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(animState(flashRate, 'off'))
+		expect(vm.peekByte(globals.CURSOR_FRAMES)).toBe(animState(flashRate, 'off'))
 	})
 
 	it("If 1 frame in count (and off), resets count", async () => {
 		const vm = await loadedVm
-		vm.pokeWord(rom.CURSOR_XY, 0x0302)
-		vm.pokeByte(rom.CURSOR_FRAMES, animState(1, 'off'))
+		vm.pokeWord(globals.CURSOR_XY, 0x0302)
+		vm.pokeByte(globals.CURSOR_FRAMES, animState(1, 'off'))
 		cls(vm)
 
 		cursorAnimFrame(vm)
 
-		expect(vm.peekByte(rom.CURSOR_FRAMES)).toBe(animState(flashRate, 'on'))
+		expect(vm.peekByte(globals.CURSOR_FRAMES)).toBe(animState(flashRate, 'on'))
 	})
 })
 
@@ -374,7 +375,7 @@ function givenEditBuffer(vm: Vm, bufferWithCursor: string): EditBuffer {
 function givenCursorPosition(vm: Vm, p: TextCoords) {
 	const coordsWord = (p.row << 8) | p.column
 	vm.setRegisters({ HL: coordsWord })
-	vm.pokeWord(rom.CURSOR_XY, coordsWord)
+	vm.pokeWord(globals.CURSOR_XY, coordsWord)
 }
 
 function whenTyped(vm: Vm, c: string|byte) {
@@ -401,7 +402,7 @@ function getBufferString(vm: Vm, buffer: EditBuffer): string {
 
 function getCursorPosition(vm: Vm): TextCoords {
 	const {H, L, HL} = vm.getRegisters()
-	const cursorWord = vm.peekWord(rom.CURSOR_XY)
+	const cursorWord = vm.peekWord(globals.CURSOR_XY)
 	expect(HL).toBe(cursorWord)
 	return {row: H, column: L}
 }
