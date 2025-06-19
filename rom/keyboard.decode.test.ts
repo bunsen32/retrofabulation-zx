@@ -7,6 +7,7 @@ import type { byte } from '@zx/sys'
 import { Charset, CharsetFromUnicode, CODES } from '@zx/sys'
 
 const loadedVm = loadVm()
+const globals = rom.G
 
 interface KeyPressState {
 	primary: byte,
@@ -345,14 +346,14 @@ describe("Keyboard decoding", () => {
 })
 
 function getKeyboardState(vm: Vm): KeyboardState {
-	const charByte = vm.peekByte(rom.KEY_CHAR)
+	const charByte = vm.peekByte(globals.KEY_CHAR)
 	return {
-		supersededKeyCode: vm.peekByte(rom.KEY_SUPERSEDED),
-		repeatKeyCode: vm.peekByte(rom.KEY_RPT_CODE),
-		repeatCountdown: vm.peekByte(rom.KEY_RPT_NEXT),
+		supersededKeyCode: vm.peekByte(globals.KEY_SUPERSEDED),
+		repeatKeyCode: vm.peekByte(globals.KEY_RPT_CODE),
+		repeatCountdown: vm.peekByte(globals.KEY_RPT_NEXT),
 		currentChar: charByte,
 		currentCharUnicode: Charset[charByte],
-		modifierFlags: vm.peekByte(rom.KEY_MODIFIERS)
+		modifierFlags: vm.peekByte(globals.KEY_MODIFIERS)
 	}
 }
 
@@ -362,13 +363,13 @@ function setKeyboardState(vm: Vm, state: Partial<KeyboardState>) {
 			vm.pokeByte(addr, maybe)
 	}
 
-	tryPoke(rom.KEY_SUPERSEDED, state.supersededKeyCode)
-	tryPoke(rom.KEY_RPT_CODE, state.repeatKeyCode)
-	tryPoke(rom.KEY_RPT_NEXT, state.repeatCountdown)
-	tryPoke(rom.KEY_CHAR, state.currentChar)
-	tryPoke(rom.KEY_MODIFIERS, state.modifierFlags)
+	tryPoke(globals.KEY_SUPERSEDED, state.supersededKeyCode)
+	tryPoke(globals.KEY_RPT_CODE, state.repeatKeyCode)
+	tryPoke(globals.KEY_RPT_NEXT, state.repeatCountdown)
+	tryPoke(globals.KEY_CHAR, state.currentChar)
+	tryPoke(globals.KEY_MODIFIERS, state.modifierFlags)
 	if (state.currentCharUnicode != undefined)
-		tryPoke(rom.KEY_CHAR, CharsetFromUnicode[state.currentCharUnicode])
+		tryPoke(globals.KEY_CHAR, CharsetFromUnicode[state.currentCharUnicode])
 }
 
 function callDecode(vm: Vm, keyCode: byte, shiftState?: 0|1|2|3) {

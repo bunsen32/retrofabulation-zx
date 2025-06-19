@@ -4,9 +4,10 @@ import { expect } from "jsr:@std/expect";
 import {loadVm, type Vm, type Z80Address} from './testutils/testvm.ts'
 import {rom} from './generated/symbols.ts'
 import type { byte } from '@zx/sys'
-import { Charset, CharsetFromUnicode, CODES } from '@zx/sys'
+import { Charset, CharsetFromUnicode } from '@zx/sys'
 
 const loadedVm = loadVm()
+const globals = rom.G
 
 interface KeyPressState {
 	primary: byte,
@@ -135,7 +136,7 @@ describe("Keyboard state changes", () => {
 
 	it("On keypress, repeat key is set", async () => {
 		const vm = await loadedVmWithKeyboardState(ZEROED)
-		vm.pokeByte(rom.REPDEL, 99)
+		vm.pokeByte(globals.REPDEL, 99)
 
 		callKeyboardWith(vm, {primary: KEYS.A})
 
@@ -178,7 +179,7 @@ describe("Keyboard state changes", () => {
 			repeatKeyCode: KEYS.A,
 			repeatCountdown: 1,
 		})
-		vm.pokeByte(rom.REPPER, 42)
+		vm.pokeByte(globals.REPPER, 42)
 
 		callKeyboardWith(vm, {primary: KEYS.A})
 
@@ -293,14 +294,14 @@ function keyScanResults(vm: Vm) {
 }
 
 function getKeyboardState(vm: Vm): KeyboardState {
-	const charByte = vm.peekByte(rom.KEY_CHAR)
+	const charByte = vm.peekByte(globals.KEY_CHAR)
 	return {
-		supersededKeyCode: vm.peekByte(rom.KEY_SUPERSEDED),
-		repeatKeyCode: vm.peekByte(rom.KEY_RPT_CODE),
-		repeatCountdown: vm.peekByte(rom.KEY_RPT_NEXT),
+		supersededKeyCode: vm.peekByte(globals.KEY_SUPERSEDED),
+		repeatKeyCode: vm.peekByte(globals.KEY_RPT_CODE),
+		repeatCountdown: vm.peekByte(globals.KEY_RPT_NEXT),
 		currentChar: charByte,
 		currentCharUnicode: Charset[charByte],
-		currentShifts: vm.peekByte(rom.KEY_MODIFIERS)
+		currentShifts: vm.peekByte(globals.KEY_MODIFIERS)
 	}
 }
 
@@ -310,13 +311,13 @@ function setKeyboardState(vm: Vm, state: Partial<KeyboardState>) {
 			vm.pokeByte(addr, maybe)
 	}
 
-	tryPoke(rom.KEY_SUPERSEDED, state.supersededKeyCode)
-	tryPoke(rom.KEY_RPT_CODE, state.repeatKeyCode)
-	tryPoke(rom.KEY_RPT_NEXT, state.repeatCountdown)
-	tryPoke(rom.KEY_CHAR, state.currentChar)
-	tryPoke(rom.KEY_MODIFIERS, state.currentShifts)
+	tryPoke(globals.KEY_SUPERSEDED, state.supersededKeyCode)
+	tryPoke(globals.KEY_RPT_CODE, state.repeatKeyCode)
+	tryPoke(globals.KEY_RPT_NEXT, state.repeatCountdown)
+	tryPoke(globals.KEY_CHAR, state.currentChar)
+	tryPoke(globals.KEY_MODIFIERS, state.currentShifts)
 	if (state.currentCharUnicode != undefined)
-		tryPoke(rom.KEY_CHAR, CharsetFromUnicode[state.currentCharUnicode])
+		tryPoke(globals.KEY_CHAR, CharsetFromUnicode[state.currentCharUnicode])
 }
 
 function callKeyboardWith(vm: Vm, pressed: KeyPressState, shiftState?: 0|1|2|3) {

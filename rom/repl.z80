@@ -21,9 +21,9 @@ REPL:
 	ldir		; Clear screen to all white (16123 t-states)
 .init_buffer:
 	ld	hl,$0000
-	ld	(CAPS_ICON_XY),hl
+	ld	(G.CAPS_ICON_XY),hl
 	ld	hl,$0004
-	ld	(MODE_ICON_XY),hl
+	ld	(G.MODE_ICON_XY),hl
 	ld	de,TEXT_BUFFER
 	ld	bc,0	; prior-chars := 0; subsequent-chars := 0
 	ld	a,b
@@ -36,7 +36,7 @@ REPL:
 	push	hl
 	exx
 	pop	hl
-	ld	(CURSOR_XY), hl
+	ld	(G.CURSOR_XY), hl
 
 	; Clear first character cell so that flashing cursor is visible:
 	push	bc
@@ -63,7 +63,7 @@ REPL:
 	; (SP): buffer position of column-zero (we push lines on, and pop them off)
 REPL_LOOP:	
 .check_key:
-	ld	a, (KEY_CHAR)
+	ld	a, (G.KEY_CHAR)
 	or	a
 	call	nz,LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
 	or	a
@@ -152,9 +152,9 @@ REPL_LOOP:
 
 .set_ideal_x:	; Set the up-down target horizontal position:
 	ld	a,l
-	ld	(IDEAL_CUR_X),a
+	ld	(G.IDEAL_CUR_X),a
 .end_screen_cmd:	; Set new cursor position & display it:
-	ld	(CURSOR_XY),hl
+	ld	(G.CURSOR_XY),hl
 	call	SHOW_CURSOR
 	ret
 
@@ -193,7 +193,7 @@ REPL_LOOP:
 .mv_to_ideal_x	; Last: Find desired cursor position:
 	push	bc
 	ld	b,c	; B := number of characters after cursor
-	ld	a,(IDEAL_CUR_X)
+	ld	a,(G.IDEAL_CUR_X)
 	sub	l
 	ld	c,a	; C := (IDEAL_CUR_X - left margin)
 	call	MEASURE_SPAN
@@ -342,7 +342,7 @@ KEY_CAPS_LOCK:	ld	a,MOD_CAPSLOCK_F
 
 KEY_GRAPHICS:	ld	a,MOD_GFXMODE_F
 TOGGLE_MODIFIER:	push	hl
-	ld	hl,KEY_MODIFIERS
+	ld	hl,G.KEY_MODIFIERS
 	xor	(hl)
 	ld	(hl),a
 	pop	hl
@@ -492,7 +492,7 @@ CURSOR_RIGHT:
 	; Fallthrough...
 
 HIDE_AND_LD_CUR:	call	HIDE_CURSOR
-	ld	(CURSOR_XY), hl
+	ld	(G.CURSOR_XY), hl
 	ld	a,SCR_SHOW_CURSOR
 	ret
 
@@ -501,27 +501,27 @@ HIDE_AND_LD_CUR:	call	HIDE_CURSOR
 	; (Extend the displayed lifespan.)
 	; Trashes: A
 SHOW_CURSOR:
-	ld	a, (CURSOR_FRAMES)
+	ld	a, (G.CURSOR_FRAMES)
 	rra		; Examine previous value of bit zero…
 	ld	a, (CURSOR_FLASH_RATE << 1) | 1
-	ld	(CURSOR_FRAMES), a
+	ld	(G.CURSOR_FRAMES), a
 	jr	nc,CURSOR_XOR
 	ret
 
 	; Hide the cursor, if it is shown.
 	; Trashes: A
 HIDE_CURSOR:
-	ld	a, (CURSOR_FRAMES)
+	ld	a, (G.CURSOR_FRAMES)
 	rra
 	ret	nc	; Cursor not on screen anyway
 	xor	a	; Cursor WAS on screen…
-	ld	(CURSOR_FRAMES), a	; And store back in variable.
+	ld	(G.CURSOR_FRAMES), a	; And store back in variable.
 	jr	CURSOR_XOR
 
 	; Decrement the frame counter and show or hide the cursor
 	; Trashes: A, HL
 CURSOR_ANIM_FRAME:
-	ld	hl, CURSOR_FRAMES
+	ld	hl, G.CURSOR_FRAMES
 	ld	a, (hl)
 	srl	a
 	dec	a
@@ -541,7 +541,7 @@ CURSOR_XOR:
 	push	hl
 	push	de
 	push	bc
-	ld	hl, (CURSOR_XY)
+	ld	hl, (G.CURSOR_XY)
 
 	ld	c,0b10000000
 	xor	a
@@ -572,15 +572,15 @@ CURSOR_XOR:
 
 	; If CAPS_LOCK status has changed, change visual state.
 	; Trashes A, HL
-CAPS_SHIFT_ANIM:	ld	hl, KEY_MODIFIERS
-	ld	a, (KEY_MODIFIERS_PR)
+CAPS_SHIFT_ANIM:	ld	hl, G.KEY_MODIFIERS
+	ld	a, (G.KEY_MODIFIERS_PR)
 	xor	(hl)
 	ret	z	; If these bits are the same in both bytes, return
 
 .update_screen:	push	de
 	push	bc
 	ld	a, (hl)
-	ld	(KEY_MODIFIERS_PR),a
+	ld	(G.KEY_MODIFIERS_PR),a
 
 	; CAPS LOCK ICON
 .on:	ld	de,KEYMAP_CTRL+2	; CAPS-LOCK icon
@@ -591,14 +591,14 @@ CAPS_SHIFT_ANIM:	ld	hl, KEY_MODIFIERS
 .off:	ld	de,TWO_SPACES	; Otherwise, change to printing a space.
 	ld	a,0b00111111	; White on white
 .draw_caps:
-	ld	hl,(CAPS_ICON_XY)
+	ld	hl,(G.CAPS_ICON_XY)
 	call	RENDER_TEXT
 
 	; KEYBOARD MODE ICON
-	ld	a, (KEY_MODIFIERS)
+	ld	a, (G.KEY_MODIFIERS)
 	rlca		; Move two mode bits to the top of the byte
 	ld	b,1	; One character to render.
-	ld	hl,(MODE_ICON_XY)
+	ld	hl,(G.MODE_ICON_XY)
 
 	rlca		; Is GFX mode bit set?
 	jr	c, .gfx_mode

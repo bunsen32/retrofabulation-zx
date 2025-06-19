@@ -21,7 +21,7 @@ INT_30:
 	PADTO	$0038
 INT_38:
 	; stuff
-	jp	I_HANDLER	; Interrupt handler is in RAM to allow overrides.
+	jp	G.I_HANDLER	; Interrupt handler is in RAM to allow overrides.
 
 	; Slightly weird routine for wiping memory downwards, from SP
 	; CB: is count of 4-byte blocks to clear; A is value to clear with.

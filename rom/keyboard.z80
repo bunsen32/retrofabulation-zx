@@ -4,13 +4,13 @@
 DEFAULT_INTERRUPT_HANDLER:
 	push	hl
 	push	af
-	ld	hl, (CLOCK_TICKS)
+	ld	hl, (G.CLOCK_TICKS)
 	inc	hl
-	ld	(CLOCK_TICKS), hl
+	ld	(G.CLOCK_TICKS), hl
 	ld	a,l
 	or	h
 	jr	nz, .low_bits_only
-	ld	hl, CLOCK_TICKS+2
+	ld	hl, G.CLOCK_TICKS+2
 	inc	(hl)
 .low_bits_only:	push	bc
 	push	de
@@ -155,7 +155,7 @@ KEYBOARD:
 	ret	nz	; Return if too many keys
 
 .after_scan:			; Label here so we can run the decode logic in tests.
-	ld	hl, KEY_MODIFIERS
+	ld	hl, G.KEY_MODIFIERS
 	ld	a,(hl)
 	and	0b11111100	; Mask out previous shifts
 	or	b 
@@ -181,7 +181,7 @@ KEYBOARD:
 .new_key:
 	ld	(hl),a	; KEY_RPT_CODE := <new key code>
 	inc	l	; Points now to ‘KEY_RPT_NEXT’
-	ld	a,(REPDEL)	; Repeat delay
+	ld	a,(G.REPDEL)	; Repeat delay
 	ld	(hl),a	; KEY_RPT_NEXT := (REPDEL)
 .decode
 	ld	d,c	; d := <zero>
@@ -205,7 +205,7 @@ KEYBOARD:
 	inc	l	; Points now to ‘KEY_RPT_NEXT’
 	dec	(hl)	; Count down the frames to next repetition
 	jr	nz,.repeat_wait	; Not reached zero count yet, so mark character as <none>
-	ld	a,(REPPER)
+	ld	a,(G.REPPER)
 	ld	(hl),a	; KEY_RPT_NEXT := (REPPER)
 	jr	.decode
 
@@ -279,7 +279,7 @@ KEY_DECODE:	; trashes HL, returns result in A
 .decode_E:	; Decode key in E (extended) mode
 	ld	a,b
 	and	~MOD_EXTMODE_F	; Clear the EXT mode state
-	ld	(KEY_MODIFIERS),a
+	ld	(G.KEY_MODIFIERS),a
 	and	3	; Low 2 bits
 	ld	hl,KEYMAP_SYM2
 	jp	pe,.look_up	; Parity even = none or both shift keys pressed
