@@ -22,11 +22,14 @@ RENDER_TEXT:
 	; de	= pointer to next character, or 1 + end of buffer
 	; b	= remaining character count (if we hit the column limit) or zero
 	; c	= remaining half-cell column limit
-	; TRASHES: BC, DE
+	; TRASHES: BC, DE, IX
 render_text:
 	inc	b
 	dec	b
 	ret	z		; Return if no characters to render.
+
+	push	ix
+	ld	ix, (G.FONT)
 
 	exx
 	push	hl
@@ -87,7 +90,10 @@ render_common_char:
 	inc	de
 
 	exx			; de := screen pointer
-	ld	hl, FONT_LOOKUP	; Character index table
+	ld	b,ixh	; Character index table
+	ld	c,ixl
+	ld	h,b
+	ld	l,c
 
 	; Force character (in A) to be in range of glyphs:
 	sub	(hl)	; First character represented
@@ -236,6 +242,7 @@ colour_it_in:
 	pop	de
 	pop	hl
 	exx		; Restore original values of BC', DE' & HL'
+	pop	ix
 	ret
 
 
