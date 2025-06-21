@@ -1,32 +1,23 @@
 	; "Safe" text rendering: takes into account right-and-side of the screen
+	; Render some text
+	; DE	= pointer to characters
+	; B	= (max) count of characters
+	; HL	= row/column (h = row 0–23; l = column 0–63)
+	; C	= (max) number of columns (half-cells) allowed
+	; A	= attrs for the text (h = row 0–23; l = column 0–63)
+	; RETURNS:
+	; HL	= end row/column 
+	; DE	= pointer to next character, or 1 + end of buffer
+	; B	= remaining character count (if we hit the column limit) or zero
+	; C	= remaining half-cell column limit
 RENDER_TEXT:
 	push	af
 	ld	a,64
 	sub	l	; a := half-cells to RHS of screen
-	jr	nc,.margin_ok
-	pop	af	; Already beyond the RHS
-	ret		; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
-
+	jr	c,.margin_off_screen
+			; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
 .margin_ok:	ld	c,a
 	pop	af
-	; Fall-through
-
-	; Render some text
-	; de	= pointer to characters
-	; b	= (max) count of characters
-	; c	= (max) number of columns (half-cells) allowed
-	; hl	= row/column (h = row 0–23; l = column 0–63)
-	; a	= attrs for the text (h = row 0–23; l = column 0–63)
-	; RETURNS:
-	; hl	= end row/column 
-	; de	= pointer to next character, or 1 + end of buffer
-	; b	= remaining character count (if we hit the column limit) or zero
-	; c	= remaining half-cell column limit
-	; TRASHES: BC, DE, IX
-render_text:
-	inc	b
-	dec	b
-	ret	z		; Return if no characters to render.
 
 	push	ix
 	ld	ix, (G.FONT)
@@ -36,6 +27,41 @@ render_text:
 	push	de
 	push	bc
 	exx
+
+	call	render_text
+
+	exx
+	pop	bc
+	pop	de
+	pop	hl
+	exx		; Restore original values of BC', DE' & HL'
+	pop	ix
+
+	ret
+
+.margin_off_screen:
+	pop	af	; Already beyond the RHS
+	ret		; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
+
+
+	; Render some text
+	; IX	= font table
+	; DE	= pointer to characters
+	; B	= (max) count of characters
+	; HL	= row/column (h = row 0–23; l = column 0–63)
+	; C	= (max) number of columns (half-cells) allowed
+	; A	= attrs for the text (h = row 0–23; l = column 0–63)
+	; RETURNS:
+	; HL	= end row/column 
+	; DE	= pointer to next character, or 1 + end of buffer
+	; B	= remaining character count (if we hit the column limit) or zero
+	; C	= remaining half-cell column limit
+	; TRASHES: BC', DE', HL'
+render_text:
+	inc	b
+	dec	b
+	ret	z		; Return if no characters to render.
+
 	inc	b		; b := characters to print + 1
 
 	push	af		; push attrs value
@@ -94,7 +120,7 @@ render_common_char:
 	exx			; de := screen pointer
 	ld	d,ixh
 	ld	e,ixl	; de := font
-	ex	de, hl	; de := screen pointer; hl := font 
+	ex	de, hl	; de := screen pointer; hl := font
 
 	; Force character (in A) to be in range of glyphs:
 	sub	(hl)	; First character represented
@@ -242,14 +268,7 @@ colour_it_in:
 			; de = pointer to next char
 			; b = remaining characters in buffer
 			; c = remaining half-cells on screen.
-	exx
-	pop	bc
-	pop	de
-	pop	hl
-	exx		; Restore original values of BC', DE' & HL'
-	pop	ix
 	ret
-
 
 	; RENDER 12-BIT GLYPH AT OFFSET ZERO
 render_w3_o0:
