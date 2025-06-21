@@ -50,8 +50,10 @@ render_text:
 	call	ROWCOL_ADDR	; de := pixel address; hl := attr address
 	push	hl		; Push address of attr block, to colour in character cells at the end.
 	bit	5, d
-	jr	z, render_common_char_to_de
-			; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
+	ex	de, hl
+	jr	z, render_common_char
+	ex	de, hl
+starts_mid_cell:			; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
 	ld	a, (hl)	; a := starting attribute
 	rra
 	rra
@@ -72,7 +74,8 @@ clr_half_cell:
 	ld	(hl), a
 	inc	h
 	djnz	clr_half_cell
-render_common_char_to_de:
+
+render_zw_character:		; Jumped to if we hit a glyph with zero width. (At some point we want to render diacritics here.)
 	ex	de, hl	; hl := screen pointer
 	jr	render_common_char
 
@@ -206,22 +209,21 @@ beyond_rhs:			; c has OLD space remaining
 			; (No need to increase 'b' here since we already did that at the start.)
 colour_it_in:
 	exx		; hl := screen pointer
-	ex	de,hl
-	ld	a, e
-	pop	hl	; hl := pointer to attribute block (of FIRST char)
-	sub	l
+	ld	a, l
+	pop	de	; de := pointer to attribute block (of FIRST char)
+	sub	e
 	ld	b, a	; b := count cells to colour in
 
 	or	a	; clear carry flag
-	bit	5, d
+	bit	5, h
 	jr	z, .no_half_incr
 .has_half_incr:	scf		; Carry flag := extra half cell to add
 	inc	b	; We gonna colour into the next cell
 .no_half_incr:	rla		; Multiply width in cells by 2, adding a half-cell if necessary (if Carry flag was set)
-	pop	de	; Pop initial (row, column)
-	res	0,e	; (New half-cell offset INCLUDES original odd/even bit.)
-	add	e	; Add half-cell offset to column originally passed in
-	ld	e, a	; de := row/column (d = row 0–23; e = column 0–63) (at end of text)
+	pop	hl	; Pop initial (row, column)
+	res	0,l	; (New half-cell offset INCLUDES original odd/even bit.)
+	add	l	; Add half-cell offset to column originally passed in
+	ld	l, a	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
 
 	pop	af
 	ex	af,af'	; Restore original value of AF'
@@ -229,12 +231,12 @@ colour_it_in:
 	inc	b
 	jr	.colour_loop_rpt	; Add 1 and jump to end of the loop, to deal with 0-case.
 .colour_loop:
-	ld	(hl), a
-	inc	l
+	ld	(de), a
+	inc	e
 .colour_loop_rpt:	djnz	.colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
 			; For short runs, up to 10 characters, djnz is faster. For 32 characters, ldir is 10% faster.
 			; For VERY short runs (1–2 characters), djnz is twice as fast.
-	push	de	; Push end-of-text coordinates
+	push	hl	; Push end-of-text coordinates
 	exx
 	pop	hl	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
 			; de = pointer to next char
@@ -314,7 +316,7 @@ r_w3_bot_end_o0:
 
 render_w0w1_o0:
 	rla
-	jp	nc, render_common_char_to_de
+	jp	nc, render_zw_character
 
 
 	; RENDER 4-BIT GLYPH AT OFFSET ZERO
@@ -536,7 +538,7 @@ r_w3_bot_end_o4:
 
 render_w0w1_o4:
 	rla
-	jp	nc, render_common_char_to_de
+	jp	nc, render_zw_character
 
 
 	; RENDER 4-BIT GLYPH AT OFFSET4
