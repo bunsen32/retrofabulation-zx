@@ -80,8 +80,6 @@ render_next_char:
 	ld	a, -8
 	add	h
 	ld	h, a		; hl := screen pointer
-render_next_char_same_line:
-	; <check haven’t gone off end of 32-character line>
 
 render_common_char:
 	exx			; de := char pointer; b := remaining characters + 1; hl' := screen pointer
@@ -316,7 +314,7 @@ r_w3_bot_end_o0:
 
 render_w0w1_o0:
 	rla
-	jp	nc, render_next_char_same_line
+	jp	nc, render_common_char_to_de
 
 
 	; RENDER 4-BIT GLYPH AT OFFSET ZERO
@@ -538,7 +536,7 @@ r_w3_bot_end_o4:
 
 render_w0w1_o4:
 	rla
-	jp	nc, render_next_char_same_line
+	jp	nc, render_common_char_to_de
 
 
 	; RENDER 4-BIT GLYPH AT OFFSET4
