@@ -105,9 +105,11 @@ render_zw_character:		; Jumped to if we hit a glyph with zero width. (At some po
 	ex	de, hl	; hl := screen pointer
 	jr	render_common_char
 
-render_next_char:
-	ld	a, -8
-	add	h
+render_next_char_offset:
+	ex	af, af'
+render_next_char_add_offset:
+	or	1<<5	; Set bit 5 => offset next char by 4 pixels
+render_next_char_line_from_a:
 	ld	h, a		; hl := screen pointer
 
 render_common_char:
@@ -171,7 +173,8 @@ render_common_char:
 
 	inc	hl	; Advance to pixel data
 	ex	de, hl	; hl := screen pointer; de := glyph pixel data
-	ex	af, af'	; a := <chr-info>
+	ld	a,h	; Store high byte of screen pointer for rendering next char.
+	ex	af, af'	; a := <chr-info>; a' := high byte of pixel pointer
 	bit	5, h
 	jp	nz, render_o4
 
@@ -225,7 +228,8 @@ r_w2_bot_o0:
 	djnz	r_w2_bot_o0
 r_w2_bot_end_o0:
 	inc	l		; move to next column
-	jp	render_next_char
+	ex	af, af'
+	jp	render_next_char_line_from_a
 
 beyond_rhs:			; c has OLD space remaining
 	dec	de	; Go back a character in buffer.
@@ -330,8 +334,7 @@ r_w3_bot_o0:
 	inc	h
 	djnz	r_w3_bot_o0
 r_w3_bot_end_o0:
-	set	5, h		; offset next char by 4 pixels
-	jp	render_next_char
+	jp	render_next_char_offset
 
 render_w0w1_o0:
 	rla
@@ -381,8 +384,7 @@ r_w1_bot_o0:
 	inc	h
 	djnz	r_w1_bot_o0
 r_w1_bot_end_o0:
-	set	5, h		; offset next char by 4 pixels
-	jp	render_next_char
+	jp	render_next_char_offset
 
 
 
@@ -472,8 +474,9 @@ r_w2_bot_o4:
 	inc	h
 	djnz	r_w2_bot_o4
 r_w2_bot_end_o4:
-	set	5, h		; offset next char by 4 pixels
-	jp	render_next_char
+	ld	a, h	; Can’t use af' here, since we clobber it in rendering logic
+	sub	8
+	jp	render_next_char_add_offset
 
 
 	; RENDER 12-BIT GLYPH AT OFFSET4
@@ -553,7 +556,9 @@ r_w3_bot_o4:
 	djnz	r_w3_bot_o4
 r_w3_bot_end_o4:
 	inc	l		; move to next column
-	jp	render_next_char
+	ex	af, af'
+	and	~(1<<5)	; Clear bit 5 => next char not offset
+	jp	render_next_char_line_from_a
 
 render_w0w1_o4:
 	rla
@@ -591,12 +596,10 @@ r_w1_mid_o4_half:
 	djnz	r_w1_mid_o4
 
 r_w1_bot_o4_init:
-	ld	a, h
-	add	7
-	and	$f8
-	ld	h, a
 	inc	l		; move to next column
-	jp	render_next_char
+	ex	af, af'
+	and	~(1<<5)	; Clear bit 5 => next char not offset
+	jp	render_next_char_line_from_a
 
 
 	; row/column (HL) to screen address (DE) and attr pointer (HL)
