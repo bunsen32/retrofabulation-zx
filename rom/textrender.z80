@@ -47,10 +47,10 @@ render_text:
 	pop	hl		; hl := (row, column)
 	push	hl		; Push (row, column) to return, modified, at the end.
 	; get screen position pointer into DE from HL coordinates (and attr pointer in HL)
-	call	ROWCOL_ADDR
+	call	ROWCOL_ADDR	; de := pixel address; hl := attr address
 	push	hl		; Push address of attr block, to colour in character cells at the end.
 	bit	5, d
-	jr	z, render_common_char
+	jr	z, render_common_char_to_de
 			; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
 	ld	a, (hl)	; a := starting attribute
 	rra
@@ -62,7 +62,7 @@ render_text:
 	ld	a, $f0
 clr_half_cell0:
 	ld	h, d
-	ld	l, e
+	ld	l, e	; hl := de = screen pointer
 	res	5, h
 	ld	c, a	; c := char-cell mask (to clear rhs of cell)
 	ld	b, $08	; b := count of cell lines
@@ -72,28 +72,28 @@ clr_half_cell:
 	ld	(hl), a
 	inc	h
 	djnz	clr_half_cell
+render_common_char_to_de:
+	ex	de, hl	; hl := screen pointer
 	jr	render_common_char
 
 render_next_char:
 	ld	a, -8
 	add	h
-	ld	d, a
-	ld	e, l		; de := screen pointer
+	ld	h, a		; hl := screen pointer
 render_next_char_same_line:
 	; <check haven’t gone off end of 32-character line>
 
 render_common_char:
-	exx			; de := char pointer; b := remaining characters + 1; de' := screen pointer
+	exx			; de := char pointer; b := remaining characters + 1; hl' := screen pointer
 	dec	b
 	jr	z, colour_it_in
 	ld	a, (de)		; a := next character to render
 	inc	de
 
 	exx			; de := screen pointer
-	ld	b,ixh	; Character index table
-	ld	c,ixl
-	ld	h,b
-	ld	l,c
+	ld	d,ixh
+	ld	e,ixl	; de := font
+	ex	de, hl	; de := screen pointer; hl := font 
 
 	; Force character (in A) to be in range of glyphs:
 	sub	(hl)	; First character represented
@@ -199,11 +199,16 @@ r_w2_bot_o0:
 r_w2_bot_end_o0:
 	inc	l		; move to next column
 	jp	render_next_char
+
 beyond_rhs:			; c has OLD space remaining
 	dec	de	; Go back a character in buffer.
+	exx
+	ex	de,hl
+	exx
 			; (No need to increase 'b' here since we already did that at the start.)
 colour_it_in:
-	exx		; de := screen pointer
+	exx		; hl := screen pointer
+	ex	de,hl
 	ld	a, e
 	pop	hl	; hl := pointer to attribute block (of FIRST char)
 	sub	l
