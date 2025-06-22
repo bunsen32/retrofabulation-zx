@@ -24,6 +24,7 @@
   case all-zero metadata byte and render as blank character, perhaps. Otherwise mask height to 0b111 and add 1 (and
 	ignore spurious other bits).
 * Could represent 1.5-cell character as 2 parts (1-cell + 0.5-cell) and render separately, which would reduce amount of rendering code at minimal cost to font data size (1 byte extra per such character), and minimal rendering cost, since wide characters occur infrequently. Also, if we want to draw clipped characters, that’s also fewer cases to handle: we just need logic to slice 1-cell glyph, really.
+* ~~System font should be a global variable.~~ [Done: 2025.06.22]
 
 ## Font & font-generation
 * Diacritics: 0-width characters & pre-rotation encoding
