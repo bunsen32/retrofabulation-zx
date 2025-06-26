@@ -355,19 +355,14 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, 
 	vm.setRam(0x9000, asBytes(text))
 	vm.pokeWord(globals.FONT, rom.FONT_LOOKUP.addr)
 	vm.setRegisters({
-		SP: stackTop,
 		DE: 0x9000,
 		B: text.length as byte,
 		C: maxWidth,
 		A: attr,
 		H: p.row,
 		L: p.column
-	 })
-	vm.setRam(0x8000, [
-		0xCD, 0x00, 0x08, // call $0800
-		0x76, // HALT
-	])
-	vm.runPcAt({addr:0x8000}, 4050 + 674 * text.length)
+	})
+	vm.callSubroutine(rom.RENDER_TEXT, 4050 + 674 * text.length)
 }
 
 function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {

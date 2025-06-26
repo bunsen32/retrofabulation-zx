@@ -29,9 +29,8 @@
 
 	INCLUDE "reset.z80"	; 0000 to 00CF
 	INCLUDE "interpreter.z80"	; 00D0 to 05FF
-	INCLUDE "four-shift-lookup.z80"	; 0600 to 07FF
-	PADTO $0800
-	INCLUDE "textrender.z80"	; 0800 to 0a00
+	PADTO $0600
+	INCLUDE "textrender.z80"	; 0600 to 0800
 	INCLUDE "startup.z80"
 	INCLUDE "keyboard.z80"
 	INCLUDE "repl.z80"
