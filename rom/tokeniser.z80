@@ -1,0 +1,142 @@
+TOK_END	EQU 0
+TOK_NONE	EQU 0
+
+TOK_ADD	EQU 1	; +
+TOK_SUB	EQU 2	; –
+TOK_MUL	EQU 3	; ×
+TOK_DIV	EQU 4	; /
+TOK_FLOORDIV	EQU 5	; //
+TOK_MOD	EQU 6	; %
+TOK_EXP	EQU 7	; **
+TOK_EQ	EQU 8	; =
+TOK_NE	EQU 9	; ≠
+TOK_LT	EQU 10	; <
+TOK_LE	EQU 11	; ≤
+TOK_GT	EQU 12	; >
+TOK_GE	EQU 13	; ≥
+TOK_BITAND	EQU 14	; &
+TOK_BITOR	EQU 15	; |
+TOK_BITINV	EQU 16	; ~ [unary operator]
+TOK_BITSL	EQU 17	; <<
+TOK_BITSR	EQU 18	; >>
+TOK_BITXOR	EQU 19	; ^
+
+TOK_LOGOR	EQU 20	; 'or'
+TOK_LOGAND	EQU 21	; 'and'
+TOK_LOGNOT	EQU 22	; 'not' [unary operator]
+
+TOK_SEMICOLON	EQU 32	; ;
+TOK_COLON	EQU 33	; :
+TOK_ASSIGN	EQU 34	; :=
+TOK_COMMA	EQU 35	; ,
+TOK_ARROPEN	EQU 36	; [
+TOK_ARRCLOSE	EQU 37	; ]
+TOK_PARENOPEN	EQU 38	; (
+TOK_PARENCLOSE	EQU 39	; )
+TOK_DISCARD	EQU 40	; _
+TOK_DOT	EQU 41	; .
+
+TOK_SPACES	EQU 64	; ' ' x n
+
+TOK_IDENTIFIER	EQU $80
+TOK_STRING	EQU $81
+TOK_COMMENT	EQU $82	; # to end of line
+TOK_INVALID	EQU -1	; Unrecognised token.
+
+	; DE: text stream
+	; HL: token stream
+TOKENISE:
+.next:	ld a,(de)
+	inc de
+	ld c,a
+	cp $40	; '@', 'A', 'B', 'C'…
+	jr c,.symbols_digits
+.letters_symbols:	cp $7f	; DEL
+	jr nc,.high_syms
+	and %0011111	; to upper-case
+	jr z,.invalid_sym	; '@' or '`' (backtick)
+	cp 27	; One past 'Z' or 'z'
+	jr c,.startw_alpha	 
+	
+.end_ascii_syms:	ld a,c	; A is in the range $5B..$5F or $7B..$7e
+	add %10100000	; Cause a carry if ‘lower-case’ ({, |, }, ~)
+	rla	; Low bit is "is lower-case"
+	and %1111	; Range: 6..14 ([, {, \, |, ], }, ^, ~, _)
+	cp 14
+	jr z,.underscore
+	add END_ASCII_SYMS - 6
+	ld c,a
+	ld b,END_ASCII_SYMS>>8
+	ld a,(bc)
+	ld (hl),a
+	inc hl
+
+.symbols_digits:
+	or a
+	ret z	; End of tokenisation if we hit NUL
+	sub 32
+	jr z,.space
+	jr c,.invalid_sym	; Anything less than spance and greater than NUL
+	cp '0'-32
+	jr c,.sym_lookup
+.digit:	cp '9'+1-32
+	jr nc,.sym_lookup
+		
+.sym_lookup:	ld c,a+SYM_LOOKUP-1
+	ld b,SYM_LOOKUP>>8
+	ld a,(bc)
+	or a
+	rra
+
+.space:	; Should not occur, but encode run of spaces. TODO: allow more than one.
+	ld (hl),TOK_SPACES
+	inc hl
+	ld (hl),1
+	inc hl
+	jr .next
+.high_syms:
+
+.underscore:	ld a,(de)
+	cp 32+1
+
+	; Parse a token that starts with an alphabetic character
+.startw_alpha:
+
+.invalid_sym:	ld (hl),SYM_INV
+	inc hl
+
+
+.expect_end_tok:	ld (hl),a
+	ld a,(de)
+	cp 32+1
+	jr c,.invalid_sym
+
+END_ASCII_SYMS:
+	SAME_PAGE .end
+	db TOK_ARROPEN	; $5b  [
+	db TOK_NONE	; $7b  { 
+	db TOK_NONE	; $5c  \
+	db TOK_BITOR	; $7c  |
+	db TOK_ARRCLOSE	; $5d  ]
+	db TOK_NONE	; $7d  }
+	db TOK_BITXOR	; $5e  ^
+	db TOK_BITINV	; $7e  ~
+.end
+SYM_LOOKUP:
+	SAME_PAGE .end
+	db TOK_NONE	; $21  !
+	db TOK_NONE	; $22  "
+	db TOK_NONE	; $23  #
+	db 	; $24  $
+	db TOK_MOD	; $25  %
+	db TOK_BITAND	; $26  &
+	db TOK_NONE	; $27  '
+	db TOK_PARENOPEN	; $28  (
+	db TOK_PARENCLOSE	; $29  )
+	db TOK_MUL	; $2A  *
+	db TOK_ADD	; $2B  +
+	db TOK_COMMA	; $2C  ,
+	db TOK_SUB	; $2D  -
+	db TOK_DOT	; $2E  .
+	db TOK_DIV	; $2F  /
+.end

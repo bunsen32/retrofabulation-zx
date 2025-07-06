@@ -69,7 +69,7 @@ export const CharsetFromUnicode: { [k: string]: byte } = {}
 for (let i = 0; i < 0xc0; i++) CharsetFromUnicode[Charset[i]] = i as byte
 for (let i = 0x1b; i <= 0x1f; i++) CharsetFromUnicode[String.fromCharCode(i)] = i as byte
 
-const Windows1252 = [
+export const Windows1252 = [
 	...Ascii,
 	// 80 hex:
 	'€', NUL, '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', NUL, 'Ž', NUL,
