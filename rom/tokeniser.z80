@@ -1,19 +1,20 @@
 TOK_END	EQU 0
 TOK_NONE	EQU 0
 
-TOK_ADD	EQU 1	; +
-TOK_SUB	EQU 2	; –
-TOK_MUL	EQU 3	; ×
-TOK_DIV	EQU 4	; /
-TOK_FLOORDIV	EQU 5	; //
-TOK_MOD	EQU 6	; %
-TOK_EXP	EQU 7	; **
-TOK_EQ	EQU 8	; =
-TOK_NE	EQU 9	; ≠
-TOK_LT	EQU 10	; <
-TOK_LE	EQU 11	; ≤
-TOK_GT	EQU 12	; >
-TOK_GE	EQU 13	; ≥
+; Operators:
+TOK_EQ	EQU 1	; =
+TOK_NE	EQU 2	; ≠
+TOK_LT	EQU 3	; <
+TOK_LE	EQU 4	; ≤
+TOK_GT	EQU 5	; >
+TOK_GE	EQU 6	; ≥
+TOK_ADD	EQU 7	; +
+TOK_SUB	EQU 8	; –
+TOK_MUL	EQU 9	; ×
+TOK_DIV	EQU 10	; /
+TOK_FLOORDIV	EQU 11	; //
+TOK_MOD	EQU 12	; %
+TOK_EXP	EQU 13	; **
 TOK_BITAND	EQU 14	; &
 TOK_BITOR	EQU 15	; |
 TOK_BITINV	EQU 16	; ~ [unary operator]
@@ -25,22 +26,31 @@ TOK_LOGOR	EQU 20	; 'or'
 TOK_LOGAND	EQU 21	; 'and'
 TOK_LOGNOT	EQU 22	; 'not' [unary operator]
 
-TOK_SEMICOLON	EQU 32	; ;
-TOK_COLON	EQU 33	; :
-TOK_ASSIGN	EQU 34	; :=
-TOK_COMMA	EQU 35	; ,
-TOK_ARROPEN	EQU 36	; [
-TOK_ARRCLOSE	EQU 37	; ]
-TOK_PARENOPEN	EQU 38	; (
-TOK_PARENCLOSE	EQU 39	; )
-TOK_DISCARD	EQU 40	; _
-TOK_DOT	EQU 41	; .
+; These tokens are alternate versions of operators. Can usually subtract 24 to get to canonical:
+TOK_X0_NE	EQU 24	; <>
+TOK_X_NE	EQU 24+TOK_NE	; !=
+TOK_X_LE	EQU 24+TOK_LE	; <=
+TOK_X_GE	EQU 24+TOK_GE	; >=
+TOK_X_SUB	EQU 24+TOK_SUB	; -	(Canonical glyph is n-dash for minus, not hyphen)
+TOK_X_MUL	EQU 24+TOK_MUL	; *
+
+TOK_SEMICOLON	EQU 36	; ;
+TOK_COLON	EQU 37	; :
+TOK_ASSIGN	EQU 38	; :=
+TOK_COMMA	EQU 39	; ,
+TOK_ARROPEN	EQU 40	; [
+TOK_ARRCLOSE	EQU 41	; ]
+TOK_PARENOPEN	EQU 42	; (
+TOK_PARENCLOSE	EQU 43	; )
+TOK_DISCARD	EQU 44	; _
+TOK_DOT	EQU 45	; .
 
 TOK_SPACES	EQU 64	; ' ' x n
+TOK_NOSPACE	EQU 65	; Missing space where one is expected.
 
-TOK_IDENTIFIER	EQU $80
-TOK_STRING	EQU $81
-TOK_COMMENT	EQU $82	; # to end of line
+TOK_IDENTIFIER	EQU $f0
+TOK_STRING	EQU $f1
+TOK_COMMENT	EQU $f2	; # to end of line
 TOK_INVALID	EQU -1	; Unrecognised token.
 
 	; DE: text stream
@@ -49,10 +59,26 @@ TOKENISE:
 .next:	ld a,(de)
 	inc de
 	ld c,a
-	cp $40	; '@', 'A', 'B', 'C'…
-	jr c,.symbols_digits
-.letters_symbols:	cp $7f	; DEL
-	jr nc,.high_syms
+	rlca
+	jr c,.ascii_80_ff	; $80–$ff
+.ascii_00_7f:	rlca
+	jr c,.letters_etc	; $40–7F
+.ascii_00_3f:	rlca
+	jr c,.symbols_digits ; $20–3f
+.ascii_00_1f:	ret z	; $00
+	jr .invalid_sym	; $01–1f
+.ascii_80_ff:	rlca
+	jr c,.invalid_sym	; $c0–ff
+.ascii_80_bf:	rlca
+	jr c,.ascii_a0_bf
+.ascii_80_9f:	rlca
+	jr c,.ascii_9x
+	jr .ascii_8x
+.ascii_a0_bf	rlca
+	jr c,.ascii_bx
+	jr c,.ascii_ax
+
+.letters_etc:	ld a,c
 	and %0011111	; to upper-case
 	jr z,.invalid_sym	; '@' or '`' (backtick)
 	cp 27	; One past 'Z' or 'z'
@@ -71,29 +97,56 @@ TOKENISE:
 	ld (hl),a
 	inc hl
 
-.symbols_digits:
-	or a
-	ret z	; End of tokenisation if we hit NUL
-	sub 32
-	jr z,.space
-	jr c,.invalid_sym	; Anything less than spance and greater than NUL
-	cp '0'-32
+.symbols_digits:	ld a,c	;  ! " # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
+	sub '%'
+	jr c,.early_symbols
+	cp '0'-'%'
 	jr c,.sym_lookup
-.digit:	cp '9'+1-32
-	jr nc,.sym_lookup
-		
+.digit:	cp '9'-'%'+1
+	jr nc,.sym_lookup2
+	nop
+	; TODO: starts with digit (=> int or float literal)
+
+.sym_lookup2:	sub 10	; Subtract digits from latter symbols (: ; < = > ?)
 .sym_lookup:	ld c,a+SYM_LOOKUP-1
 	ld b,SYM_LOOKUP>>8
 	ld a,(bc)
-	or a
-	rra
+	or a	; clear carry flag (to rotate into A)
+	rra	; a := token (or none), carry := {$ % * /} (may be longer token)
+	jr c,.sym_plus	; May be a longer token
+.sym_only:	ld (hl),a
+	inc hl
+	jr .expect_end_tok
+.sym_plus:	ex af,af'	; It might be a compound thing, so see if followed by space or null:
+	ld a,(de)	; Peek next character
+	cp 33
+	jr nc,.tok_has_more
+	ex af,af'
+	cp 3
+	jr nc,.expect_end_tok
+	jr .invalid_sym
 
-.space:	; Should not occur, but encode run of spaces. TODO: allow more than one.
+.tok_has_more:	; It’s one of 
+
+
+.early_symbols:	; <sp>($fb) !($fc) "($fd) #($fe) $($ff)  All to be treated specially. (We already subtracted $25 from ASCII values!)
+	rra
+	jr c,.odd	; Optimise for *_evens, since that includes # and excludes (spurious) <sp>
+.even:	rra
+	jr c,.hash	; Ends with x10: #($fe)
+	jr .exclam	; Ends with x00: !($fc)
+
+.odd:	rra
+	jr nc,.quote	; Ends with x01: "($fd)
+.odd_odd:	rra
+	jr c,.dolar	; Ends with 111: $($ff)
+.extra_spaces:	; Should not occur, but encode run of spaces. TODO: allow more than one.
 	ld (hl),TOK_SPACES
 	inc hl
 	ld (hl),1
 	inc hl
 	jr .next
+
 .high_syms:
 
 .underscore:	ld a,(de)
@@ -105,11 +158,24 @@ TOKENISE:
 .invalid_sym:	ld (hl),SYM_INV
 	inc hl
 
+.ascii_8x:	nop	; TODO
+.ascii_9x:	nop	; TODO
+.ascii_ax:	nop	; TODO
+.ascii_bx:	nop	; TODO
 
 .expect_end_tok:	ld (hl),a
+	inc hl
 	ld a,(de)
 	cp 32+1
 	jr c,.invalid_sym
+
+.dollar:	nop	; TODO: Parse hex!
+
+.quote:	nop	; TODO: Parse string!
+
+.hash:	nop	; TODO: Parse comment!
+
+.exclam:	nop	; TODO: Parse '!' (Either '!=' or invalid)
 
 END_ASCII_SYMS:
 	SAME_PAGE .end
@@ -124,19 +190,21 @@ END_ASCII_SYMS:
 .end
 SYM_LOOKUP:
 	SAME_PAGE .end
-	db TOK_NONE	; $21  !
-	db TOK_NONE	; $22  "
-	db TOK_NONE	; $23  #
-	db 	; $24  $
-	db TOK_MOD	; $25  %
+	db TOK_MOD	; $25  %  Modulus, or start of binary literal
 	db TOK_BITAND	; $26  &
 	db TOK_NONE	; $27  '
 	db TOK_PARENOPEN	; $28  (
 	db TOK_PARENCLOSE	; $29  )
-	db TOK_MUL	; $2A  *
+	db TOK_X_MUL	; $2A  *  Multiply, or start of exponent
 	db TOK_ADD	; $2B  +
 	db TOK_COMMA	; $2C  ,
-	db TOK_SUB	; $2D  -
+	db TOK_X_SUB	; $2D  -
 	db TOK_DOT	; $2E  .
-	db TOK_DIV	; $2F  /
+	db TOK_DIV	; $2F  /  Divide, or start of floor-div
+	db TOK_COLON	; $3a  :
+	db TOK_SEMICOLON	; $3b  ;
+	db TOK_LT	; $3c  <  Less-than, or start of "<=" or "<>"
+	db TOK_EQ	; $3d  =
+	db TOK_GT	; $3e  >  Greater-than, or start of ">="
+	db TOK_NONE	; $3f  ?
 .end
