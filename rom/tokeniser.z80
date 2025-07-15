@@ -76,7 +76,7 @@ TOKENISE:
 	jr .ascii_8x
 .ascii_a0_bf	rlca
 	jr c,.ascii_bx
-	jr c,.ascii_ax
+	jr .ascii_ax
 
 .letters_etc:	ld a,c
 	and %0011111	; to upper-case
@@ -90,14 +90,14 @@ TOKENISE:
 	and %1111	; Range: 6..14 ([, {, \, |, ], }, ^, ~, _)
 	cp 14
 	jr z,.underscore
-	add END_ASCII_SYMS - 6
+	add (END_ASCII_SYMS - 6) & $ff
 	ld c,a
 	ld b,END_ASCII_SYMS>>8
 	ld a,(bc)
 	ld (hl),a
 	inc hl
 
-.symbols_digits:	ld a,c	;  ! " # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
+.symbols_digits:	ld a,c	; <sp> ! " # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
 	sub '%'
 	jr c,.early_symbols
 	cp '0'-'%'
@@ -108,26 +108,26 @@ TOKENISE:
 	; TODO: starts with digit (=> int or float literal)
 
 .sym_lookup2:	sub 10	; Subtract digits from latter symbols (: ; < = > ?)
-.sym_lookup:	ld c,a+SYM_LOOKUP-1
+.sym_lookup:	add (SYM_LOOKUP-1) & $ff
+	ld c,a
 	ld b,SYM_LOOKUP>>8
 	ld a,(bc)
 	or a	; clear carry flag (to rotate into A)
 	rra	; a := token (or none), carry := {$ % * /} (may be longer token)
 	jr c,.sym_plus	; May be a longer token
-.sym_only:	ld (hl),a
-	inc hl
-	jr .expect_end_tok
-.sym_plus:	ex af,af'	; It might be a compound thing, so see if followed by space or null:
+.sym_only:	jr nz,.expect_end_tok
+	jr .invalid_sym
+.sym_plus:	ld c,a	; It might be a compound thing, so see if followed by space or null:
 	ld a,(de)	; Peek next character
 	cp 33
-	jr nc,.tok_has_more
-	ex af,af'
-	cp 3
-	jr nc,.expect_end_tok
+	jr nc,.tok_has_more ; Otherwise: it’s followed by space or null or something.
+	ld a,c
+	or a
+	jr nz,.expect_end_tok
 	jr .invalid_sym
 
-.tok_has_more:	; It’s one of 
-
+.tok_has_more:	; It’s one of ‘%…’ (binary literal?), ‘*…’ (exponent?), ‘/…’ (floor div?), ‘<…’ (<= or <>?) or ‘>…’ (>=?)
+	nop	; TODO
 
 .early_symbols:	; <sp>($fb) !($fc) "($fd) #($fe) $($ff)  All to be treated specially. (We already subtracted $25 from ASCII values!)
 	rra
@@ -139,7 +139,7 @@ TOKENISE:
 .odd:	rra
 	jr nc,.quote	; Ends with x01: "($fd)
 .odd_odd:	rra
-	jr c,.dolar	; Ends with 111: $($ff)
+	jr c,.dollar	; Ends with 111: $($ff)
 .extra_spaces:	; Should not occur, but encode run of spaces. TODO: allow more than one.
 	ld (hl),TOK_SPACES
 	inc hl
@@ -147,27 +147,35 @@ TOKENISE:
 	inc hl
 	jr .next
 
-.high_syms:
-
 .underscore:	ld a,(de)
 	cp 32+1
+	ld a,TOK_DISCARD
+	jr c,.expect_end_tok
+	nop	; TODO: Parse identifier (fall through to .startw_alpha?)
 
 	; Parse a token that starts with an alphabetic character
-.startw_alpha:
+.startw_alpha:	nop	; TODO
 
-.invalid_sym:	ld (hl),SYM_INV
+.invalid_sym:	ld (hl),TOK_INVALID
 	inc hl
 
-.ascii_8x:	nop	; TODO
-.ascii_9x:	nop	; TODO
-.ascii_ax:	nop	; TODO
-.ascii_bx:	nop	; TODO
+.ascii_8x:	nop	; TODO: Identify ≠ × (plus invalid)
+.ascii_9x:	nop	; TODO: Identify π “ – (plus invalid)
+.ascii_ax:	nop	; TODO: Identify ≤ (plus invalid)
+.ascii_bx:	nop	; TODO: Identify ≥ (plus invalid — maybe ∞)
 
 .expect_end_tok:	ld (hl),a
 	inc hl
 	ld a,(de)
-	cp 32+1
-	jr c,.invalid_sym
+	cp 32
+	jr nz,.not_space
+.is_space:	inc de	; Fine. We got a space, which indicates token separator.
+	jp .next
+.not_space:	or a
+	ret z	; Return if end of stream.
+	ld (hl),TOK_NOSPACE
+	inc hl
+	jp .next
 
 .dollar:	nop	; TODO: Parse hex!
 
@@ -177,6 +185,7 @@ TOKENISE:
 
 .exclam:	nop	; TODO: Parse '!' (Either '!=' or invalid)
 
+	ALIGN 256
 END_ASCII_SYMS:
 	SAME_PAGE .end
 	db TOK_ARROPEN	; $5b  [
