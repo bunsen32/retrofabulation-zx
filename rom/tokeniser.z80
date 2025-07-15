@@ -56,17 +56,25 @@ TOK_INVALID	EQU -1	; Unrecognised token.
 	; DE: text stream
 	; HL: token stream
 TOKENISE:
+	call .next
+	ld (hl),0
+	inc hl
+	ret
+
 .next:	ld a,(de)
 	inc de
 	ld c,a
 	rlca
 	jr c,.ascii_80_ff	; $80–$ff
+
 .ascii_00_7f:	rlca
-	jr c,.letters_etc	; $40–7F
+	jr c,.letters_etc	; $40–7f
 .ascii_00_3f:	rlca
 	jr c,.symbols_digits ; $20–3f
-.ascii_00_1f:	ret z	; $00
+.ascii_00_1f:	or a
+	ret z	; $00
 	jr .invalid_sym	; $01–1f
+
 .ascii_80_ff:	rlca
 	jr c,.invalid_sym	; $c0–ff
 .ascii_80_bf:	rlca
@@ -108,7 +116,7 @@ TOKENISE:
 	; TODO: starts with digit (=> int or float literal)
 
 .sym_lookup2:	sub 10	; Subtract digits from latter symbols (: ; < = > ?)
-.sym_lookup:	add (SYM_LOOKUP-1) & $ff
+.sym_lookup:	add (SYM_LOOKUP) & $ff
 	ld c,a
 	ld b,SYM_LOOKUP>>8
 	ld a,(bc)
@@ -158,6 +166,7 @@ TOKENISE:
 
 .invalid_sym:	ld (hl),TOK_INVALID
 	inc hl
+	nop	; TODO: Read invalid token up until space/EOL
 
 .ascii_8x:	nop	; TODO: Identify ≠ × (plus invalid)
 .ascii_9x:	nop	; TODO: Identify π “ – (plus invalid)
@@ -199,21 +208,21 @@ END_ASCII_SYMS:
 .end
 SYM_LOOKUP:
 	SAME_PAGE .end
-	db TOK_MOD	; $25  %  Modulus, or start of binary literal
-	db TOK_BITAND	; $26  &
-	db TOK_NONE	; $27  '
-	db TOK_PARENOPEN	; $28  (
-	db TOK_PARENCLOSE	; $29  )
-	db TOK_X_MUL	; $2A  *  Multiply, or start of exponent
-	db TOK_ADD	; $2B  +
-	db TOK_COMMA	; $2C  ,
-	db TOK_X_SUB	; $2D  -
-	db TOK_DOT	; $2E  .
-	db TOK_DIV	; $2F  /  Divide, or start of floor-div
-	db TOK_COLON	; $3a  :
-	db TOK_SEMICOLON	; $3b  ;
-	db TOK_LT	; $3c  <  Less-than, or start of "<=" or "<>"
-	db TOK_EQ	; $3d  =
-	db TOK_GT	; $3e  >  Greater-than, or start of ">="
-	db TOK_NONE	; $3f  ?
+	db (TOK_MOD<<1)+1	; $25  %  Modulus, or start of binary literal
+	db (TOK_BITAND<<1)+0	; $26  &
+	db (TOK_NONE<<1)+0	; $27  '
+	db (TOK_PARENOPEN<<1)+0	; $28  (
+	db (TOK_PARENCLOSE<<1)+0	; $29  )
+	db (TOK_X_MUL<<1)+1	; $2A  *  Multiply, or start of exponent
+	db (TOK_ADD<<1)+0	; $2B  +
+	db (TOK_COMMA<<1)+0	; $2C  ,
+	db (TOK_X_SUB<<1)+0	; $2D  -
+	db (TOK_DOT<<1)+0	; $2E  .
+	db (TOK_DIV<<1)+1	; $2F  /  Divide, or start of floor-div
+	db (TOK_COLON<<1)+0	; $3a  :
+	db (TOK_SEMICOLON<<1)+0	; $3b  ;
+	db (TOK_LT<<1)+1	; $3c  <  Less-than, or start of "<=" or "<>"
+	db (TOK_EQ<<1)+0	; $3d  =
+	db (TOK_GT<<1)+1	; $3e  >  Greater-than, or start of ">="
+	db (TOK_NONE<<1)+0	; $3f  ?
 .end

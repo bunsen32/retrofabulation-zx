@@ -14,7 +14,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toBe([0])
+		expect(result.tokenBytes).toEqual([])
 	})
 
 	it("Interprets ‘&’ as TOK_BITAND", async () => {
@@ -42,6 +42,9 @@ function givenText(vm: Vm, input: string): TextBuffer {
 	expect(input.length < 256)
 	const start = 0x9000
 	vm.setRam(start, input + '\0')
+	const readback = asString(vm.getRam(start, input.length + 1))
+	expect(readback).toEqual(input + '\0')
+	expect(vm.peekByte({addr: start + input.length})).toBe(0)
 
 	const buffer = {
 		vm,
@@ -80,8 +83,15 @@ function whenTokenised(text: TextBuffer): TokenStream {
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)
 	const resultSize = HL - tokenBuffer
-	expect(resultSize < 256)
-	const tokenBytes = vm.getRam(tokenBuffer, resultSize)
+	expect(resultSize).toBeGreaterThan(0)
+	expect(resultSize).toBeLessThan(256)
+	const tokenUint8Array = vm.getRam(tokenBuffer, resultSize - 1)
+	const tokenBytes: byte[] = []
+	for(let i = 0; i < tokenUint8Array.length; i++) {
+		tokenBytes.push(tokenUint8Array[i])
+	}
+	expect(vm.peekByte({addr: HL - 1}), "Expecting terminating zero").toBe(0)
+
 	return {
 		vm,
 		tokenBytes
