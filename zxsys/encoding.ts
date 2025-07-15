@@ -45,8 +45,8 @@ export const NARROW_HASH = String.fromCharCode(CODES.NARROW_HASH)
 export const NARROW_DOLLAR = String.fromCharCode(CODES.NARROW_DOLLAR)
 
 export const Charset = [
-	NUL, '⇦', '⇨', '⇩', '⇧', '☀︎', '☼', '␇', '⌫','⇥', '↵', '␛', _FF, ' ', '⇪', ' ',
-	NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, '&', '?', '%', '#', '$',
+	NUL, '⇦', '⇨', '⇩', '⇧', '☀︎', '☼', '␇', '⌫','⇥', '↵', '␛', _FF, NUL, '⇪', NUL,
+	NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, '﹠', '﹖', '﹪', '﹟', '﹩',
 	...Ascii.slice(0x20, 0x7F), '░',
 	// 80 hex:
 	'€', '≠', '‚', '×', '„', '…', '†', '‡', 'Ł', '‰', 'Þ', '‹', 'Œ', 'Æ', 'Ð', 'Ø',
@@ -59,15 +59,10 @@ export const Charset = [
 	'¸', '˛', NUL, NUL, 'ı', 'ˋ', '´', '¨', 'ˆ', '˜', '¯', '˘', '˙', '˚', '˝', 'ˇ'
 ]
 
-Charset[CODES.NARROW_AMP] = '&'
-Charset[CODES.NARROW_QUEST] = '?'
-Charset[CODES.NARROW_PERCENT] = '%'
-Charset[CODES.NARROW_HASH] = '#'
-Charset[CODES.NARROW_DOLLAR] = '$'
-
 export const CharsetFromUnicode: { [k: string]: byte } = {}
-for (let i = 0; i < 0xc0; i++) CharsetFromUnicode[Charset[i]] = i as byte
+for (let i = 0xbf; i > 0x00; i--) CharsetFromUnicode[Charset[i]] = i as byte
 for (let i = 0x1b; i <= 0x1f; i++) CharsetFromUnicode[String.fromCharCode(i)] = i as byte
+CharsetFromUnicode['\0'] = 0 as byte
 
 export const Windows1252 = [
 	...Ascii,
