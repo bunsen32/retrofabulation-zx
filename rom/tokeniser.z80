@@ -80,9 +80,11 @@ TOKENISE:
 .ascii_80_bf:	rlca
 	jr c,.ascii_a0_bf
 .ascii_80_9f:	rlca
+	ld a,c
 	jp c,.ascii_9x
 	jp .ascii_8x
 .ascii_a0_bf	rlca
+	ld a,c
 	jp c,.ascii_bx
 	jp .ascii_ax
 
@@ -122,18 +124,17 @@ TOKENISE:
 	ld a,(bc)
 	or a	; clear carry flag (to rotate into A)
 	rra	; a := token (or none), carry := {$ % * /} (may be longer token)
-	jr c,.sym_multichar	; May be a longer token
+	jr nc,.expect_end_tok	; Low bit was clear: it’s a (valid) single-character symbolic token.
+	rrca	; Okay low bit was set: invalid OR potentially prefix of multichar sym
+	jr nc,.invalid_sym	; Next low bit clear: invalid token!
 
-.sym_1char:	or a	; Test for zero
-	jr nz,.expect_end_tok	; Non-zero is valid token, so record it.
-	jr .invalid_sym	; (Zero is invalid token)
-
+	; Now potentially prefix of multisymbol token:
 .sym_multichar:	ld c,a	; It might be a compound thing, so see if followed by space or null:
 	ld a,(de)	; Peek next character
 	cp 33	; Is peeked-next-char in range 0–32? If so, it’s a single char token.
 	ld b,a	; b := peeked next character
 	ld a,c	; a := starting token
-	jr c,.sym_1char
+	jr c,.expect_end_tok
 
 .tok_has_more:	; It’s one of ‘%…’ (binary literal?), ‘*…’ (exponent?), ‘/…’ (floor div?), ‘<…’ (<= or <>?) or ‘>…’ (>=?)
 	inc de
@@ -144,22 +145,23 @@ TOKENISE:
 	jr c,.slash
 	jr .percent
 .sym_odd:	rra	; {* < >}
-	jr c,.lt
+	jp c,.lt
 .even_odd:	rra	; {* >}
-	jr c,.gt
+	jp c,.gt
 	jr .asterisk
 
 .early_symbols:	; <sp>($fb) !($fc) "($fd) #($fe) $($ff)  All to be treated specially. (We already subtracted $25 from ASCII values!)
 	rra
 	jr c,.odd	; Optimise for *_evens, since that includes # and excludes (spurious) <sp>
 .even:	rra
-	jr c,.hash	; Ends with x10: #($fe)
-	jr .exclam	; Ends with x00: !($fc)
+	jp c,.hash	; Ends with x10: #($fe)
+	jp .exclam	; Ends with x00: !($fc)
 
 .odd:	rra
-	jr nc,.quote	; Ends with x01: "($fd)
+	jp nc,.quote	; Ends with x01: "($fd)
 .odd_odd:	rra
-	jr c,.dollar	; Ends with 111: $($ff)
+	jp c,.dollar	; Ends with 111: $($ff)
+
 .extra_spaces:	; Should not occur, but encode run of spaces. TODO: allow more than one.
 	ld (hl),TOK_SPACES
 	inc hl
@@ -180,14 +182,35 @@ TOKENISE:
 	inc hl
 	nop	; TODO: Read invalid token up until space/EOL
 
-.ascii_8x:	nop	; TODO: Identify ≠ × (plus invalid)
-.ascii_9x:	nop	; TODO: Identify π “ – (plus invalid)
-.ascii_ax:	nop	; TODO: Identify ≤ (plus invalid)
-.ascii_bx:	nop	; TODO: Identify ≥ (plus invalid — maybe ∞)
+.ascii_8x:	cp $81	; TODO: Identify ≠ × (plus invalid)
+	ld b,TOK_NE
+	jr z,.token_in_b
+	cp $83
+	ld b,TOK_MUL
+	jr z,.token_in_b
+	; Just fall through for invalid tokens.
 
+.ascii_9x:	cp $93	; TODO: Identify π “ – (plus invalid)
+	jr z,.string
+	cp $90
+	jr z,.pi
+	; Just fall through for invalid tokens.
+
+.ascii_ax:	cp $a8	; TODO: Identify ≤ (plus invalid)
+	ld b,TOK_LE
+	jr z,.token_in_b
+	; Just fall through for invalid tokens.
+
+.ascii_bx:	cp $b8	; TODO: Identify ≥ (plus invalid — maybe ∞)
+	ld b,TOK_GE
+	jr z,.token_in_b
+	jr .invalid_sym
+
+.token_in_b:	ld (hl),b
+	jr .expect_end_tok_inc	; skip 2 bytes
 .inc_expect_end_tok:	inc de
 .expect_end_tok:	ld (hl),a
-	inc hl
+.expect_end_tok_inc:	inc hl
 	ld a,(de)
 	cp 32
 	jr nz,.not_space
@@ -219,17 +242,11 @@ TOKENISE:
 
 .lt:	ld a,b
 	cp '='
-	jr z,.le
+	jr z,.lt_eq
 	cp '>'
 	jr z,.basic_ne
 	ld a,TOK_LE	; NOT followed by equals or less-than. So plain "<" (less-than)
 	jr .expect_end_tok
-
-.le:	ld a,TOK_X_LE	; LT followed by equals. So "<=" (less-than-equal ‘≥’)
-	jr .inc_expect_end_tok
-
-.basic_ne:	ld a,TOK_X0_NE	; LT followed by greater-than. So "<>" (BASIC not-equal ‘≠’)
-	jr .inc_expect_end_tok
 
 .gt:	ld a,b
 	cp '='
@@ -239,6 +256,14 @@ TOKENISE:
 	ld a,TOK_GE	; WAS followed by equals. So ">=" (greater-or-equal ‘≥’)
 	jr .inc_expect_end_tok
 
+.lt_eq:	ld a,TOK_X_LE	; LT followed by equals. So "<=" (less-than-equal ‘≥’)
+	jr .inc_expect_end_tok
+
+.basic_ne:	ld a,TOK_X0_NE	; LT followed by greater-than. So "<>" (BASIC not-equal ‘≠’)
+	jr .inc_expect_end_tok
+
+.pi:	nop	; TODO: This is an identifier!
+
 .dollar:	nop	; TODO: Parse hex!
 
 .quote:	nop	; TODO: Parse string!
@@ -246,6 +271,9 @@ TOKENISE:
 .hash:	nop	; TODO: Parse comment!
 
 .exclam:	nop	; TODO: Parse '!' (Either '!=' or invalid)
+
+.string:	nop	; TODO: Parse string!
+
 
 	ALIGN 256
 END_ASCII_SYMS:
@@ -261,21 +289,21 @@ END_ASCII_SYMS:
 .end
 SYM_LOOKUP:
 	SAME_PAGE .end
-	db (TOK_MOD<<1)+1	; $25  %  Modulus, or start of binary literal
+	db (TOK_MOD<<2)+%11	; $25  %  Modulus, or start of binary literal
 	db (TOK_BITAND<<1)+0	; $26  &
-	db (TOK_NONE<<1)+0	; $27  '  <INVALID>
+	db ("'"<<2)+%01	; $27  '  <INVALID>
 	db (TOK_PARENOPEN<<1)+0	; $28  (
 	db (TOK_PARENCLOSE<<1)+0	; $29  )
-	db (TOK_X_MUL<<1)+1	; $2A  *  Multiply, or start of exponent
+	db (TOK_X_MUL<<2)+$11	; $2A  *  Multiply, or start of exponent
 	db (TOK_ADD<<1)+0	; $2B  +
 	db (TOK_COMMA<<1)+0	; $2C  ,
 	db (TOK_X_SUB<<1)+0	; $2D  -
 	db (TOK_DOT<<1)+0	; $2E  .
-	db (TOK_DIV<<1)+1	; $2F  /  Divide, or start of floor-div
+	db (TOK_DIV<<2)+%11	; $2F  /  Divide, or start of floor-div
 	db (TOK_COLON<<1)+0	; $3a  :
 	db (TOK_SEMICOLON<<1)+0	; $3b  ;
-	db (TOK_LT<<1)+1	; $3c  <  Less-than, or start of "<=" or "<>"
+	db (TOK_LT<<2)+%11	; $3c  <  Less-than, or start of "<=" or "<>"
 	db (TOK_EQ<<1)+0	; $3d  =
-	db (TOK_GT<<1)+1	; $3e  >  Greater-than, or start of ">="
-	db (TOK_NONE<<1)+0	; $3f  ?  <INVALID>
+	db (TOK_GT<<2)+%11	; $3e  >  Greater-than, or start of ">="
+	db ('?'<<2)+%01	; $3f  ?  <INVALID>
 .end
