@@ -3,6 +3,7 @@ import {asString, loadVm, type word, type Vm} from './testutils/testvm.ts'
 import type { byte } from '@zx/sys'
 import { rom } from "./generated/symbols.ts";
 import { expect } from "jsr:@std/expect/expect";
+import {EncodingFromSymbol} from './tokeniser.symbols.ts'
 
 const loadedVm = loadVm()
 
@@ -25,6 +26,28 @@ describe("Tokeniser", () => {
 
 		expect(result.tokenBytes).toEqual([rom.TOK_BITAND.addr])
 	})
+
+	for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
+		it(`Interprets ‘${symbol}’ as encoding ${encoding}`, async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, symbol)
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([encoding])
+		})
+	}
+
+	for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
+		it(`Interprets ‘${symbol}.’ as encoding ${encoding},TOK_NOSPACE,TOK_DOT`, async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, symbol+'.')
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([encoding, rom.TOK_NOSPACE.addr, rom.TOK_DOT.addr])
+		})
+	}
 })
 
 interface TextBuffer {

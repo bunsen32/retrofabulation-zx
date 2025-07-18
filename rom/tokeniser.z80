@@ -104,8 +104,9 @@ TOKENISE:
 	ld c,a
 	ld b,END_ASCII_SYMS>>8
 	ld a,(bc)
-	ld (hl),a
-	inc hl
+	or a
+	jp nz,.expect_end_tok
+	jp .invalid_sym
 
 .symbols_digits:	ld a,c	; <sp> ! " # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
 	sub '%'
@@ -126,7 +127,7 @@ TOKENISE:
 	rra	; a := token (or none), carry := {$ % * /} (may be longer token)
 	jr nc,.expect_end_tok	; Low bit was clear: it’s a (valid) single-character symbolic token.
 	rrca	; Okay low bit was set: invalid OR potentially prefix of multichar sym
-	jr nc,.invalid_sym	; Next low bit clear: invalid token!
+	jr c,.invalid_sym	; Next low bit set: invalid token!
 
 	; Now potentially prefix of multisymbol token:
 .sym_multichar:	ld c,a	; It might be a compound thing, so see if followed by space or null:
@@ -136,19 +137,19 @@ TOKENISE:
 	ld a,c	; a := starting token
 	jr c,.expect_end_tok
 
-.tok_has_more:	; It’s one of ‘%…’ (binary literal?), ‘*…’ (exponent?), ‘/…’ (floor div?), ‘<…’ (<= or <>?) or ‘>…’ (>=?)
+.tok_has_more:	; It’s one of ‘%…’ (binary literal?), ‘*…’ (exponent?), ‘/…’ (floor div?), ‘<…’ (<= or <> or <<?) or ‘>…’ (>= or >>?)
 	inc de
 	; A =  % ($0C--1100)  * ($21--0001)  / ($0A--1010)  < ($03--0011)  > ($05--0101)  …unique in low 3 bits…
 	rra
 	jr c,.sym_odd
 .sym_even:	rra	; {% /}
-	jr c,.slash
+	jp c,.slash
 	jr .percent
 .sym_odd:	rra	; {* < >}
 	jp c,.lt
 .even_odd:	rra	; {* >}
 	jp c,.gt
-	jr .asterisk
+	jp .asterisk
 
 .early_symbols:	; <sp>($fb) !($fc) "($fd) #($fe) $($ff)  All to be treated specially. (We already subtracted $25 from ASCII values!)
 	rra
@@ -161,6 +162,7 @@ TOKENISE:
 	jp nc,.quote	; Ends with x01: "($fd)
 .odd_odd:	rra
 	jp c,.dollar	; Ends with 111: $($ff)
+		; Else ends with 011: <sp>($fb)
 
 .extra_spaces:	; Should not occur, but encode run of spaces. TODO: allow more than one.
 	ld (hl),TOK_SPACES
@@ -191,7 +193,10 @@ TOKENISE:
 	; Just fall through for invalid tokens.
 
 .ascii_9x:	cp $93	; TODO: Identify π “ – (plus invalid)
-	jr z,.string
+	jp z,.string
+	cp $96
+	ld b,TOK_SUB
+	jr z,.token_in_b
 	cp $90
 	jr z,.pi
 	; Just fall through for invalid tokens.
@@ -206,6 +211,7 @@ TOKENISE:
 	jr z,.token_in_b
 	jr .invalid_sym
 
+.inc_token_in_b:	inc de
 .token_in_b:	ld (hl),b
 	jr .expect_end_tok_inc	; skip 2 bytes
 .inc_expect_end_tok:	inc de
@@ -222,8 +228,12 @@ TOKENISE:
 	inc hl
 	jp .next
 
-.percent:	ld a,b	
+.percent:	ld a,b
+	ld b,TOK_MOD
 	sub '0'
+	jr c,.token_in_b
+	cp 2
+	jr nc,.token_in_b
 	nop	; TODO: Try to parse some binary!
 
 .slash:	ld a,b
@@ -242,24 +252,25 @@ TOKENISE:
 
 .lt:	ld a,b
 	cp '='
-	jr z,.lt_eq
+	ld b,TOK_LE	; ‘<=’: Longhand less-than-or-equal ‘≤’
+	jr z,.inc_token_in_b
 	cp '>'
-	jr z,.basic_ne
-	ld a,TOK_LE	; NOT followed by equals or less-than. So plain "<" (less-than)
+	ld b,TOK_X0_NE	; ‘<>’: BASIC-style not-equal operator ‘≠’
+	jr z,.inc_token_in_b
+	cp '<'
+	ld b,TOK_BITSL	; ‘<<’
+	jr z,.inc_token_in_b
+	ld a,TOK_LT	; NOT followed by equals or less-than. So plain "<" (less-than)
 	jr .expect_end_tok
 
 .gt:	ld a,b
+	cp '>'
+	ld b,TOK_BITSR
+	jr z,.inc_token_in_b
 	cp '='
 	ld a,TOK_GT
 	jr nz,.expect_end_tok	; Was NOT followed by equals. So plain ">" (less-than)
-	inc de
 	ld a,TOK_GE	; WAS followed by equals. So ">=" (greater-or-equal ‘≥’)
-	jr .inc_expect_end_tok
-
-.lt_eq:	ld a,TOK_X_LE	; LT followed by equals. So "<=" (less-than-equal ‘≥’)
-	jr .inc_expect_end_tok
-
-.basic_ne:	ld a,TOK_X0_NE	; LT followed by greater-than. So "<>" (BASIC not-equal ‘≠’)
 	jr .inc_expect_end_tok
 
 .pi:	nop	; TODO: This is an identifier!
@@ -270,7 +281,11 @@ TOKENISE:
 
 .hash:	nop	; TODO: Parse comment!
 
-.exclam:	nop	; TODO: Parse '!' (Either '!=' or invalid)
+.exclam:	ld a,(de)	; TODO: Parse '!' (Either '!=' or invalid)
+	cp '='
+	ld b,TOK_X_NE
+	jr z,.inc_token_in_b
+	jp .invalid_sym
 
 .string:	nop	; TODO: Parse string!
 
@@ -289,21 +304,21 @@ END_ASCII_SYMS:
 .end
 SYM_LOOKUP:
 	SAME_PAGE .end
-	db (TOK_MOD<<2)+%11	; $25  %  Modulus, or start of binary literal
+	db (TOK_MOD<<2)+%01	; $25  %  Modulus, or start of binary literal
 	db (TOK_BITAND<<1)+0	; $26  &
-	db ("'"<<2)+%01	; $27  '  <INVALID>
+	db ("'"<<2)+%11	; $27  '  <INVALID>
 	db (TOK_PARENOPEN<<1)+0	; $28  (
 	db (TOK_PARENCLOSE<<1)+0	; $29  )
-	db (TOK_X_MUL<<2)+$11	; $2A  *  Multiply, or start of exponent
+	db (TOK_X_MUL<<2)+$01	; $2A  *  Multiply, or start of exponent
 	db (TOK_ADD<<1)+0	; $2B  +
 	db (TOK_COMMA<<1)+0	; $2C  ,
 	db (TOK_X_SUB<<1)+0	; $2D  -
 	db (TOK_DOT<<1)+0	; $2E  .
-	db (TOK_DIV<<2)+%11	; $2F  /  Divide, or start of floor-div
+	db (TOK_DIV<<2)+%01	; $2F  /  Divide, or start of floor-div
 	db (TOK_COLON<<1)+0	; $3a  :
 	db (TOK_SEMICOLON<<1)+0	; $3b  ;
-	db (TOK_LT<<2)+%11	; $3c  <  Less-than, or start of "<=" or "<>"
+	db (TOK_LT<<2)+%01	; $3c  <  Less-than, or start of "<=" or "<>"
 	db (TOK_EQ<<1)+0	; $3d  =
-	db (TOK_GT<<2)+%11	; $3e  >  Greater-than, or start of ">="
-	db ('?'<<2)+%01	; $3f  ?  <INVALID>
+	db (TOK_GT<<2)+%01	; $3e  >  Greater-than, or start of ">="
+	db ('?'<<2)+%11	; $3f  ?  <INVALID>
 .end
