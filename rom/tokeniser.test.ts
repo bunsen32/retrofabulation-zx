@@ -48,6 +48,17 @@ describe("Tokeniser", () => {
 			expect(result.tokenBytes).toEqual([encoding, rom.TOK_NOSPACE.addr, rom.TOK_DOT.addr])
 		})
 	}
+
+	for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
+		it(`Interprets ‘${symbol} .’ as encoding ${encoding},TOK_DOT`, async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, symbol+' .')
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([encoding, rom.TOK_DOT.addr])
+		})
+	}
 })
 
 interface TextBuffer {
@@ -102,7 +113,8 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		DE: start,
 		HL: tokenBuffer
 	})
-	vm.callSubroutine(rom.TOKENISE, 2000)
+	vm.callSubroutine(rom.TOKENISE, 130 + text.length * 300)
+
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)
 	const resultSize = HL - tokenBuffer

@@ -48,6 +48,7 @@ TOK_DOT	EQU 45	; .
 TOK_SPACES	EQU 64	; ' ' x n
 TOK_NOSPACE	EQU 65	; Missing space where one is expected.
 
+TOK_PI	EQU $ef	; Pi
 TOK_IDENTIFIER	EQU $f0
 TOK_STRING	EQU $f1
 TOK_COMMENT	EQU $f2	; # to end of line
@@ -105,7 +106,7 @@ TOKENISE:
 	ld b,END_ASCII_SYMS>>8
 	ld a,(bc)
 	or a
-	jp nz,.expect_end_tok
+	jp nz,.token_in_a
 	jp .invalid_sym
 
 .symbols_digits:	ld a,c	; <sp> ! " # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
@@ -125,7 +126,7 @@ TOKENISE:
 	ld a,(bc)
 	or a	; clear carry flag (to rotate into A)
 	rra	; a := token (or none), carry := {$ % * /} (may be longer token)
-	jr nc,.expect_end_tok	; Low bit was clear: it’s a (valid) single-character symbolic token.
+	jr nc,.token_in_a	; Low bit was clear: it’s a (valid) single-character symbolic token.
 	rrca	; Okay low bit was set: invalid OR potentially prefix of multichar sym
 	jr c,.invalid_sym	; Next low bit set: invalid token!
 
@@ -135,10 +136,9 @@ TOKENISE:
 	cp 33	; Is peeked-next-char in range 0–32? If so, it’s a single char token.
 	ld b,a	; b := peeked next character
 	ld a,c	; a := starting token
-	jr c,.expect_end_tok
+	jr c,.token_in_a
 
 .tok_has_more:	; It’s one of ‘%…’ (binary literal?), ‘*…’ (exponent?), ‘/…’ (floor div?), ‘<…’ (<= or <> or <<?) or ‘>…’ (>= or >>?)
-	inc de
 	; A =  % ($0C--1100)  * ($21--0001)  / ($0A--1010)  < ($03--0011)  > ($05--0101)  …unique in low 3 bits…
 	rra
 	jr c,.sym_odd
@@ -174,7 +174,7 @@ TOKENISE:
 .underscore:	ld a,(de)
 	cp 32+1
 	ld a,TOK_DISCARD
-	jr c,.expect_end_tok
+	jr c,.token_in_a
 	nop	; TODO: Parse identifier (fall through to .startw_alpha?)
 
 	; Parse a token that starts with an alphabetic character
@@ -198,7 +198,8 @@ TOKENISE:
 	ld b,TOK_SUB
 	jr z,.token_in_b
 	cp $90
-	jr z,.pi
+	ld b,TOK_PI
+	jr z,.token_in_b
 	; Just fall through for invalid tokens.
 
 .ascii_ax:	cp $a8	; TODO: Identify ≤ (plus invalid)
@@ -213,10 +214,11 @@ TOKENISE:
 
 .inc_token_in_b:	inc de
 .token_in_b:	ld (hl),b
-	jr .expect_end_tok_inc	; skip 2 bytes
-.inc_expect_end_tok:	inc de
-.expect_end_tok:	ld (hl),a
-.expect_end_tok_inc:	inc hl
+	jr .token_in_a_incHL	; skip 2 bytes
+
+.inc_token_in_a:	inc de
+.token_in_a:	ld (hl),a
+.token_in_a_incHL:	inc hl
 	ld a,(de)
 	cp 32
 	jr nz,.not_space
@@ -239,16 +241,16 @@ TOKENISE:
 .slash:	ld a,b
 	cp '/'
 	ld a,TOK_DIV
-	jr nz,.expect_end_tok	; Was not followed by another slash. So plain "/" (divide)
+	jr nz,.token_in_a	; Was not followed by another slash. So plain "/" (divide)
 	ld a,TOK_FLOORDIV	; WAS followed by another slash. So "//" (floor div)
-	jr .inc_expect_end_tok
+	jr .inc_token_in_a
 
 .asterisk:	ld a,b
 	cp '*'
 	ld a,TOK_X_MUL
-	jr nz,.expect_end_tok	; Was not followed by another asterisk. So plain "*" (multiply)
+	jr nz,.token_in_a	; Was not followed by another asterisk. So plain "*" (multiply)
 	ld a,TOK_EXP	; WAS followed by another asterisk. So "**" (exponent)
-	jr .inc_expect_end_tok
+	jr .inc_token_in_a
 
 .lt:	ld a,b
 	cp '='
@@ -258,10 +260,10 @@ TOKENISE:
 	ld b,TOK_X0_NE	; ‘<>’: BASIC-style not-equal operator ‘≠’
 	jr z,.inc_token_in_b
 	cp '<'
-	ld b,TOK_BITSL	; ‘<<’
-	jr z,.inc_token_in_b
-	ld a,TOK_LT	; NOT followed by equals or less-than. So plain "<" (less-than)
-	jr .expect_end_tok
+	ld b,TOK_LT	; ‘<<’
+	jr nz,.token_in_b	; NOT followed by equals or less-than. So plain "<" (less-than)
+	ld a,TOK_BITSL
+	jr .inc_token_in_a
 
 .gt:	ld a,b
 	cp '>'
@@ -269,11 +271,9 @@ TOKENISE:
 	jr z,.inc_token_in_b
 	cp '='
 	ld a,TOK_GT
-	jr nz,.expect_end_tok	; Was NOT followed by equals. So plain ">" (less-than)
+	jr nz,.token_in_a	; Was NOT followed by equals. So plain ">" (less-than)
 	ld a,TOK_GE	; WAS followed by equals. So ">=" (greater-or-equal ‘≥’)
-	jr .inc_expect_end_tok
-
-.pi:	nop	; TODO: This is an identifier!
+	jr .inc_token_in_a
 
 .dollar:	nop	; TODO: Parse hex!
 

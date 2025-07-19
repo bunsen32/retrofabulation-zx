@@ -37,7 +37,7 @@ export const EncodingFromSymbol: Record<string, byte> = {
 	';': tok('TOK_SEMICOLON'),
 	':': tok('TOK_COLON'),
 
-	'π': 56
+	'π': tok('TOK_PI')
 }
 
 type IndexT = number|string
