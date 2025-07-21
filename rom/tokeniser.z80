@@ -27,10 +27,10 @@ TOK_LOGAND	EQU 21	; 'and'
 TOK_LOGNOT	EQU 22	; 'not' [unary operator]
 
 ; These tokens are alternate versions of operators. Can usually subtract 24 to get to canonical:
-TOK_X0_NE	EQU 24	; <>
-TOK_X_NE	EQU 24+TOK_NE	; !=
-TOK_X_LE	EQU 24+TOK_LE	; <=
-TOK_X_GE	EQU 24+TOK_GE	; >=
+TOK_X0_NE	EQU 24	; <>	(Canonical glyph is ‘≠’)
+TOK_X_NE	EQU 24+TOK_NE	; !=	(Canonical glyph is ‘≠’)
+TOK_X_LE	EQU 24+TOK_LE	; <=	(Canonical glyph is ‘≤’)
+TOK_X_GE	EQU 24+TOK_GE	; >=	(Canonical glyph is ‘≥’)
 TOK_X_SUB	EQU 24+TOK_SUB	; -	(Canonical glyph is n-dash for minus, not hyphen)
 TOK_X_MUL	EQU 24+TOK_MUL	; *	(Canonical glyph is cross-multiply symbol, not asterisk)
 
@@ -45,8 +45,37 @@ TOK_PARENCLOSE	EQU 43	; )
 TOK_DISCARD	EQU 44	; _
 TOK_DOT	EQU 45	; .
 
-TOK_SPACES	EQU 64	; ' ' x n
+TOK_AND	EQU 46	; and
+TOK_AS	EQU 47	; as
+TOK_BREAK	EQU 48	; break
+TOK_CONTINUE	EQU 49	; continue
+TOK_DEF	EQU 50	; def
+TOK_ELIF	EQU 51	; elif
+TOK_ELSE	EQU 52	; else
+TOK_FOR	EQU 53	; for
+TOK_IF	EQU 54	; if
+TOK_IMPORT	EQU 55	; import
+TOK_IN	EQU 56	; in
+TOK_LET	EQU 57	; let
+TOK_LOOP	EQU 58	; loop
+TOK_NOT	EQU 59	; not
+TOK_OR	EQU 60	; or
+TOK_PASS	EQU 61	; pass
+TOK_X_PI	EQU 62	; ‘pi’	(Canonical is ‘π’)
+TOK_RETURN	EQU 63	; return
+TOK_WHILE	EQU 64	; while
+
+TOK_EXTRASPACE	EQU 23	; ' '
 TOK_NOSPACE	EQU 65	; Missing space where one is expected.
+
+; Each of these followed by <length> byte and <offset> byte (to text buffer)
+TOK_X_IDENTIFIER	EQU $e0
+TOK_X_STRING	EQU $e1
+TOK_X_COMMENT	EQU $e2	; # to end of line
+TOK_X_INVALID	EQU $e3	; Unrecognised token.
+TOK_X_DECIMAL	EQU $e4
+TOK_X_HEX	EQU $e5
+TOK_X_BIN	EQU $e6
 
 TOK_PI	EQU $ef	; Pi
 TOK_IDENTIFIER	EQU $f0
@@ -164,14 +193,13 @@ TOKENISE:
 	jp c,.dollar	; Ends with 111: $($ff)
 		; Else ends with 011: <sp>($fb)
 
-.extra_spaces:	; Should not occur, but encode run of spaces. TODO: allow more than one.
-	ld (hl),TOK_SPACES
-	inc hl
-	ld (hl),1
+.extra_space:	; Should not occur, but encode run of spaces.
+	; (Only encode one at a time. No point in optimising for bad code.)
+	ld (hl),TOK_EXTRASPACE
 	inc hl
 	jp .next
 
-.underscore:	ld a,(de)
+.underscore:	ld a,(de)	; TODO: Currently fails test when underscore followed by non-space/non-null
 	cp 32+1
 	ld a,TOK_DISCARD
 	jr c,.token_in_a

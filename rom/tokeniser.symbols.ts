@@ -37,6 +37,7 @@ export const EncodingFromSymbol: Record<string, byte> = {
 	';': tok('TOK_SEMICOLON'),
 	':': tok('TOK_COLON'),
 
+	'_': tok('TOK_DISCARD'),
 	'π': tok('TOK_PI')
 }
 

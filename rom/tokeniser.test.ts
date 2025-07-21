@@ -59,6 +59,25 @@ describe("Tokeniser", () => {
 			expect(result.tokenBytes).toEqual([encoding, rom.TOK_DOT.addr])
 		})
 	}
+
+	it(`Interprets ‘.  .’ as encoding TOK_DOT,TOK_EXTRASPACE,TOK_DOT`, async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, '.  .')
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([rom.TOK_DOT.addr, rom.TOK_EXTRASPACE.addr, rom.TOK_DOT.addr])
+	})
+
+	it(`Interprets ‘.   .’ as encoding TOK_DOT,TOK_EXTRASPACE,TOK_EXTRASPACE,TOK_DOT`, async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, '.   .')
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([rom.TOK_DOT.addr, rom.TOK_EXTRASPACE.addr, rom.TOK_EXTRASPACE.addr, rom.TOK_DOT.addr])
+	})
+	
 })
 
 interface TextBuffer {
