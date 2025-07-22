@@ -210,7 +210,7 @@ TOKENISE:
 
 .invalid_sym:	ld (hl),TOK_INVALID
 	inc hl
-	nop	; TODO: Read invalid token up until space/EOL
+	jp .invalid_sym	; TODO: Read invalid token up until space/EOL
 
 .ascii_9x:	cp $93	; TODO: Identify π “ – (plus invalid)
 	jp z,.string
@@ -247,7 +247,7 @@ TOKENISE:
 .inc_token_in_a:	inc de
 .token_in_a:	ld (hl),a
 .token_in_a_incHL:	inc hl
-	ld a,(de)
+.token_expect_sep:	ld a,(de)
 	cp 32
 	jr nz,.not_space
 .is_space:	inc de	; Fine. We got a space, which indicates token separator.
@@ -258,13 +258,22 @@ TOKENISE:
 	inc hl
 	jp .next
 
-.percent:	ld a,b
+.percent:	ld a,b	; (<carry> = 0)
 	ld b,TOK_MOD
-	sub '0'
-	jr c,.token_in_b
-	cp 2
-	jr nc,.token_in_b
-	nop	; TODO: Try to parse some binary!
+	rra	; Get rid of low bit (don't care if it’s ‘0’ or ‘1’ for now)
+	cp '0'>>1
+	jr nz,.token_in_b
+	push de	; TODO: Capture some binary…
+.bin_loop	inc de
+	ld a,(de)
+	cp '_'
+	jr z,.bin_loop
+	or a
+	rra
+	cp '0'>>1
+	jr z,.bin_loop
+	ld a,TOK_X_BIN
+	jr .long_token
 
 .slash:	ld a,b
 	cp '/'
@@ -303,6 +312,25 @@ TOKENISE:
 	ld a,TOK_GE	; WAS followed by equals. So ">=" (greater-or-equal ‘≥’)
 	jr .inc_token_in_a
 
+.long_token:	; It’s a token composed of several characters. Write it to the stream.
+	; A: token byte; DE: point to after token content; <stack>: point to start of content.
+	ld (hl),a
+	inc hl	; Write token ID to the token stream.
+	pop bc	; BC := point to start of content
+	ld (hl),c
+	inc hl
+	ld (hl),b
+	inc hl	; Write <start> to the token stream
+	push de	; Save the "end of content" pointer (to later restore it)
+	ex de,hl
+	or a	; Clear carry flag
+	sbc hl,bc	; HL := length of token. (Assume H == 0)
+	ex de,hl
+	ld (hl),e
+	inc hl
+	pop de	; DE := character pointer
+	jr .token_expect_sep
+
 .dollar:	nop	; TODO: Parse hex!
 
 .quote:	nop	; TODO: Parse string!
@@ -312,7 +340,7 @@ TOKENISE:
 .exclam:	ld a,(de)	; TODO: Parse '!' (Either '!=' or invalid)
 	cp '='
 	ld b,TOK_X_NE
-	jr z,.inc_token_in_b
+	jp z,.inc_token_in_b
 	jp .invalid_sym
 
 .string:	nop	; TODO: Parse string!

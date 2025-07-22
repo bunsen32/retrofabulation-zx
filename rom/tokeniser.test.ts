@@ -77,7 +77,33 @@ describe("Tokeniser", () => {
 
 		expect(result.tokenBytes).toEqual([rom.TOK_DOT.addr, rom.TOK_EXTRASPACE.addr, rom.TOK_EXTRASPACE.addr, rom.TOK_DOT.addr])
 	})
-	
+
+	it("Interprets ‘%0’ as TOK_X_BIN", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "%0")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([rom.TOK_X_BIN.addr, 0x01, 0x90, 1])
+	})
+
+	it("Interprets ‘%10101’ as TOK_X_BIN", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "%10101")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([rom.TOK_X_BIN.addr, 0x01, 0x90, 5])
+	})
+
+	it("Interprets ‘%1_0101’ as TOK_X_BIN", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "%1_0101")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([rom.TOK_X_BIN.addr, 0x01, 0x90, 6])
+	})
 })
 
 interface TextBuffer {
