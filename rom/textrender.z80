@@ -601,7 +601,8 @@ r_w1_bot_o4_init:
 	jp	render_next_char_line_from_a
 
 
-	; row/column (HL) to screen address (DE) and attr pointer (HL)
+	; row/column (HL) to screen address (DE) and attr pointer (HL). (Column is half-cell column, 0–63)
+	; Note that screen address pointer gets bit 5 set if column was odd.
 	; Trashes: A
 ROWCOL_ADDR:
 	ld	a, 63
@@ -610,11 +611,11 @@ ROWCOL_ADDR:
 	ld	a, 23
 	cp	h
 	jr	c, rowcol_out_of_range
-	srl	l
-	adc	(%01011111 - 23)
-	and	%11100000
+	srl	l	; <carry flag> := positioned on half-column.
+	adc	(%01011111 - 23)	; A already contained 23, so A := %1011111 + <carry flag>
+	and	%11100000	; A := %01000000 (even columns) or %01100000 (odd columns)
 	or	h
-	and	%11111000
+	and	%11111000	; A := %01<o><RR>000 where <o> is ‘odd column’, <RR> are two high row bits 0–3
 	ld	d, a
 	
 	ld	a, h
@@ -622,21 +623,20 @@ ROWCOL_ADDR:
 	rrca
 	rrca
 	ld	h, a
-	and	%11100000
-	or	l
+	and	%11100000	; A := %<rrr>00000 where <rrr> are 3 low row bits
+	or	l	; A := %<rrr><CCCCC> where <CCCCC> are ‘high column bits’ (all but the half-cell discriminator)
 	ld	e, a	; de := pixel cell pointer
 	
 	ld	a, %00000011
-	and	h
+	and	h	; A := %000000<RR> where <RR> are high row bits
 	or	$58	; %01011000 Start of screen attributes
 	ld	h, a
 	ld	l, e	; hl := attribute cell pointer
 
 	ret
 
-rowcol_out_of_range:
-	xor	a
-	ld	d, a
+rowcol_out_of_range:	xor	a	; Return all zeros for out of range coordinates. Means that we harmlessless write to ROM
+	ld	d, a	; if we try to do any graphics. (TBH, maybe the _middle_ of ROM would be even more harmless…)
 	ld	e, a
 	ld	h, a
 	ld	l, a
