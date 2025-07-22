@@ -3,42 +3,42 @@ import {rom} from './generated/symbols.ts'
 import type {SymbolToken, Token} from '@zx/interpreter'
 
 export const EncodingFromSymbol: Record<string, byte> = {
-	'(': tok('TOK_PARENOPEN'),
-    ')': tok('TOK_PARENCLOSE'),
-    '[': tok('TOK_ARROPEN'),
-    ']': tok('TOK_ARRCLOSE'),
-	'=': tok('TOK_EQ'),
-	'≠': tok('TOK_NE'),    // also parsed from '<>' and '!='
-	'!=': tok('TOK_X_NE'),    // also parsed from '<>' and '!='
-	'<>': tok('TOK_X0_NE'),    // also parsed from '<>' and '!='
-	'>': tok('TOK_GT'),
-	'≥': tok('TOK_GE'),    // also parsed from '>='
-	'<': tok('TOK_LT'),
-	'≤': tok('TOK_LE'),    // also parsed from '<='
+	'(': tok('PARENOPEN'),
+    ')': tok('PARENCLOSE'),
+    '[': tok('ARROPEN'),
+    ']': tok('ARRCLOSE'),
+	'=': tok('EQ'),
+	'≠': tok('NE'),    // also parsed from '<>' and '!='
+	'!=': tok('X_NE'),    // also parsed from '<>' and '!='
+	'<>': tok('X0_NE'),    // also parsed from '<>' and '!='
+	'>': tok('GT'),
+	'≥': tok('GE'),    // also parsed from '>='
+	'<': tok('LT'),
+	'≤': tok('LE'),    // also parsed from '<='
 
-	'+': tok('TOK_ADD'),
-	'-': tok('TOK_X_SUB'),
-	'–': tok('TOK_SUB'),
-	'×': tok('TOK_MUL'),
-	'/': tok('TOK_DIV'),
-	'//': tok('TOK_FLOORDIV'),
-	'%': tok('TOK_MOD'),
-	'*': tok('TOK_X_MUL'),
-	'**': tok('TOK_EXP'),
-	'~': tok('TOK_BITINV'),
+	'+': tok('ADD'),
+	'-': tok('X_SUB'),
+	'–': tok('SUB'),
+	'×': tok('MUL'),
+	'/': tok('DIV'),
+	'//': tok('FLOORDIV'),
+	'%': tok('MOD'),
+	'*': tok('X_MUL'),
+	'**': tok('EXP'),
+	'~': tok('BITINV'),
 
-	'&': tok('TOK_BITAND'),    // bit-and
-	'|': tok('TOK_BITOR'),    // bit-or
-	'^': tok('TOK_BITXOR'),    // bit-xor
-	'<<': tok('TOK_BITSL'),
-	'>>': tok('TOK_BITSR'),
+	'&': tok('BITAND'),    // bit-and
+	'|': tok('BITOR'),    // bit-or
+	'^': tok('BITXOR'),    // bit-xor
+	'<<': tok('BITSL'),
+	'>>': tok('BITSR'),
 
-	',': tok('TOK_COMMA'),
-	';': tok('TOK_SEMICOLON'),
-	':': tok('TOK_COLON'),
+	',': tok('COMMA'),
+	';': tok('SEMICOLON'),
+	':': tok('COLON'),
 
-	'_': tok('TOK_DISCARD'),
-	'π': tok('TOK_PI')
+	'_': tok('DISCARD'),
+	'π': tok('PI')
 }
 
 type IndexT = number|string
@@ -51,8 +51,12 @@ function invert<K extends IndexT,V extends IndexT>(map: Record<K,V>): Record<V,K
 	return result
 }
 
-function tok(k: keyof typeof rom): byte {
-	const v = rom[k].addr
+export type TokType = Prefixed<'TOK_', keyof typeof rom>
+
+type Prefixed<P extends string, D extends string> = D extends `${P}${infer S}` ? S : never
+
+export function tok(k: TokType): byte {
+	const v = rom[`TOK_${k}`].addr
 	if (v < 0 || v > 255) throw `Token ${k} does not hold a byte value: ${v}`
 	return v as byte
 }
