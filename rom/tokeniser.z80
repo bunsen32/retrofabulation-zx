@@ -212,14 +212,6 @@ TOKENISE:
 	inc hl
 	nop	; TODO: Read invalid token up until space/EOL
 
-.ascii_8x:	cp $81	; TODO: Identify ≠ × (plus invalid)
-	ld b,TOK_NE
-	jr z,.token_in_b
-	cp $83
-	ld b,TOK_MUL
-	jr z,.token_in_b
-	; Just fall through for invalid tokens.
-
 .ascii_9x:	cp $93	; TODO: Identify π “ – (plus invalid)
 	jp z,.string
 	cp $96
@@ -227,6 +219,14 @@ TOKENISE:
 	jr z,.token_in_b
 	cp $90
 	ld b,TOK_PI
+	jr z,.token_in_b
+	jr .invalid_sym
+
+.ascii_8x:	cp $81	; TODO: Identify ≠ × (plus invalid)
+	ld b,TOK_NE
+	jr z,.token_in_b
+	cp $83
+	ld b,TOK_MUL
 	jr z,.token_in_b
 	; Just fall through for invalid tokens.
 
@@ -242,7 +242,7 @@ TOKENISE:
 
 .inc_token_in_b:	inc de
 .token_in_b:	ld (hl),b
-	jr .token_in_a_incHL	; skip 2 bytes
+	jr .token_in_a_incHL	; [skip 2 bytes]
 
 .inc_token_in_a:	inc de
 .token_in_a:	ld (hl),a
