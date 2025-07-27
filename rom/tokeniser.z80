@@ -69,19 +69,20 @@ TOK_EXTRASPACE	EQU 23	; ' '
 TOK_NOSPACE	EQU 65	; Missing space where one is expected.
 
 ; Each of these followed by <length> byte and <offset> byte (to text buffer)
-TOK_X_IDENTIFIER	EQU $e0
-TOK_X_STRING	EQU $e1
-TOK_X_COMMENT	EQU $e2	; # to end of line
-TOK_X_INVALID	EQU $e3	; Unrecognised token.
-TOK_X_DECIMAL	EQU $e4
-TOK_X_HEX	EQU $e5
-TOK_X_BIN	EQU $e6
+TOK_RAW_IDENT	EQU $e0
+TOK_RAW_STRING	EQU $e1
+TOK_RAW_COMMENT	EQU $e2	; # to end of line
+TOK_RAW_INVALID	EQU $e3	; Unrecognised token.
+TOK_RAW_REAL	EQU $e4
+TOK_RAW_DECINT	EQU $e5
+TOK_RAW_HEXINT	EQU $e6
+TOK_RAW_BININT	EQU $e7
 
 TOK_PI	EQU $ef	; Pi
 TOK_IDENTIFIER	EQU $f0
 TOK_STRING	EQU $f1
 TOK_COMMENT	EQU $f2	; # to end of line
-TOK_INVALID	EQU -1	; Unrecognised token.
+TOK_INVALID	EQU $ff	; Unrecognised token.
 
 	; DE: text stream
 	; HL: token stream
@@ -100,7 +101,7 @@ TOKENISE:
 .ascii_00_7f:	rlca
 	jr c,.letters_etc	; $40–7f
 .ascii_00_3f:	rlca
-	jr c,.symbols_digits ; $20–3f
+	jr c,.symbols_digits	; $20–3f
 .ascii_00_1f:	or a
 	ret z	; $00
 	jp .invalid_sym	; $01–1f	TODO! Start with sigil.
@@ -140,14 +141,11 @@ TOKENISE:
 
 .symbols_digits:	ld a,c	; <sp> ! " # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
 	sub '%'
-	jr c,.early_symbols
+	jr c,.early_symbols	; The ‘early symbols’ (<sp> to $) all need special handling; the later ones are looked up in a table.
 	cp '0'-'%'
 	jr c,.sym_lookup
-.digit:	cp '9'-'%'+1
-	jr nc,.sym_lookup2
-	nop
-	; TODO: starts with digit (=> int or float literal)
-
+	cp '9'-'%'+1
+	jp c,.number	; 1–9, so parse an (integer or real) number
 .sym_lookup2:	sub 10	; Subtract digits from latter symbols (: ; < = > ?)
 .sym_lookup:	add (SYM_LOOKUP) & $ff
 	ld c,a
@@ -258,12 +256,13 @@ TOKENISE:
 	inc hl
 	jp .next
 
+	// MODULUS OPERATOR AND BINARY LITERAL
 .percent:	ld a,b	; (<carry> = 0)
 	ld b,TOK_MOD
 	rra	; Get rid of low bit (don't care if it’s ‘0’ or ‘1’ for now)
 	cp '0'>>1
 	jr nz,.token_in_b
-	push de	; TODO: Capture some binary…
+	push de	; Capture some binary:
 .bin_loop	inc de
 	ld a,(de)
 	cp '_'
@@ -272,7 +271,7 @@ TOKENISE:
 	rra
 	cp '0'>>1
 	jr z,.bin_loop
-	ld a,TOK_X_BIN
+	ld a,TOK_RAW_BININT
 	jr .long_token
 
 .slash:	ld a,b
@@ -330,6 +329,38 @@ TOKENISE:
 	inc hl
 	pop de	; DE := character pointer
 	jr .token_expect_sep
+
+	// INTEGER OR FLOAT LITERAL
+.number:	dec de
+	push de	; Capture start position
+	ld b,-1	; Count the decimal points
+.num_loop_point:	inc b	; Increment decimal points
+.num_loop:	inc de
+	ld a,(de)
+	cp '0'
+	jr c,.num_lt0
+	cp '9'+1
+	jr c,.num_loop
+.num_gt9:	cp $b7	; Middle-punct
+	jr z,.num_loop_point	; Increment number of decimal points
+	cp '_'
+	jr z,.num_loop
+	and %11011111	; Upper-case it.
+	cp 'E'
+	jr z,.num_exp
+	jr .num_end
+.num_lt0:	cp '.'	; Period
+	jr z,.num_loop_point	; Increment number of decimal points
+.num_end:	ld a,TOK_RAW_REAL
+	dec b
+	jr z,.long_token	; 1 decimal point: TOK_RAW_REAL
+	ld a,TOK_RAW_DECINT
+	inc b
+	jr z,.long_token	; 0 decimal points: TOK_RAW_DECINT
+	ld a,TOK_INVALID	; Otherwise: 2–255 decimal points, which is invalid.
+	jr .long_token
+
+.num_exp:	nop	; TODO: Parse exponent!
 
 .dollar:	nop	; TODO: Parse hex!
 
