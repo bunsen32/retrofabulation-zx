@@ -122,15 +122,15 @@ TOKENISE:
 .letters_etc:	ld a,c
 	and %0011111	; to upper-case
 	jr z,.invalid_sym	; '@' or '`' (backtick)
-	cp 27	; One past 'Z' or 'z'
-	jr c,.startw_alpha	 
+	cp ('Z' & %11111)+1	; One past 'Z' or 'z'
+	jr c,.word_like	; Identifier or reserved word.
 	
 .end_ascii_syms:	ld a,c	; A is in the range $5B..$5F or $7B..$7e
 	add %10100000	; Cause a carry if ‘lower-case’ ({, |, }, ~)
 	rla	; Low bit is "is lower-case"
 	and %1111	; Range: 6..14 ([, {, \, |, ], }, ^, ~, _)
 	cp 14
-	jr z,.underscore
+	jr z,.word_like	; It’s an underscore, so test for Identifier (or reserved word or ‘_’)
 	add (END_ASCII_SYMS - 6) & $ff
 	ld c,a
 	ld b,END_ASCII_SYMS>>8
@@ -204,7 +204,11 @@ TOKENISE:
 	nop	; TODO: Parse identifier (fall through to .startw_alpha?)
 
 	; Parse a token that starts with an alphabetic character
-.startw_alpha:	nop	; TODO
+.word_like:	dec de
+	push de	; Mark the start. If it’s a reserved word, we pop this later.
+	inc de
+	ld a,(de)
+	
 
 .invalid_sym:	ld (hl),TOK_INVALID
 	inc hl
