@@ -13,7 +13,9 @@ export const EncodingFromSymbol: Record<string, byte> = {
 	'<>': tok('X0_NE'),    // also parsed from '<>' and '!='
 	'>': tok('GT'),
 	'≥': tok('GE'),    // also parsed from '>='
+	'>=': tok('X_GE'),    // also parsed from '>='
 	'<': tok('LT'),
+	'<=': tok('X_LE'),    // also parsed from '<='
 	'≤': tok('LE'),    // also parsed from '<='
 
 	'+': tok('ADD'),

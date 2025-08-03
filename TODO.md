@@ -53,6 +53,10 @@
 * Syntax colouring
 * Compiler/encoder
 * First actual simple REPL loop
+* PARSING…
+  * Numbers with leading minus sign
+	* Numbers with leading plus sign?
+	* Interpret 1/4, 1/2, 3/4 symbols as numbers? (Either as special symbols or shortcuts for 0.25, 0.5, 0.75)
 
 ## Code module editor
 

@@ -60,6 +60,15 @@ describe("Tokeniser", () => {
 		})
 	}
 
+	it(`Interprets ‘. .’ as encoding TOK_DOT,TOK_DOT`, async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, '. .')
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('DOT'), tok('DOT')])
+	})
+
 	it(`Interprets ‘.  .’ as encoding TOK_DOT,TOK_EXTRASPACE,TOK_DOT`, async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, '.  .')
@@ -123,6 +132,15 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 2])
 	})
 
+	it("Interprets ‘-99’ as TOK_RAW_DECINT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "-99")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 3])
+	})
+
 	it("Interprets ‘6_6_6’ as TOK_RAW_DECINT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "6_6_6")
@@ -157,6 +175,15 @@ describe("Tokeniser", () => {
 		const result = whenTokenised(text)
 
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 5])
+	})
+
+	it("Interprets ‘-54.32’ as TOK_RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "-54.32")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 6])
 	})
 
 	it("Interprets ‘6.6.6’ as TOK_INVALID", async () => {

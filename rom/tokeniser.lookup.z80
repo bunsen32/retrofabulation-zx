@@ -1,0 +1,208 @@
+	ALIGN 256
+TOKEN_LOOKUP:
+.invalid	equ %00000000
+.in_token	equ %11000001
+.start_token	equ %11000011
+.digit	equ %11000111
+
+.parsemore	equ %00000010
+
+.STARTSTRING	equ %00000010
+.HASHMARK	equ %00010010
+.MINUS	equ %00001010
+.MINUS_ALT	equ %00101010
+.SLASH	equ %00011010
+
+.PERCENT	equ %00000110
+.LESSTHAN	equ %00010110
+.GREATERTHAN	equ %00110110
+.ASTERISK	equ %00001110
+.DOLLAR	equ %00101110
+.EXTRA_SPACE	equ %00011110
+.EXCLAMATION	equ %00111110
+
+	PADTO TOKEN_LOOKUP + $00
+	; 
+	PADTO TOKEN_LOOKUP + $10
+	; TODO: Parse thin &, ?, %, #, $ as their full-width equivalents
+
+	PADTO TOKEN_LOOKUP + $20
+	db .EXTRA_SPACE	; $20 SPACE
+	db .EXCLAMATION	; $21 EXCLAMATION_POINT
+	db .STARTSTRING	; $22 DOUBLE_QUOTES
+	db .HASHMARK	; $23 HASH
+	db .DOLLAR	; $24 DOLLAR
+	db .PERCENT	; $25 PERCENT
+	db (TOK_BITAND<<2)	; $26 AMPERSAND
+	db .invalid	; $27 SINGLE_QUOTE
+	db (TOK_PARENOPEN<<2)	; $28 OPEN_PARENTHESES
+	db (TOK_PARENCLOSE<<2)	; $29 CLOSE_PARENTHESES
+	db .ASTERISK	; $2a ASTERISK
+	db (TOK_ADD<<2)	; $2b PLUS
+	db (TOK_COMMA<<2)	; $2c COMMA
+	db .MINUS_ALT	; $2d HYPHEN
+	db (TOK_DOT<<2)	; $2e PERIOD
+	db .SLASH	; $2f SLASH
+
+	PADTO TOKEN_LOOKUP + $30
+	db .digit	; $30 ZERO
+	db .digit	; $31 ONE
+	db .digit	; $32 TWO
+	db .digit	; $33 THREE
+	db .digit	; $34 FOUR
+	db .digit	; $35 FIVE
+	db .digit	; $36 SIX
+	db .digit	; $37 SEVEN
+	db .digit	; $38 EIGHT
+	db .digit	; $39 NINE
+	db (TOK_COLON<<2)	; $3a COLON
+	db (TOK_SEMICOLON<<2)	; $3b SEMICOLON
+	db .LESSTHAN	; $3c LESS_THAN
+	db (TOK_EQ<<2)	; $3d EQUALS
+	db .GREATERTHAN	; $3e GREATER_THAN
+	db .invalid	; $3f QUESTION_MARK
+
+	PADTO TOKEN_LOOKUP + $40
+	db .invalid	; $40 AT
+	db .start_token	; $41 A
+	db .start_token	; $42 B
+	db .start_token	; $43 C
+	db .start_token	; $44 D
+	db .start_token	; $45 E
+	db .start_token	; $46 F
+	db .start_token	; $47 G
+	db .start_token	; $48 H
+	db .start_token	; $49 I
+	db .start_token	; $4a J
+	db .start_token	; $4b K
+	db .start_token	; $4c L
+	db .start_token	; $4d M
+	db .start_token	; $4e N
+	db .start_token	; $4f O
+
+	PADTO TOKEN_LOOKUP + $50
+	db .start_token	; $50 P
+	db .start_token	; $51 Q
+	db .start_token	; $52 R
+	db .start_token	; $53 S
+	db .start_token	; $54 T
+	db .start_token	; $55 U
+	db .start_token	; $56 V
+	db .start_token	; $57 W
+	db .start_token	; $58 X
+	db .start_token	; $59 Y
+	db .start_token	; $5a Z
+	db (TOK_ARROPEN<<2)	; $5b OPEN_BRACKET
+	db .invalid	; $5c BACKSLASH
+	db (TOK_ARRCLOSE<<2)	; $5d CLOSE_BRACKET
+	db (TOK_BITXOR)<<2	; $5e HAT
+	db .start_token	; $5f UNDERSCORE
+
+	PADTO TOKEN_LOOKUP + $60
+	db .invalid	; $60 BACKTICK
+	db .start_token	; $61 a
+	db .start_token	; $62 b
+	db .start_token	; $63 c
+	db .start_token	; $64 d
+	db .start_token	; $65 e
+	db .start_token	; $66 f
+	db .start_token	; $67 g
+	db .start_token	; $68 h
+	db .start_token	; $69 i
+	db .start_token	; $6a j
+	db .start_token	; $6b k
+	db .start_token	; $6c l
+	db .start_token	; $6d m
+	db .start_token	; $6e n
+	db .start_token	; $6f o
+
+	PADTO TOKEN_LOOKUP + $70
+	db .start_token	; $70 p
+	db .start_token	; $71 q
+	db .start_token	; $72 r
+	db .start_token	; $73 s
+	db .start_token	; $74 t
+	db .start_token	; $75 u
+	db .start_token	; $76 v
+	db .start_token	; $77 w
+	db .start_token	; $78 x
+	db .start_token	; $79 y
+	db .start_token	; $7a z
+	db .invalid	; $7b OPEN_BRACE
+	db (TOK_BITOR<<2)	; $7c PIPE
+	db .invalid	; $7d CLOSE_BRACE
+	db (TOK_BITINV<<2)	; $7e TILDA
+	db .invalid	; $7f DEL
+
+	PADTO TOKEN_LOOKUP + $80
+	db .invalid	; $80 EURO
+	db (TOK_NE<<2)	; $81 NOT_EQUAL
+	db .invalid	; $82 LOW_OPEN_QUOTE
+	db (TOK_MUL<<2)	; $83 TIMES
+	db .invalid	; $84 LOW_OPEN_QUOTE_DOUBLE
+	db .invalid	; $85 ELLIPSIS
+	db .invalid	; $86 DAGGER
+	db .invalid	; $87 DOUBLE_DAGGER
+	db .start_token	; $88 SLASHED_L_UPPER
+	db .invalid	; $89 PER_MILLE
+	db .start_token	; $8a THORN_UPPER
+	db .invalid	; $8b SINGLE_GUILLEMOT_LEFT
+	db .start_token	; $8c OE
+	db .start_token	; $8d AE
+	db .start_token	; $8e DYET
+	db .start_token	; $8f SLASHED_O
+
+	PADTO TOKEN_LOOKUP + $90
+	db (TOK_PI<<2)	; $90 PI
+	db .invalid	; $91 SINGLE_QUOT_OPEN
+	db .invalid	; $92 SINGLE_QUOT_CLOSE
+	db .STARTSTRING	; $93 DOUBLE_QUOT_OPEN
+	db .invalid	; $94 DOUBLE_QUOT_CLOSE
+	db .invalid	; $95 BULLET
+	db .MINUS	; $96 EN_DASH
+	db .invalid	; $97 EM_DASH
+	db .start_token	; $98 SHASHED_L_LOWER
+	db .invalid	; $99 TM
+	db .start_token	; $9a THORN_LOWER
+	db .invalid	; $9b SINGLE_GUILLEMOT_RIGHT
+	db .start_token	; $9c OE_LOWER
+	db .start_token	; $9d AE_LOWER
+	db .start_token	; $9e DYET_LOWER
+	db .start_token	; $9f SLASHED_O_LOWER
+
+	PADTO TOKEN_LOOKUP + $A0
+	db .invalid	; $a0 NBSP
+	db .invalid	; $a1 INVERTED_EXCLAM
+	db .invalid	; $a2 CENT
+	db .invalid	; $a3 POUND
+	db .invalid	; $a4 CURRENCY
+	db .invalid	; $a5 YEN
+	db .start_token	; $a6 DELTA
+	db .invalid	; $a7 SECTION_MARK
+	db (TOK_LE<<2)	; $a8 LESS_OR_EQUAL
+	db .invalid	; $a9 COPYRIGHT
+	db .invalid	; $aa ORD_A
+	db .invalid	; $ab GUILLEMOT_LEFT
+	db .invalid	; $ac BAR
+	db .start_token	; $ad ESZATT
+	db .invalid	; $ae REGISTERED_TRADEMARK
+	db .invalid	; $af SQUARE_ROOT
+
+	PADTO TOKEN_LOOKUP + $B0
+	db .start_token	; $b0 DEGREE
+	db .invalid	; $b1 PLUS_OR_MINUS
+	db .invalid	; $b2 SUPERIOR_2
+	db .invalid	; $b3 SUPERIOR_3
+	db .invalid	; $b4 INFINITY
+	db .start_token	; $b5 MU
+	db .start_token	; $b6 PILCROW
+	db .invalid	; $b7 MID_DOT
+	db (TOK_GE<<2)	; $b8 GREATER_OR_EQUAL
+	db .invalid	; $b9 SUPERIOR_1
+	db .invalid	; $ba ORD_O
+	db .invalid	; $bb GUILLEMOT_RIGHT
+	db .invalid	; $bc QUARTER
+	db .invalid	; $bd HALF
+	db .invalid	; $be THREE_QUARTERS
+	db .invalid	; $bf INVERTED_QUESTION
+
