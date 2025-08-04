@@ -20,8 +20,10 @@ TOKEN_LOOKUP:
 .DOLLAR	equ %00101110
 .EXTRA_SPACE	equ %00011110
 .EXCLAMATION	equ %00111110
+.UNEXPECTED_END	equ %01111110
 
 	PADTO TOKEN_LOOKUP + $00
+	db .UNEXPECTED_END	; $00 NULL
 	; 
 	PADTO TOKEN_LOOKUP + $10
 	; TODO: Parse thin &, ?, %, #, $ as their full-width equivalents

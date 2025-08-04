@@ -119,7 +119,7 @@ TOKENISE:
 	jr c,.odd_odd
 .even_odd:	rra	; %, <, >
 	jp nc,.percent
-	rra
+.odd_even_odd:	rra	; <, >
 	jp nc,.lt
 	jp .gt
 .odd_odd:	rra	; *, $, !
@@ -129,7 +129,9 @@ TOKENISE:
 	jp .dollar
 .odd_odd_odd:	rra
 	jp nc,.extra_space
-	jp .exclam
+.odd_odd_odd_odd:	rra
+	jp nc,.exclam
+	ret
 
 .simple_symbol:	or a	; Compare to zero
 	jr nz,.inc_token_in_a
