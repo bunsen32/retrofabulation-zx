@@ -194,6 +194,15 @@ describe("Tokeniser", () => {
 
 		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 5])
 	})
+
+	it("Interprets ‘ABC’ as TOK_RAW_IDENT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "ABC")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 3])
+	})
 })
 
 interface TextBuffer {

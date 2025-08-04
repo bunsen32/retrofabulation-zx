@@ -44,9 +44,9 @@ TOK_ARROPEN	EQU 40	; [
 TOK_ARRCLOSE	EQU 41	; ]
 TOK_PARENOPEN	EQU 42	; (
 TOK_PARENCLOSE	EQU 43	; )
-TOK_DISCARD	EQU 44	; _
-TOK_DOT	EQU 45	; .
+TOK_DOT	EQU 44	; .
 
+TOK_DISCARD	EQU 45	; _
 TOK_AND	EQU 46	; and
 TOK_AS	EQU 47	; as
 TOK_BREAK	EQU 48	; break
@@ -137,9 +137,18 @@ TOKENISE:
 	jr nz,.inc_token_in_a
 	jr .invalid_sym
 
-.start_word:	cp TOKEN_LOOKUP.digit>>1
+.start_word:	; Character is alphanumeric (including non-Latin alphabet), or ‘_’.
+	cp TOKEN_LOOKUP.digit>>1
 	jp nc,.number
-
+	push de
+.word_loop:	inc de
+	ld a,(de)
+	ld c,a
+	ld a,(bc)
+	cp TOKEN_LOOKUP.in_token
+	jr nc,.word_loop
+	ld a,TOK_RAW_IDENT
+	jp .long_token
 
 .extra_space:	; Should not occur, but encode run of spaces.
 	; (Only encode one at a time. No point in optimising for bad code.)
@@ -246,7 +255,7 @@ TOKENISE:
 .minus_alt:	cp TOKEN_LOOKUP.digit
 	ld a,TOK_X_SUB
 	jp c,.token_in_a
-	jr .number_decde
+	jr .number_dec_de
 
 .minus:	rra	; carry-flag => alt version
 	ld a,(de)
@@ -256,7 +265,7 @@ TOKENISE:
 	cp TOKEN_LOOKUP.digit
 	ld a,TOK_SUB
 	jp c,.token_in_a
-.number_decde	dec de	; Must include minus symbol in token
+.number_dec_de	dec de	; Must include minus symbol in token
 	// fall through to number	
 
 	// INTEGER OR FLOAT LITERAL
