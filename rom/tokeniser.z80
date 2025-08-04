@@ -110,7 +110,7 @@ TOKENISE:
 .even:	rra	; Common ones: ", #, -, /
 	jr c,.odd_even
 .even_even:	rra	; ", #
-	jp nc,.string
+	jp nc,.quote
 	jp .hash
 .odd_even:	rra	; -, /
 	jp nc,.minus
@@ -147,18 +147,6 @@ TOKENISE:
 	inc hl
 	jp .next
 
-.underscore:	ld a,(de)	; TODO: Currently fails test when underscore followed by non-space/non-null
-	cp 32+1
-	ld a,TOK_DISCARD
-	jr c,.token_in_a
-	nop	; TODO: Parse identifier (fall through to .startw_alpha?)
-
-	; Parse a token that starts with an alphabetic character
-.word_like:	dec de
-	push de	; Mark the start. If it’s a reserved word, we pop this later.
-	inc de
-	ld a,(de)
-	
 .invalid_sym:	ld (hl),TOK_INVALID
 	inc hl
 	jp .invalid_sym	; TODO: Read invalid token up until space/EOL
@@ -313,7 +301,5 @@ TOKENISE:
 	ld b,TOK_X_NE
 	jp z,.inc_token_in_b
 	jp .invalid_sym
-
-.string:	nop	; TODO: Parse string!
 
 	INCLUDE './tokeniser.lookup.z80'
