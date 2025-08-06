@@ -3,7 +3,8 @@ TOKEN_LOOKUP:
 .invalid	equ %00000000
 .in_token	equ %11000001
 .start_token	equ %11000011
-.digit	equ %11000111
+.hex_digit	equ %11000111
+.digit	equ %11001111
 
 .parsemore	equ %00000010
 
@@ -66,12 +67,12 @@ TOKEN_LOOKUP:
 
 	PADTO TOKEN_LOOKUP + $40
 	db .invalid	; $40 AT
-	db .start_token	; $41 A
-	db .start_token	; $42 B
-	db .start_token	; $43 C
-	db .start_token	; $44 D
-	db .start_token	; $45 E
-	db .start_token	; $46 F
+	db .hex_digit	; $41 A
+	db .hex_digit	; $42 B
+	db .hex_digit	; $43 C
+	db .hex_digit	; $44 D
+	db .hex_digit	; $45 E
+	db .hex_digit	; $46 F
 	db .start_token	; $47 G
 	db .start_token	; $48 H
 	db .start_token	; $49 I
@@ -102,12 +103,12 @@ TOKEN_LOOKUP:
 
 	PADTO TOKEN_LOOKUP + $60
 	db .invalid	; $60 BACKTICK
-	db .start_token	; $61 a
-	db .start_token	; $62 b
-	db .start_token	; $63 c
-	db .start_token	; $64 d
-	db .start_token	; $65 e
-	db .start_token	; $66 f
+	db .hex_digit	; $61 a
+	db .hex_digit	; $62 b
+	db .hex_digit	; $63 c
+	db .hex_digit	; $64 d
+	db .hex_digit	; $65 e
+	db .hex_digit	; $66 f
 	db .start_token	; $67 g
 	db .start_token	; $68 h
 	db .start_token	; $69 i
