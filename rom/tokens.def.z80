@@ -1,0 +1,87 @@
+TOK_END	EQU 0
+TOK_NONE	EQU 0
+
+; Operators:
+TOK_EQ	EQU 1	; =
+TOK_NE	EQU 2	; ≠
+TOK_LT	EQU 3	; <
+TOK_LE	EQU 4	; ≤
+TOK_GT	EQU 5	; >
+TOK_GE	EQU 6	; ≥
+TOK_ADD	EQU 7	; +
+TOK_SUB	EQU 8	; –
+TOK_MUL	EQU 9	; ×
+TOK_DIV	EQU 10	; /
+TOK_FLOORDIV	EQU 11	; //
+TOK_MOD	EQU 12	; %
+TOK_EXP	EQU 13	; **
+TOK_BITAND	EQU 14	; &
+TOK_BITOR	EQU 15	; |
+TOK_BITINV	EQU 16	; ~ [unary operator]
+TOK_BITSL	EQU 17	; <<
+TOK_BITSR	EQU 18	; >>
+TOK_BITXOR	EQU 19	; ^
+
+TOK_LOGOR	EQU 20	; 'or'
+TOK_LOGAND	EQU 21	; 'and'
+TOK_LOGNOT	EQU 22	; 'not' [unary operator]
+
+; These tokens are alternate versions of operators. Can usually subtract 24 to get to canonical:
+TOK_X0_NE	EQU 24	; <>	(Canonical glyph is ‘≠’)
+TOK_X_NE	EQU 24+TOK_NE	; !=	(Canonical glyph is ‘≠’)
+TOK_X_LE	EQU 24+TOK_LE	; <=	(Canonical glyph is ‘≤’)
+TOK_X_GE	EQU 24+TOK_GE	; >=	(Canonical glyph is ‘≥’)
+TOK_X_SUB	EQU 24+TOK_SUB	; -	(Canonical glyph is n-dash for minus, not hyphen)
+TOK_X_MUL	EQU 24+TOK_MUL	; *	(Canonical glyph is cross-multiply symbol, not asterisk)
+
+TOK_PI	EQU 35	; Pi
+
+TOK_SEMICOLON	EQU 36	; ;
+TOK_COLON	EQU 37	; :
+TOK_ASSIGN	EQU 38	; :=
+TOK_COMMA	EQU 39	; ,
+TOK_ARROPEN	EQU 40	; [
+TOK_ARRCLOSE	EQU 41	; ]
+TOK_PARENOPEN	EQU 42	; (
+TOK_PARENCLOSE	EQU 43	; )
+TOK_DOT	EQU 44	; .
+
+TOK_DISCARD	EQU 45	; _
+TOK_AND	EQU 46	; and
+TOK_AS	EQU 47	; as
+TOK_BREAK	EQU 48	; break
+TOK_CONTINUE	EQU 49	; continue
+TOK_DEF	EQU 50	; def
+TOK_ELIF	EQU 51	; elif
+TOK_ELSE	EQU 52	; else
+TOK_FOR	EQU 53	; for
+TOK_IF	EQU 54	; if
+TOK_IMPORT	EQU 55	; import
+TOK_IN	EQU 56	; in
+TOK_LET	EQU 57	; let
+TOK_LOOP	EQU 58	; loop
+TOK_NOT	EQU 59	; not
+TOK_OR	EQU 60	; or
+TOK_PASS	EQU 61	; pass
+TOK_X_PI	EQU 62	; ‘pi’	(Canonical is ‘π’)
+TOK_RETURN	EQU 63	; return
+TOK_WHILE	EQU 64	; while
+
+TOK_EXTRASPACE	EQU 23	; ' '
+TOK_NOSPACE	EQU 65	; Missing space where one is expected.
+
+; Each of these followed by <length> byte and <offset> byte (to text buffer)
+TOK_RAW_IDENT1	EQU $df
+TOK_RAW_IDENT	EQU $e0
+TOK_RAW_STRING	EQU $e1
+TOK_RAW_COMMENT	EQU $e2	; # to end of line
+TOK_RAW_INVALID	EQU $e3	; Unrecognised token.
+TOK_RAW_REAL	EQU $e4
+TOK_RAW_DECINT	EQU $e5
+TOK_RAW_HEXINT	EQU $e6
+TOK_RAW_BININT	EQU $e7
+
+TOK_IDENTIFIER	EQU $f0
+TOK_STRING	EQU $f1
+TOK_COMMENT	EQU $f2	; # to end of line
+TOK_INVALID	EQU $ff	; Unrecognised token.

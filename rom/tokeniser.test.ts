@@ -195,13 +195,49 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 5])
 	})
 
-	it("Interprets ‘ABC’ as TOK_RAW_IDENT", async () => {
+	it("Interprets ‘i’ as TOK_RAW_IDENT1", async () => {
 		const vm = await loadedVm
-		const text = givenText(vm, "ABC")
+		const text = givenText(vm, "i")
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 3])
+		expect(result.tokenBytes).toEqual([tok('RAW_IDENT1'), 'i'.charCodeAt(0)])
+	})
+
+	it("Interprets ‘_5’ as TOK_RAW_IDENT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "_5")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 2])
+	})
+
+	it("Interprets ‘A23456789’ as TOK_RAW_IDENT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "A23456789")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 9])
+	})
+
+	it("Interprets ‘A234567890’ as TOK_RAW_IDENT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "A234567890")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 10])
+	})
+
+	it("Interprets ‘continue’ as TOK_CONTINUE", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "continue")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('CONTINUE')])
 	})
 })
 
@@ -257,7 +293,7 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		DE: start,
 		HL: tokenBuffer
 	})
-	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 130)
+	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 150)
 
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)
