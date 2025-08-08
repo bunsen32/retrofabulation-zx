@@ -103,8 +103,6 @@ function hash(word: string, start: number, xor: number): number {
 		a = add(a, c)
 		a = rr(a) ^ xor
 	}
-	a = add(a, word.length)
-	a = rr(a) ^ xor
 	return a % TABLE_SIZE
 }
 

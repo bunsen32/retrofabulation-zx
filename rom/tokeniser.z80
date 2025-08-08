@@ -99,9 +99,7 @@ TOKENISE:
 .word_end_loop:	ld a,l
 	cp 9
 	jp nc,.long_ident	; Too long; not reserved word.
-	add h	; Add str length to hash
-	rrca
-	xor RESERVEDW_HASH.xor
+	ld a,h
 	and 63
 	sub RESERVEDW_HASH.first
 	jp c,.long_ident
