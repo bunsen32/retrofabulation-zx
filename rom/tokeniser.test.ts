@@ -27,38 +27,44 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('BITAND')])
 	})
 
-	for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
-		it(`Interprets ‘${symbol}’ as encoding ${encoding}`, async () => {
-			const vm = await loadedVm
-			const text = givenText(vm, symbol)
+	describe('Tokenises all symbols', () => {
+		for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
+			it(`Interprets ‘${symbol}’ as encoding ${encoding}`, async () => {
+				const vm = await loadedVm
+				const text = givenText(vm, symbol)
 
-			const result = whenTokenised(text)
+				const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([encoding])
-		})
-	}
+				expect(result.tokenBytes).toEqual([encoding])
+			})
+		}
+	})
 
-	for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
-		it(`Interprets ‘${symbol}.’ as encoding ${encoding},TOK_NOSPACE,TOK_DOT`, async () => {
-			const vm = await loadedVm
-			const text = givenText(vm, symbol+'.')
+	describe('Tokenises all symbols followed immediately by another', () => {
+		for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
+			it(`Interprets ‘${symbol}.’ as encoding ${encoding},TOK_NOSPACE,TOK_DOT`, async () => {
+				const vm = await loadedVm
+				const text = givenText(vm, symbol+'.')
 
-			const result = whenTokenised(text)
+				const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([encoding, tok('NOSPACE'), tok('DOT')])
-		})
-	}
+				expect(result.tokenBytes).toEqual([encoding, tok('NOSPACE'), tok('DOT')])
+			})
+		}
+	})
 
-	for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
-		it(`Interprets ‘${symbol} .’ as encoding ${encoding},TOK_DOT`, async () => {
-			const vm = await loadedVm
-			const text = givenText(vm, symbol+' .')
+	describe('Tokenises all symbols followed by a space', () => {
+		for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
+			it(`Interprets ‘${symbol} .’ as encoding ${encoding},TOK_DOT`, async () => {
+				const vm = await loadedVm
+				const text = givenText(vm, symbol+' .')
 
-			const result = whenTokenised(text)
+				const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([encoding, tok('DOT')])
-		})
-	}
+				expect(result.tokenBytes).toEqual([encoding, tok('DOT')])
+			})
+		}
+	})
 
 	it(`Interprets ‘. .’ as encoding TOK_DOT,TOK_DOT`, async () => {
 		const vm = await loadedVm
@@ -239,6 +245,46 @@ describe("Tokeniser", () => {
 
 		expect(result.tokenBytes).toEqual([tok('CONTINUE')])
 	})
+
+	it("Does not fall for hash collision of ‘continue’ like ‘**ntinue’", async () => {
+		const vm = await loadedVm
+		const collision = findCollision('continue', '**ntinue')
+		const text = givenText(vm, collision)
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
+	})
+
+	it("Does not fall for hash collision of ‘continue’ like ‘contin**’", async () => {
+		const vm = await loadedVm
+		const collision = findCollision('continue', 'contin**')
+		const text = givenText(vm, collision)
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
+	})
+
+	it("Does not fall for hash collision of ‘continue’ like ‘**continue’", async () => {
+		const vm = await loadedVm
+		const collision = findCollision('continue', '**continue')
+		const text = givenText(vm, collision)
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
+	})
+
+	it("Does not fall for hash collision of ‘continue’ like ‘continue***’", async () => {
+		const vm = await loadedVm
+		const collision = findCollision('continue', 'continue***')
+		const text = givenText(vm, collision)
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
+	})
 })
 
 interface TextBuffer {
@@ -269,23 +315,6 @@ function givenText(vm: Vm, input: string): TextBuffer {
 	return buffer
 }
 
-function writeSafetyMargin(vm: Vm, buffer: TextBuffer) {
-	const start = buffer.start
-	const end = start + buffer.length
-	vm.setRam(start - 4, '0123')
-	vm.setRam(end, '6789')
-}
-
-function checkSafetyMargin(vm: Vm, buffer: TextBuffer) {
-	const start = buffer.start
-	const end = start + buffer.length
-	const before = asString( vm.getRam(start - 4, 4))
-	const after = asString(vm.getRam(end, 4))
-
-	expect(before).toEqual('0123')
-	expect(after).toEqual('6789')
-}
-
 function whenTokenised(text: TextBuffer): TokenStream {
 	const {vm, start} = text
 	const tokenBuffer = 0xa000
@@ -293,7 +322,7 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		DE: start,
 		HL: tokenBuffer
 	})
-	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 150)
+	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 138)
 
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)
@@ -311,4 +340,72 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		vm,
 		tokenBytes
 	}
+}
+
+function findCollision(target: string, pattern: string): string {
+	const firstWildcard = pattern.indexOf('*')
+	const lastWildcard = pattern.lastIndexOf('*')
+	if (firstWildcard === -1) throw "Cannot find wildcard * in candidate string!"
+	const countWildcards = lastWildcard + 1 - firstWildcard
+	const hash = hashOf(target)
+	const prefix = pattern.substring(0, firstWildcard)
+	const suffix = pattern.substring(lastWildcard + 1)
+	let result: string|undefined
+	switch(countWildcards) {
+		case 2:
+			result = findCollision2(hash, prefix, suffix, target)
+			break
+		case 3:
+			result = findCollision3(hash, prefix, suffix, target)
+			break
+		default: throw "Only know how to deal with 2 wildcard characters!"
+	}
+	if (!result) throw `Cannot find hash collision for ‘${target}’ from ‘${pattern}’`
+	return result
+}
+
+const alphabetic = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+function findCollision2(targetHash: number, prefix: string, suffix: string, avoid: string): string|undefined {
+	for(const a of alphabetic) {
+		for (const b of alphabetic) {
+			const candidate = prefix + a + b + suffix
+			if (hashOf(candidate) === targetHash && candidate !== avoid) return candidate
+		}
+	}
+	return undefined
+}
+
+function findCollision3(targetHash: number, prefix: string, suffix: string, avoid: string): string|undefined {
+	for(const a of alphabetic) {
+		for (const b of alphabetic) {
+			for (const c of alphabetic) {
+				const candidate = prefix + a + b + c + suffix
+				if (hashOf(candidate) === targetHash && candidate !== avoid) return candidate
+			}
+		}
+	}
+	return undefined
+}
+
+function hashOf(word: string): number {
+	return hash(word, rom.RESERVEDW_HASH.seed.addr, rom.RESERVEDW_HASH.xor.addr)
+}
+
+function hash(word: string, start: number, xor: number): number {
+	let a = start
+	for(let i = 0; i < word.length; i ++) {
+		const c = word.charCodeAt(i)
+		a = add(a, c)
+		a = rr(a) ^ xor
+	}
+	return a % rom.RESERVEDW_HASH.size.addr
+}
+
+function rr(n: number): number {
+	return ((n >> 1) | (n << 7)) & 0xff
+}
+
+function add(n: number, m: number) {
+	return (n + m) & 0xff
 }

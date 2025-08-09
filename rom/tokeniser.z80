@@ -49,7 +49,7 @@ TOKENISE:
 	ret
 
 .simple_symbol:	or a	; Compare to zero
-	jr nz,.inc_token_in_a
+	jp nz,.inc_token_in_a
 	jr .invalid_sym
 
 .start_word:	; Character is alphanumeric (including non-Latin letters), or ‘_’.
@@ -98,21 +98,42 @@ TOKENISE:
 
 .word_end_loop:	ld a,l
 	cp 9
-	jp nc,.long_ident	; Too long; not reserved word.
+	jp nc,.long_ident_pophl	; Too long; not reserved word.
 	ld a,h
 	and 63
 	sub RESERVEDW_HASH.first
-	jp c,.long_ident
+	jp c,.long_ident_pophl
 	add RESERVEDW_HASH & $ff	; Low byte of lookup hash table
 	ld c,a
 	ld b,RESERVEDW_HASH >> 8	; High byte of lookup hash table
 	ld a,(bc)
 	or a
-	ld b,a
-	jp z,.long_ident
+	jp z,.long_ident_pophl
+	ld b,l
+	ld h,TOKENS_TEXT>>8	; TOKENS_TEXT is within 256-byte page.
+	ld l,a
+	ld c,a	; Stash copy of r'word token code
+	ld l,(hl)	; Jump to r'word characters
+	ld a,(hl)	; Fetch r'word length
+	cp b	; Same as scanned length?
+	jp nz,.long_ident_pophl
+	push de	; Stash end of token
+	add l	; <length>A + <pointer>L
+	ld l,a	; L := last char of r'word
+.check_loop:	dec de
+	ld a,(de)
+	cp (hl)
+	jr nz,.no_hash_match
+	dec l	; DEC [H]L
+	djnz .check_loop
+	pop de	; Restore end of token pointer
 	pop hl
 	pop af	; Discard pushed start of word.
-	jr .token_in_b	; TODO: Hash matches, but is the string the same?!
+	ld a,c
+	jr .token_in_a	; Hash matches, and text matches!
+.no_hash_match:	pop de	; Restore end of token pointer
+	pop hl
+	jr .long_ident
 
 .extra_space:	; Should not occur, but encode run of spaces.
 	; (Only encode one at a time. No point in optimising for bad code.)
@@ -197,8 +218,8 @@ TOKENISE:
 	ld a,TOK_X_GE	; WAS followed by equals. So ">=" (greater-or-equal ‘≥’)
 	jr .inc_token_in_a
 
+.long_ident_pophl:	pop hl
 .long_ident:	ld a,TOK_RAW_IDENT
-	pop hl
 .long_token:	; It’s a token composed of several characters. Write it to the stream.
 	; A: token byte; DE: point to after token content; <stack>: point to start of content.
 	ld (hl),a

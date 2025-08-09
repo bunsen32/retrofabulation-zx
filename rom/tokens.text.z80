@@ -2,26 +2,26 @@
 TOKENS_TEXT:
 	SAME_PAGE .end_of_table
 	ds 45
-	db .discard - $
-	db .and - $
-	db .as - $
-	db .break - $
-	db .continue - $
-	db .def - $
-	db .elif - $
-	db .else - $
-	db .for - $
-	db .if - $
-	db .import - $
-	db .in - $
-	db .let - $
-	db .loop - $
-	db .not - $
-	db .or - $
-	db .pass - $
-	db .x_pi - $
-	db .return - $
-	db .while - $
+	db .discard & $ff
+	db .and & $ff
+	db .as & $ff
+	db .break & $ff
+	db .continue & $ff
+	db .def & $ff
+	db .elif & $ff
+	db .else & $ff
+	db .for & $ff
+	db .if & $ff
+	db .import & $ff
+	db .in & $ff
+	db .let & $ff
+	db .loop & $ff
+	db .not & $ff
+	db .or & $ff
+	db .pass & $ff
+	db .x_pi & $ff
+	db .return & $ff
+	db .while & $ff
 
 .discard	db 1,'_',0
 .and	db 3,'and',0
