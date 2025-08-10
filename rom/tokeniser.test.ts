@@ -3,7 +3,7 @@ import {asString, loadVm, type word, type Vm} from './testutils/testvm.ts'
 import type { byte } from '@zx/sys'
 import { rom } from "./generated/symbols.ts";
 import { expect } from "jsr:@std/expect/expect";
-import {EncodingFromSymbol, tok} from './tokeniser.symbols.ts'
+import {EncodingFromSymbol, ReservedWords, tok} from './tokeniser.symbols.ts'
 
 const loadedVm = loadVm()
 
@@ -64,6 +64,61 @@ describe("Tokeniser", () => {
 				expect(result.tokenBytes).toEqual([tok(token), tok('DOT')])
 			})
 		}
+	})
+
+	describe('Tokenises all reserved words', () => {
+		for(const [word, token] of Object.entries(ReservedWords)) {
+			it(`Interprets ‘${word}’ as encoding ${token}`, async () => {
+				const vm = await loadedVm
+				const text = givenText(vm, word)
+
+				const result = whenTokenised(text)
+
+				expect(result.tokenBytes).toEqual([tok(token)])
+			})
+		}
+	})
+
+	describe('Avoids hash collisions in reserved words', () => {
+		it("Avoid collision in ‘continue’ like ‘**ntinue’", async () => {
+			const vm = await loadedVm
+			const collision = findCollision('continue', '**ntinue')
+			const text = givenText(vm, collision)
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
+		})
+
+		it("Avoid collision in ‘continue’ like ‘contin**’", async () => {
+			const vm = await loadedVm
+			const collision = findCollision('continue', 'contin**')
+			const text = givenText(vm, collision)
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
+		})
+
+		it("Avoid collision in ‘continue’ like ‘**continue’", async () => {
+			const vm = await loadedVm
+			const collision = findCollision('continue', '**continue')
+			const text = givenText(vm, collision)
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
+		})
+
+		it("Avoid collision in ‘continue’ like ‘continue***’", async () => {
+			const vm = await loadedVm
+			const collision = findCollision('continue', 'continue***')
+			const text = givenText(vm, collision)
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
+		})
 	})
 
 	it(`Interprets ‘. .’ as encoding DOT,DOT`, async () => {
@@ -138,7 +193,16 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 2])
 	})
 
-	it("Interprets ‘-99’ as RAW_DECINT", async () => {
+	it("Interprets ‘-99’ (hyphen) as RAW_DECINT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "-99")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 3])
+	})
+
+	it("Interprets ‘–99’ (en-dash) as RAW_DECINT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "-99")
 
@@ -183,7 +247,16 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 5])
 	})
 
-	it("Interprets ‘-54.32’ as RAW_REAL", async () => {
+	it("Interprets ‘-54.32’ (hyphen) as RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "-54.32")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 6])
+	})
+
+	it("Interprets ‘–54.32’ (en-dash) as RAW_REAL", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "-54.32")
 
@@ -236,55 +309,6 @@ describe("Tokeniser", () => {
 
 		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 10])
 	})
-
-	it("Interprets ‘continue’ as CONTINUE", async () => {
-		const vm = await loadedVm
-		const text = givenText(vm, "continue")
-
-		const result = whenTokenised(text)
-
-		expect(result.tokenBytes).toEqual([tok('CONTINUE')])
-	})
-
-	it("Does not fall for hash collision of ‘continue’ like ‘**ntinue’", async () => {
-		const vm = await loadedVm
-		const collision = findCollision('continue', '**ntinue')
-		const text = givenText(vm, collision)
-
-		const result = whenTokenised(text)
-
-		expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
-	})
-
-	it("Does not fall for hash collision of ‘continue’ like ‘contin**’", async () => {
-		const vm = await loadedVm
-		const collision = findCollision('continue', 'contin**')
-		const text = givenText(vm, collision)
-
-		const result = whenTokenised(text)
-
-		expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
-	})
-
-	it("Does not fall for hash collision of ‘continue’ like ‘**continue’", async () => {
-		const vm = await loadedVm
-		const collision = findCollision('continue', '**continue')
-		const text = givenText(vm, collision)
-
-		const result = whenTokenised(text)
-
-		expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
-	})
-
-	it("Does not fall for hash collision of ‘continue’ like ‘continue***’", async () => {
-		const vm = await loadedVm
-		const collision = findCollision('continue', 'continue***')
-		const text = givenText(vm, collision)
-
-		const result = whenTokenised(text)
-
-		expect(result.tokenBytes[0]).toEqual(tok('RAW_IDENT'))
-	})
 })
 
 interface TextBuffer {
@@ -322,7 +346,7 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		DE: start,
 		HL: tokenBuffer
 	})
-	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 138)
+	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 170)
 
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)

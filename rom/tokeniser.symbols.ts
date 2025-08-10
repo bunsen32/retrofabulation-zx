@@ -43,6 +43,29 @@ export const EncodingFromSymbol: Record<string, TokType> = {
 	'π': 'PI'
 }
 
+export const ReservedWords: Record<string, TokType> = {
+//	"_": 'DISCARD',	// We deal with discard explicitly.
+	"and": 'AND',
+	"as": 'AS',
+	"break": 'BREAK',
+	"continue": 'CONTINUE',
+	"def": 'DEF',
+	"elif": 'ELIF',
+	"else": 'ELSE',
+	"for": 'FOR',
+	"if": 'IF',
+	"import": 'IMPORT',
+	"in": 'IN',
+	"let": 'LET',
+	"loop": 'LOOP',
+	"not": 'NOT',
+	"or": 'OR',
+	"pass": 'PASS',
+	"pi": 'X_PI',
+	"return": 'RETURN',
+	"while": 'WHILE',
+}
+
 type IndexT = number|string
 
 function invert<K extends IndexT,V extends IndexT>(map: Record<K,V>): Record<V,K> {
