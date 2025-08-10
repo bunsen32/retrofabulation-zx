@@ -2,45 +2,45 @@ import { byte } from "../zxsys/Byte.ts";
 import {rom} from './generated/symbols.ts'
 import type {SymbolToken, Token} from '@zx/interpreter'
 
-export const EncodingFromSymbol: Record<string, byte> = {
-	'(': tok('PARENOPEN'),
-    ')': tok('PARENCLOSE'),
-    '[': tok('ARROPEN'),
-    ']': tok('ARRCLOSE'),
-	'=': tok('EQ'),
-	'≠': tok('NE'),    // also parsed from '<>' and '!='
-	'!=': tok('X_NE'),    // also parsed from '<>' and '!='
-	'<>': tok('X0_NE'),    // also parsed from '<>' and '!='
-	'>': tok('GT'),
-	'≥': tok('GE'),    // also parsed from '>='
-	'>=': tok('X_GE'),    // also parsed from '>='
-	'<': tok('LT'),
-	'<=': tok('X_LE'),    // also parsed from '<='
-	'≤': tok('LE'),    // also parsed from '<='
+export const EncodingFromSymbol: Record<string, TokType> = {
+	'(': 'PARENOPEN',
+    ')': 'PARENCLOSE',
+    '[': 'ARROPEN',
+    ']': 'ARRCLOSE',
+	'=': 'EQ',
+	'≠': 'NE',    // also parsed from '<>' and '!='
+	'!=': 'X_NE',    // also parsed from '<>' and '!='
+	'<>': 'X0_NE',    // also parsed from '<>' and '!='
+	'>': 'GT',
+	'≥': 'GE',    // also parsed from '>='
+	'>=': 'X_GE',    // also parsed from '>='
+	'<': 'LT',
+	'<=': 'X_LE',    // also parsed from '<='
+	'≤': 'LE',    // also parsed from '<='
 
-	'+': tok('ADD'),
-	'-': tok('X_SUB'),
-	'–': tok('SUB'),
-	'×': tok('MUL'),
-	'/': tok('DIV'),
-	'//': tok('FLOORDIV'),
-	'%': tok('MOD'),
-	'*': tok('X_MUL'),
-	'**': tok('EXP'),
-	'~': tok('BITINV'),
+	'+': 'ADD',
+	'-': 'X_SUB',
+	'–': 'SUB',
+	'×': 'MUL',
+	'/': 'DIV',
+	'//': 'FLOORDIV',
+	'%': 'MOD',
+	'*': 'X_MUL',
+	'**': 'EXP',
+	'~': 'BITINV',
 
-	'&': tok('BITAND'),    // bit-and
-	'|': tok('BITOR'),    // bit-or
-	'^': tok('BITXOR'),    // bit-xor
-	'<<': tok('BITSL'),
-	'>>': tok('BITSR'),
+	'&': 'BITAND',    // bit-and
+	'|': 'BITOR',    // bit-or
+	'^': 'BITXOR',    // bit-xor
+	'<<': 'BITSL',
+	'>>': 'BITSR',
 
-	',': tok('COMMA'),
-	';': tok('SEMICOLON'),
-	':': tok('COLON'),
+	',': 'COMMA',
+	';': 'SEMICOLON',
+	':': 'COLON',
 
-	'_': tok('DISCARD'),
-	'π': tok('PI')
+	'_': 'DISCARD',
+	'π': 'PI'
 }
 
 type IndexT = number|string

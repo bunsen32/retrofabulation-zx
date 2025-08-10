@@ -18,7 +18,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([])
 	})
 
-	it("Interprets ‘&’ as TOK_BITAND", async () => {
+	it("Interprets ‘&’ as BITAND", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "&")
 
@@ -28,45 +28,45 @@ describe("Tokeniser", () => {
 	})
 
 	describe('Tokenises all symbols', () => {
-		for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
-			it(`Interprets ‘${symbol}’ as encoding ${encoding}`, async () => {
+		for(const [symbol, token] of Object.entries(EncodingFromSymbol)) {
+			it(`Interprets ‘${symbol}’ as encoding ${token}`, async () => {
 				const vm = await loadedVm
 				const text = givenText(vm, symbol)
 
 				const result = whenTokenised(text)
 
-				expect(result.tokenBytes).toEqual([encoding])
+				expect(result.tokenBytes).toEqual([tok(token)])
 			})
 		}
 	})
 
 	describe('Tokenises all symbols followed immediately by another', () => {
-		for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
-			it(`Interprets ‘${symbol}.’ as encoding ${encoding},TOK_NOSPACE,TOK_DOT`, async () => {
+		for(const [symbol, token] of Object.entries(EncodingFromSymbol)) {
+			it(`Interprets ‘${symbol}.’ as encoding ${token},NOSPACE,DOT`, async () => {
 				const vm = await loadedVm
 				const text = givenText(vm, symbol+'.')
 
 				const result = whenTokenised(text)
 
-				expect(result.tokenBytes).toEqual([encoding, tok('NOSPACE'), tok('DOT')])
+				expect(result.tokenBytes).toEqual([tok(token), tok('NOSPACE'), tok('DOT')])
 			})
 		}
 	})
 
 	describe('Tokenises all symbols followed by a space', () => {
-		for(const [symbol, encoding] of Object.entries(EncodingFromSymbol)) {
-			it(`Interprets ‘${symbol} .’ as encoding ${encoding},TOK_DOT`, async () => {
+		for(const [symbol, token] of Object.entries(EncodingFromSymbol)) {
+			it(`Interprets ‘${symbol} .’ as encoding ${token},DOT`, async () => {
 				const vm = await loadedVm
 				const text = givenText(vm, symbol+' .')
 
 				const result = whenTokenised(text)
 
-				expect(result.tokenBytes).toEqual([encoding, tok('DOT')])
+				expect(result.tokenBytes).toEqual([tok(token), tok('DOT')])
 			})
 		}
 	})
 
-	it(`Interprets ‘. .’ as encoding TOK_DOT,TOK_DOT`, async () => {
+	it(`Interprets ‘. .’ as encoding DOT,DOT`, async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, '. .')
 
@@ -75,7 +75,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('DOT'), tok('DOT')])
 	})
 
-	it(`Interprets ‘.  .’ as encoding TOK_DOT,TOK_EXTRASPACE,TOK_DOT`, async () => {
+	it(`Interprets ‘.  .’ as encoding DOT,EXTRASPACE,DOT`, async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, '.  .')
 
@@ -84,7 +84,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('DOT'), tok('EXTRASPACE'), tok('DOT')])
 	})
 
-	it(`Interprets ‘.   .’ as encoding TOK_DOT,TOK_EXTRASPACE,TOK_EXTRASPACE,TOK_DOT`, async () => {
+	it(`Interprets ‘.   .’ as encoding DOT,EXTRASPACE,EXTRASPACE,DOT`, async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, '.   .')
 
@@ -93,7 +93,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('DOT'), tok('EXTRASPACE'), tok('EXTRASPACE'), tok('DOT')])
 	})
 
-	it("Interprets ‘%0’ as TOK_RAW_BININT", async () => {
+	it("Interprets ‘%0’ as RAW_BININT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "%0")
 
@@ -102,7 +102,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x01, 0x90, 1])
 	})
 
-	it("Interprets ‘%10101’ as TOK_RAW_BININT", async () => {
+	it("Interprets ‘%10101’ as RAW_BININT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "%10101")
 
@@ -111,7 +111,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x01, 0x90, 5])
 	})
 
-	it("Interprets ‘%1_0101’ as TOK_RAW_BININT", async () => {
+	it("Interprets ‘%1_0101’ as RAW_BININT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "%1_0101")
 
@@ -120,7 +120,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x01, 0x90, 6])
 	})
 
-	it("Interprets ‘0’ as TOK_RAW_DECINT", async () => {
+	it("Interprets ‘0’ as RAW_DECINT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "0")
 
@@ -129,7 +129,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 1])
 	})
 
-	it("Interprets ‘99’ as TOK_RAW_DECINT", async () => {
+	it("Interprets ‘99’ as RAW_DECINT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "99")
 
@@ -138,7 +138,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 2])
 	})
 
-	it("Interprets ‘-99’ as TOK_RAW_DECINT", async () => {
+	it("Interprets ‘-99’ as RAW_DECINT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "-99")
 
@@ -147,7 +147,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 3])
 	})
 
-	it("Interprets ‘6_6_6’ as TOK_RAW_DECINT", async () => {
+	it("Interprets ‘6_6_6’ as RAW_DECINT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "6_6_6")
 
@@ -156,7 +156,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 5])
 	})
 
-	it("Interprets ‘0.0’ as TOK_RAW_REAL", async () => {
+	it("Interprets ‘0.0’ as RAW_REAL", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "0.0")
 
@@ -165,7 +165,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3])
 	})
 
-	it("Interprets ‘9.9’ as TOK_RAW_REAL", async () => {
+	it("Interprets ‘9.9’ as RAW_REAL", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "9.9")
 
@@ -174,7 +174,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3])
 	})
 
-	it("Interprets ‘54.32’ as TOK_RAW_REAL", async () => {
+	it("Interprets ‘54.32’ as RAW_REAL", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "54.32")
 
@@ -183,7 +183,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 5])
 	})
 
-	it("Interprets ‘-54.32’ as TOK_RAW_REAL", async () => {
+	it("Interprets ‘-54.32’ as RAW_REAL", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "-54.32")
 
@@ -192,7 +192,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 6])
 	})
 
-	it("Interprets ‘6.6.6’ as TOK_INVALID", async () => {
+	it("Interprets ‘6.6.6’ as INVALID", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "6.6.6")
 
@@ -201,7 +201,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 5])
 	})
 
-	it("Interprets ‘i’ as TOK_RAW_IDENT1", async () => {
+	it("Interprets ‘i’ as RAW_IDENT1", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "i")
 
@@ -210,7 +210,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_IDENT1'), 'i'.charCodeAt(0)])
 	})
 
-	it("Interprets ‘_5’ as TOK_RAW_IDENT", async () => {
+	it("Interprets ‘_5’ as RAW_IDENT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "_5")
 
@@ -219,7 +219,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 2])
 	})
 
-	it("Interprets ‘A23456789’ as TOK_RAW_IDENT", async () => {
+	it("Interprets ‘A23456789’ as RAW_IDENT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "A23456789")
 
@@ -228,7 +228,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 9])
 	})
 
-	it("Interprets ‘A234567890’ as TOK_RAW_IDENT", async () => {
+	it("Interprets ‘A234567890’ as RAW_IDENT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "A234567890")
 
@@ -237,7 +237,7 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 10])
 	})
 
-	it("Interprets ‘continue’ as TOK_CONTINUE", async () => {
+	it("Interprets ‘continue’ as CONTINUE", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "continue")
 
