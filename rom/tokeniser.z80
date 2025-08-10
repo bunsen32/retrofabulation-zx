@@ -290,9 +290,16 @@ TOKENISE:
 
 .quote:	nop	; TODO: Parse string!
 
-.hash:	nop	; TODO: Parse comment!
+.hash:	push de
+.comment_loop:	ld a,(de)	; Tokenise comment!
+	inc de
+	or a
+	jr nz,.comment_loop
+	dec de
+	ld a,TOK_RAW_COMMENT
+	jr .long_token
 
-.exclam:	ld a,(de)	; TODO: Parse '!' (Either '!=' or invalid)
+.exclam:	ld a,(de)	; Parse '!' (Either '!=' or (TODO) invalid)
 	cp '='
 	ld b,TOK_X_NE
 	jp z,.inc_token_in_b

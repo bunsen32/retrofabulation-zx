@@ -309,6 +309,25 @@ describe("Tokeniser", () => {
 
 		expect(result.tokenBytes).toEqual([tok('RAW_IDENT'), 0x00, 0x90, 10])
 	})
+
+	it("Tokenises empty COMMENT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, '#')
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_COMMENT'), 0x01, 0x90, 0])
+	})
+
+	it("Tokenises COMMENT", async () => {
+		const vm = await loadedVm
+		const line = "# Hello? $ Unparsed!-;:comment"
+		const text = givenText(vm, line)
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_COMMENT'), 0x01, 0x90, line.length - 1])
+	})
 })
 
 interface TextBuffer {
