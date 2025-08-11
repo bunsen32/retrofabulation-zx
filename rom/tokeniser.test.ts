@@ -175,6 +175,42 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x01, 0x90, 6])
 	})
 
+	it("Interprets ‘$0’ as RAW_HEXINT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "$0")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x01, 0x90, 1])
+	})
+
+	it("Interprets ‘$0123456789ABCDEF’ as RAW_HEXINT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "$0123456789ABCDEF")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x01, 0x90, 16])
+	})
+
+	it("Interprets ‘$0123456789abcdef’ as RAW_HEXINT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "$0123456789ABCDEF")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x01, 0x90, 16])
+	})
+
+	it("Interprets ‘$F_12BC’ as RAW_HEXINT", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "$1_0101")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x01, 0x90, 6])
+	})
+
 	it("Interprets ‘0’ as RAW_DECINT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "0")

@@ -298,8 +298,24 @@ TOKENISE:
 .num_exp:	nop	; TODO: Parse exponent!
 
 	; HEX LITERAL
-.dollar:	nop	; TODO: Parse hex!
+.dollar:	ld a,(de)	; Look for hex literal…
+	ld c,a
+	ld a,(bc)
+	cp TOKEN_LOOKUP.hex_digit
+	jp c,.invalid_sym
+	push de	; Capture some hex:
+.hex_loop	inc de
+	ld a,(de)
+	cp '_'
+	jr z,.hex_loop
+	ld c,a
+	ld a,(bc)
+	cp TOKEN_LOOKUP.hex_digit
+	jr nc,.hex_loop
+	ld a,TOK_RAW_HEXINT
+	jr .long_token
 
+	; OPEN-QUOTE (FOR STRING)
 .quote:	nop	; TODO: Parse string!
 
 	; COMMENT
