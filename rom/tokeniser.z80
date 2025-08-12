@@ -268,64 +268,60 @@ TOKENISE:
 
 	; INTEGER OR FLOAT LITERAL
 .number:	push de	; Capture start position
-	ld b,-1	; Count the decimal points
-.num_loop_point:	inc b	; Increment decimal points
+	ld b,0	; Count the decimal points
 .num_loop:	inc de
 	ld a,(de)
 	cp '0'
-	jr c,.num_lt0
+	jr c,.not_digit
 	cp '9'+1
 	jr c,.num_loop
 .num_gt9:	cp $b7	; Middle-punct
-	jr z,.num_loop_point	; Increment number of decimal points
+	jr z,.num_decimal_point	; Increment number of decimal points
 	cp '_'
 	jr z,.num_loop
+.not_digit:	cp '.'	; Period
+	jr z,.num_decimal_point	; Increment number of decimal points
 	and %11011111	; Upper-case it.
 	cp 'E'
 	jr z,.num_exp
-	jr .num_end
-.num_lt0:	cp '.'	; Period
-	jr z,.num_loop_point	; Increment number of decimal points
-.num_end:	ld a,TOK_RAW_REAL
-	dec b
-	jr z,.long_token	; 1 decimal point: TOK_RAW_REAL
-	ld a,TOK_RAW_DECINT
-	inc b
-	jr z,.long_token	; 0 decimal points: TOK_RAW_DECINT
-	ld a,TOK_INVALID	; Otherwise: 2–255 decimal points, which is invalid.
-	jr .long_token
+	; otherwise, end loop:
+.num_end:	ld a,TOK_RAW_DECINT
+	djnz .long_token	; 0 decimal points: TOK_RAW_DECINT
+.num_is_real:	ld a,TOK_RAW_REAL
+	jr .long_token	; 1 decimal point: TOK_RAW_REAL
+.num_decimal_point:	dec b
+	jr z,.num_is_real	; If already encountered a point, skip to end.
+	inc b	; B := 0
+	inc b	; B := 1
+	jr .num_loop
 
-.num_exp:	push hl	; Scan real number exponent:
-	ex de,hl
-	ld d,TOKEN_LOOKUP>>8
+.num_exp:	ex de,hl	; Scan real number exponent:
+	ld b,TOKEN_LOOKUP>>8	; Use HL for characters, and BC for lookup.
 	inc hl
-	ld e,(hl)	; Next char
-	ld a,(de)	; Next char classification.
+	ld c,(hl)	; Next char
+	ld a,(bc)	; Next char classification.
 	cp TOKEN_LOOKUP.digit
 	jr z,.num_exp_loop
-	cp TOK_ADD<<2
-	jr z,.num_exp_digit	; Now look for digit
+	cp TOK_ADD<<2	; Was plus?
+	jr z,.num_exp_1st_digit	; Now look for digit
 	and ~(TOKEN_LOOKUP.MINUS ^ TOKEN_LOOKUP.MINUS_ALT)
 	cp TOKEN_LOOKUP.MINUS
 	ld a,TOK_INVALID
 	jr nz,.num_exp_end	; Wasn’t a minus (nor plus, nor digit)
-.num_exp_digit:	inc hl	; Expect a digit now
-	ld e,(hl)	; Next char
-	ld a,(de)	; Next char classification.
+.num_exp_1st_digit:	inc hl	; Expect a digit now
+	ld c,(hl)	; Next char
+	ld a,(bc)	; Next char classification.
 	cp TOKEN_LOOKUP.digit
 	ld a,TOK_INVALID
 	jr nz,.num_exp_end	; Wasn’t a digit :(
+	; Now just loop for digits til end:
 .num_exp_loop:	inc hl
-	ld e,(hl)	; Next char
-	ld a,(de)	; Next char classification.
+	ld c,(hl)	; Next char
+	ld a,(bc)	; Next char classification.
 	cp TOKEN_LOOKUP.digit
 	jr z,.num_exp_loop
 	ld a,TOK_RAW_REAL
 .num_exp_end:	ex de,hl
-	pop hl
-	srl b	; Check decimal places is {0, 1}
-	jp z,.long_token
-	ld a,TOK_INVALID
 	jp .long_token
 
 	; HEX LITERAL

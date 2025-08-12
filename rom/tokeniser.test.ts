@@ -274,6 +274,24 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3])
 	})
 
+	it("Interprets ‘9.’ as RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "9.")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 2])
+	})
+
+	it("Interprets ‘9·9’ (mid-dot) as RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "9·9")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3])
+	})
+
 	it("Interprets ‘54.32’ as RAW_REAL", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "54.32")
@@ -313,6 +331,15 @@ describe("Tokeniser", () => {
 	it("Interprets ‘54.32e-’ as INVALID", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "54.32e-")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 7])
+	})
+
+	it("Interprets ‘54.32e+’ as INVALID", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "54.32e+")
 
 		const result = whenTokenised(text)
 
@@ -364,22 +391,13 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 7])
 	})
 
-	it("Interprets ‘6.6.6’ as INVALID", async () => {
+	it("Interprets ‘6.6.6’ as RAW_REAL,NOSPACE,DOT,NOSPACE,RAW_DECINT", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "6.6.6")
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 5])
-	})
-
-	it("Interprets ‘6.6.6e7’ as INVALID", async () => {
-		const vm = await loadedVm
-		const text = givenText(vm, "6.6.6")
-
-		const result = whenTokenised(text)
-
-		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 5])
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3, tok('NOSPACE'), tok('DOT'), tok('NOSPACE'), tok('RAW_DECINT'), 0x04, 0x90, 1])
 	})
 
 	it("Interprets ‘i’ as RAW_IDENT1", async () => {
