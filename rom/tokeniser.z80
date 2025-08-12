@@ -295,7 +295,38 @@ TOKENISE:
 	ld a,TOK_INVALID	; Otherwise: 2–255 decimal points, which is invalid.
 	jr .long_token
 
-.num_exp:	nop	; TODO: Parse exponent!
+.num_exp:	push hl	; Scan real number exponent:
+	ex de,hl
+	ld d,TOKEN_LOOKUP>>8
+	inc hl
+	ld e,(hl)	; Next char
+	ld a,(de)	; Next char classification.
+	cp TOKEN_LOOKUP.digit
+	jr z,.num_exp_loop
+	cp TOK_ADD<<2
+	jr z,.num_exp_digit	; Now look for digit
+	and ~(TOKEN_LOOKUP.MINUS ^ TOKEN_LOOKUP.MINUS_ALT)
+	cp TOKEN_LOOKUP.MINUS
+	ld a,TOK_INVALID
+	jr nz,.num_exp_end	; Wasn’t a minus (nor plus, nor digit)
+.num_exp_digit:	inc hl	; Expect a digit now
+	ld e,(hl)	; Next char
+	ld a,(de)	; Next char classification.
+	cp TOKEN_LOOKUP.digit
+	ld a,TOK_INVALID
+	jr nz,.num_exp_end	; Wasn’t a digit :(
+.num_exp_loop:	inc hl
+	ld e,(hl)	; Next char
+	ld a,(de)	; Next char classification.
+	cp TOKEN_LOOKUP.digit
+	jr z,.num_exp_loop
+	ld a,TOK_RAW_REAL
+.num_exp_end:	ex de,hl
+	pop hl
+	srl b	; Check decimal places is {0, 1}
+	jp z,.long_token
+	ld a,TOK_INVALID
+	jp .long_token
 
 	; HEX LITERAL
 .dollar:	ld a,(de)	; Look for hex literal…
@@ -313,7 +344,7 @@ TOKENISE:
 	cp TOKEN_LOOKUP.hex_digit
 	jr nc,.hex_loop
 	ld a,TOK_RAW_HEXINT
-	jr .long_token
+	jp .long_token
 
 	; OPEN-QUOTE (FOR STRING)
 .quote:	nop	; TODO: Parse string!
@@ -326,7 +357,7 @@ TOKENISE:
 	jr nz,.comment_loop
 	dec de
 	ld a,TOK_RAW_COMMENT
-	jr .long_token
+	jp .long_token
 
 	; NOT-EQUALS ("!=" syntax)
 .exclam:	ld a,(de)	; Parse '!' (Either '!=' or (TODO) invalid)

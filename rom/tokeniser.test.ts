@@ -301,7 +301,79 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 6])
 	})
 
+	it("Interprets ‘54.32e’ as INVALID", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "54.32e")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 6])
+	})
+
+	it("Interprets ‘54.32e-’ as INVALID", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "54.32e-")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 7])
+	})
+
+	it("Interprets ‘54.32e1’ as RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "54.32e1")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 7])
+	})
+
+	it("Interprets ‘54.32e+1’ as RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "54.32e+1")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 8])
+	})
+
+	it("Interprets ‘54.32e-1’ (hyphen) as RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "54.32e-1")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 8])
+	})
+
+	it("Interprets ‘54.32e–1’ (en-dash) as RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "54.32e–1")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 8])
+	})
+
+	it("Interprets ‘300e+99’ as RAW_REAL", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "300e+99")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 7])
+	})
+
 	it("Interprets ‘6.6.6’ as INVALID", async () => {
+		const vm = await loadedVm
+		const text = givenText(vm, "6.6.6")
+
+		const result = whenTokenised(text)
+
+		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 5])
+	})
+
+	it("Interprets ‘6.6.6e7’ as INVALID", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "6.6.6")
 
