@@ -454,6 +454,44 @@ describe("Tokeniser", () => {
 
 		expect(result.tokenBytes).toEqual([tok('RAW_COMMENT'), 0x01, 0x90, line.length - 1])
 	})
+
+	describe('String tokenisation', () => {
+		it("Tokenises empty string (shaped quotes)", async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, '“”')
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 2])
+		})
+
+		it("Tokenises non-empty string (shaped quotes)", async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, '“abc”')
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 5])
+		})
+
+		it("Tokenises empty string (straight quotes)", async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, '""')
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 2])
+		})
+
+		it("Unterminated string is invalid", async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, '"xy')
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 3])
+		})
+	})
 })
 
 interface TextBuffer {

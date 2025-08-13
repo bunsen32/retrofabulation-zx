@@ -343,7 +343,21 @@ TOKENISE:
 	jp .long_token
 
 	; OPEN-QUOTE (FOR STRING)
-.quote:	nop	; TODO: Parse string!
+.quote:	dec de	; Include the opening quote in the capture
+	push de
+.string_loop:	inc de
+	ld a,(de)
+	cp '"'
+	jr z,.string_end
+	cp $94	; Double-quote close
+	jr z,.string_end
+	or a	; Check for end of line
+	jr nz,.string_loop
+	ld a,TOK_INVALID
+	jp .long_token	; [or skip next 2 bytes]
+.string_end:	inc de	; Include trailing quote.
+	ld a,TOK_RAW_STRING
+	jp .long_token
 
 	; COMMENT
 .hash:	push de
