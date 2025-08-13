@@ -1,0 +1,46 @@
+	; Lookup table from (fixed) tokens to their string value.
+TOKENS_TEXT:
+	SAME_PAGE .end_of_table
+	ds 45
+	db .discard & $ff
+	db .and & $ff
+	db .as & $ff
+	db .break & $ff
+	db .continue & $ff
+	db .def & $ff
+	db .elif & $ff
+	db .else & $ff
+	db .for & $ff
+	db .if & $ff
+	db .import & $ff
+	db .in & $ff
+	db .let & $ff
+	db .loop & $ff
+	db .not & $ff
+	db .or & $ff
+	db .pass & $ff
+	db .x_pi & $ff
+	db .return & $ff
+	db .while & $ff
+
+.discard	db 1,'_',0
+.and	db 3,'and',0
+.as	db 2,'as',0
+.break	db 5,'break',0
+.continue	db 8,'continue',0
+.def	db 3,'def',0
+.elif	db 4,'elif',0
+.else	db 4,'else',0
+.for	db 3,'for',0
+.if	db 2,'if',0
+.import	db 6,'import',0
+.in	db 2,'in',0
+.let	db 3,'let',0
+.loop	db 4,'loop',0
+.not	db 3,'not',0
+.or	db 2,'or',0
+.pass	db 4,'pass',0
+.x_pi	db 2,'pi',0
+.return	db 6,'return',0
+.while	db 5,'while',0
+.end_of_table
