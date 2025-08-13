@@ -462,16 +462,7 @@ describe("Tokeniser", () => {
 
 			const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 2])
-		})
-
-		it("Tokenises non-empty string (shaped quotes)", async () => {
-			const vm = await loadedVm
-			const text = givenText(vm, '“abc”')
-
-			const result = whenTokenised(text)
-
-			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 5])
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x01, 0x90, 0])
 		})
 
 		it("Tokenises empty string (straight quotes)", async () => {
@@ -480,7 +471,16 @@ describe("Tokeniser", () => {
 
 			const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 2])
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x01, 0x90, 0])
+		})
+
+		it("Tokenises non-empty string (shaped quotes)", async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, '“abc”')
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x01, 0x90, 3])
 		})
 
 		it("Unterminated string is invalid", async () => {

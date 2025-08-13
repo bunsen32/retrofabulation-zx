@@ -240,7 +240,7 @@ TOKENISE:
 	inc hl	; Write <start> to the token stream
 	push de	; Save the "end of content" pointer (to later restore it)
 	ex de,hl
-	or a	; Clear carry flag
+	cp TOK_RAW_DONT_EXCLUDE_LAST_CHAR	; Set carry flag to exlcude last character!
 	sbc hl,bc	; HL := length of token. (Assume H == 0)
 	ex de,hl
 	ld (hl),e
@@ -343,20 +343,22 @@ TOKENISE:
 	jp .long_token
 
 	; OPEN-QUOTE (FOR STRING)
-.quote:	dec de	; Include the opening quote in the capture
-	push de
-.string_loop:	inc de
-	ld a,(de)
+.quote:	push de	; Exclude the opening quote in the capture
+.string_loop:	ld a,(de)
+	inc de
 	cp '"'
 	jr z,.string_end
 	cp $94	; Double-quote close
 	jr z,.string_end
 	or a	; Check for end of line
 	jr nz,.string_loop
+.string_unterminated:	pop bc
+	dec bc	; INclude opening quote :/
+	push bc
+	dec de	; Reverse back over \0 terminator.
 	ld a,TOK_INVALID
 	jp .long_token	; [or skip next 2 bytes]
-.string_end:	inc de	; Include trailing quote.
-	ld a,TOK_RAW_STRING
+.string_end:	ld a,TOK_RAW_STRING
 	jp .long_token
 
 	; COMMENT

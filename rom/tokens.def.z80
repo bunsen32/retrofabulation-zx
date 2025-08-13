@@ -72,8 +72,9 @@ TOK_NOSPACE	EQU 65	; Missing space where one is expected.
 
 ; Each of these followed by <length> byte and <offset> byte (to text buffer)
 TOK_RAW_IDENT1	EQU $df
-TOK_RAW_IDENT	EQU $e0
-TOK_RAW_STRING	EQU $e1
+TOK_RAW_STRING	EQU $e0
+TOK_RAW_DONT_EXCLUDE_LAST_CHAR EQU $e1	; Raw (long) tokens AFTER this one won’t exclude last character!
+TOK_RAW_IDENT	EQU $e1
 TOK_RAW_COMMENT	EQU $e2	; # to end of line
 TOK_RAW_INVALID	EQU $e3	; Unrecognised token.
 TOK_RAW_REAL	EQU $e4
