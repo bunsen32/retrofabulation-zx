@@ -66,6 +66,20 @@ describe("Tokeniser", () => {
 		}
 	})
 
+	describe('Tokenises invalid symbols', () => {
+		const invalidSymbols = ['!']
+		for (const symbol of invalidSymbols) {
+			it(`Interprets '${symbol}${symbol}' as RAW_INVALID`, async () => {
+				const vm = await loadedVm
+				const text = givenText(vm, '!!')
+
+				const result = whenTokenised(text)
+
+				expect(result.tokenBytes).toEqual([tok('RAW_INVALID'), 0x00, 0x90, 2])
+			})
+		}
+	})
+
 	describe('Tokenises all reserved words', () => {
 		for(const [word, token] of Object.entries(ReservedWords)) {
 			it(`Interprets ‘${word}’ as encoding ${token}`, async () => {
@@ -538,7 +552,7 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		DE: start,
 		HL: tokenBuffer
 	})
-	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 170)
+	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 200)
 
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)

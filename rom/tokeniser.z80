@@ -11,7 +11,7 @@ TOKENISE:
 .next:	ld a,(de)
 	ld c,a
 	cp $c0
-	jp nc,.invalid_sym	; TODO
+	jp nc,.invalid_symX	; TODO
 	ld b,TOKEN_LOOKUP>>8
 	ld a,(bc)
 	or a	; Clear carry flag (for start word)
@@ -51,7 +51,7 @@ TOKENISE:
 	; SYMBOL
 .simple_symbol:	or a	; Compare to zero
 	jp nz,.inc_token_in_a
-	jr .invalid_sym
+	jr .invalid_symX
 
 	; IDENTIFIER OR RESERVED WORD
 .start_word:	; Character is alphanumeric (including non-Latin letters), or ‘_’.
@@ -144,9 +144,19 @@ TOKENISE:
 	inc hl
 	jp .next
 
-.invalid_sym:	ld (hl),TOK_INVALID
-	inc hl
-	jp .invalid_sym	; TODO: Read invalid token up until space/EOL
+.invalid_symX:	halt ;TODO
+.invalid_sym_prev:	dec de	; We’d already incremented
+.invalid_sym:	push de
+	ld b,TOKEN_LOOKUP>>8
+.invalid_sym_loop:	inc de
+	ld a,(de)
+	ld c,a
+	ld a,(bc)
+	or a
+	jr z,.invalid_sym_loop	; Still invalid!
+	; Will automatically exit loop on '\0' (since its category is non-zero)
+	ld a,TOK_RAW_INVALID>>1
+	jr .long_token
 
 	; WRITE TOKEN
 .inc_token_in_b:	inc de
@@ -387,11 +397,14 @@ TOKENISE:
 	jp .long_token_inclfirst
 
 	; NOT-EQUALS ("!=" syntax)
-.exclam:	ld a,(de)	; Parse '!' (Either '!=' or (TODO) invalid)
+.exclam:	ld a,(de)	; Parse '!' (Either '!=' or invalid)
 	cp '='
 	ld b,TOK_X_NE
 	jp z,.inc_token_in_b
-	jp .invalid_sym
+	ld a,'!'
+	ld (hl),TOK_RAW_INVALID1
+	inc hl
+	jp .token_in_a
 
 	INCLUDE './tokens.lookup.z80'
 	ALIGN 256
