@@ -154,7 +154,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x01, 0x90, 1])
+		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x00, 0x90, 2])
 	})
 
 	it("Interprets ‘%10101’ as RAW_BININT", async () => {
@@ -163,7 +163,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x01, 0x90, 5])
+		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x00, 0x90, 6])
 	})
 
 	it("Interprets ‘%1_0101’ as RAW_BININT", async () => {
@@ -172,7 +172,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x01, 0x90, 6])
+		expect(result.tokenBytes).toEqual([tok('RAW_BININT'), 0x00, 0x90, 7])
 	})
 
 	it("Interprets ‘$0’ as RAW_HEXINT", async () => {
@@ -181,7 +181,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x01, 0x90, 1])
+		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x00, 0x90, 2])
 	})
 
 	it("Interprets ‘$0123456789ABCDEF’ as RAW_HEXINT", async () => {
@@ -190,7 +190,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x01, 0x90, 16])
+		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x00, 0x90, 17])
 	})
 
 	it("Interprets ‘$0123456789abcdef’ as RAW_HEXINT", async () => {
@@ -199,7 +199,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x01, 0x90, 16])
+		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x00, 0x90, 17])
 	})
 
 	it("Interprets ‘$F_12BC’ as RAW_HEXINT", async () => {
@@ -208,16 +208,16 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x01, 0x90, 6])
+		expect(result.tokenBytes).toEqual([tok('RAW_HEXINT'), 0x00, 0x90, 7])
 	})
 
-	it("Interprets ‘0’ as RAW_DECINT", async () => {
+	it("Interprets ‘0’ as RAW_DECINT1", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "0")
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_DECINT'), 0x00, 0x90, 1])
+		expect(result.tokenBytes).toEqual([tok('RAW_DECINT1'), '0'.charCodeAt(0)])
 	})
 
 	it("Interprets ‘99’ as RAW_DECINT", async () => {
@@ -319,31 +319,31 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 6])
 	})
 
-	it("Interprets ‘54.32e’ as INVALID", async () => {
+	it("Interprets ‘54.32e’ as RAW_INVALID", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "54.32e")
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 6])
+		expect(result.tokenBytes).toEqual([tok('RAW_INVALID'), 0x00, 0x90, 6])
 	})
 
-	it("Interprets ‘54.32e-’ as INVALID", async () => {
+	it("Interprets ‘54.32e-’ as RAW_INVALID", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "54.32e-")
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 7])
+		expect(result.tokenBytes).toEqual([tok('RAW_INVALID'), 0x00, 0x90, 7])
 	})
 
-	it("Interprets ‘54.32e+’ as INVALID", async () => {
+	it("Interprets ‘54.32e+’ as RAW_INVALID", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "54.32e+")
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 7])
+		expect(result.tokenBytes).toEqual([tok('RAW_INVALID'), 0x00, 0x90, 7])
 	})
 
 	it("Interprets ‘54.32e1’ as RAW_REAL", async () => {
@@ -397,7 +397,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3, tok('NOSPACE'), tok('DOT'), tok('NOSPACE'), tok('RAW_DECINT'), 0x04, 0x90, 1])
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3, tok('NOSPACE'), tok('DOT'), tok('NOSPACE'), tok('RAW_DECINT1'), '6'.charCodeAt(0)])
 	})
 
 	it("Interprets ‘i’ as RAW_IDENT1", async () => {
@@ -442,7 +442,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_COMMENT'), 0x01, 0x90, 0])
+		expect(result.tokenBytes).toEqual([tok('RAW_COMMENT1'), '#'.charCodeAt(0)])
 	})
 
 	it("Tokenises COMMENT", async () => {
@@ -452,7 +452,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_COMMENT'), 0x01, 0x90, line.length - 1])
+		expect(result.tokenBytes).toEqual([tok('RAW_COMMENT'), 0x00, 0x90, line.length])
 	})
 
 	describe('String tokenisation', () => {
@@ -462,7 +462,7 @@ describe("Tokeniser", () => {
 
 			const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x01, 0x90, 0])
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 2])
 		})
 
 		it("Tokenises empty string (straight quotes)", async () => {
@@ -471,7 +471,7 @@ describe("Tokeniser", () => {
 
 			const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x01, 0x90, 0])
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 2])
 		})
 
 		it("Tokenises non-empty string (shaped quotes)", async () => {
@@ -480,7 +480,16 @@ describe("Tokeniser", () => {
 
 			const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x01, 0x90, 3])
+			expect(result.tokenBytes).toEqual([tok('RAW_STRING'), 0x00, 0x90, 5])
+		})
+
+		it("Empty, unterminated string is invalid", async () => {
+			const vm = await loadedVm
+			const text = givenText(vm, '"')
+
+			const result = whenTokenised(text)
+
+			expect(result.tokenBytes).toEqual([tok('RAW_INVALID1'), '"'.charCodeAt(0)])
 		})
 
 		it("Unterminated string is invalid", async () => {
@@ -489,7 +498,7 @@ describe("Tokeniser", () => {
 
 			const result = whenTokenised(text)
 
-			expect(result.tokenBytes).toEqual([tok('INVALID'), 0x00, 0x90, 3])
+			expect(result.tokenBytes).toEqual([tok('RAW_INVALID'), 0x00, 0x90, 3])
 		})
 	})
 })

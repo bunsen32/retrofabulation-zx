@@ -135,7 +135,7 @@ TOKENISE:
 	jr .token_in_a	; Hash matches, and text matches!
 .no_hash_match:	pop de	; Restore end of token pointer
 	pop hl
-	jr .long_ident
+	jp .long_ident
 
 	; SPACE
 .extra_space:	; Should not occur, but encode run of spaces.
@@ -182,8 +182,8 @@ TOKENISE:
 	rra
 	cp '0'>>1
 	jr z,.bin_loop
-	ld a,TOK_RAW_BININT
-	jr .long_token
+	ld a,TOK_RAW_BININT>>1
+	jr .long_token_inclfirst
 
 	; DIVIDE AND FLOOR-DIVISION
 .slash:	ld a,(de)
@@ -226,27 +226,46 @@ TOKENISE:
 	ld a,TOK_X_GE	; WAS followed by equals. So ">=" (greater-or-equal ‘≥’)
 	jr .inc_token_in_a
 
+.invalid_tok_inclfirst:	ld a,TOK_RAW_INVALID>>1
+.long_token_inclfirst:	pop bc	; BC := point to start of content
+	dec bc
+	jr .long_token_after_pop
+
 	; WRITE ‘LONG’ TOKENS
 .long_ident_pophl:	pop hl
-.long_ident:	ld a,TOK_RAW_IDENT
+.long_ident:	ld a,TOK_RAW_IDENT>>1
 .long_token:	; It’s a token composed of several characters. Write it to the stream.
 	; A: token byte; DE: point to after token content; <stack>: point to start of content.
+	pop bc	; BC := point to start of token
+.long_token_after_pop:	; BC = start of token
+	push de	; Save the "end of content" pointer (to later restore it)
+	ex de,hl
+	or a	; Clear Carry bit
+	sbc hl,bc	; HL := length of token. (Assume H == 0)
+	ex de,hl	; HL := token ptr, E := length of token
+	dec e
+	jr nz,.longlong_token
+.shortlong_token:
+	scf
+	rla
+	ld (hl),a
+	inc hl
+	ld a,(bc)	; A := the singular character
+	ld (hl),a	; Write to token stream
+	jr .long_token_end
+.longlong_token:
+	inc e
+	rlca
 	ld (hl),a
 	inc hl	; Write token ID to the token stream.
-	pop bc	; BC := point to start of content
 	ld (hl),c
 	inc hl
 	ld (hl),b
 	inc hl	; Write <start> to the token stream
-	push de	; Save the "end of content" pointer (to later restore it)
-	ex de,hl
-	cp TOK_RAW_DONT_EXCLUDE_LAST_CHAR	; Set carry flag to exlcude last character!
-	sbc hl,bc	; HL := length of token. (Assume H == 0)
-	ex de,hl
 	ld (hl),e
-	inc hl
+.long_token_end:	inc hl
 	pop de	; DE := character pointer
-	jr .token_expect_sep
+	jp .token_expect_sep
 
 	; MINUS SIGN (AS HYPHEN)
 .minus_alt:	cp TOKEN_LOOKUP.digit
@@ -285,9 +304,9 @@ TOKENISE:
 	cp 'E'
 	jr z,.num_exp
 	; otherwise, end loop:
-.num_end:	ld a,TOK_RAW_DECINT
+.num_end:	ld a,TOK_RAW_DECINT>>1
 	djnz .long_token	; 0 decimal points: TOK_RAW_DECINT
-.num_is_real:	ld a,TOK_RAW_REAL
+.num_is_real:	ld a,TOK_RAW_REAL>>1
 	jr .long_token	; 1 decimal point: TOK_RAW_REAL
 .num_decimal_point:	dec b
 	jr z,.num_is_real	; If already encountered a point, skip to end.
@@ -306,13 +325,13 @@ TOKENISE:
 	jr z,.num_exp_1st_digit	; Now look for digit
 	and ~(TOKEN_LOOKUP.MINUS ^ TOKEN_LOOKUP.MINUS_ALT)
 	cp TOKEN_LOOKUP.MINUS
-	ld a,TOK_INVALID
+	ld a,TOK_RAW_INVALID>>1
 	jr nz,.num_exp_end	; Wasn’t a minus (nor plus, nor digit)
 .num_exp_1st_digit:	inc hl	; Expect a digit now
 	ld c,(hl)	; Next char
 	ld a,(bc)	; Next char classification.
 	cp TOKEN_LOOKUP.digit
-	ld a,TOK_INVALID
+	ld a,TOK_RAW_INVALID>>1
 	jr nz,.num_exp_end	; Wasn’t a digit :(
 	; Now just loop for digits til end:
 .num_exp_loop:	inc hl
@@ -320,17 +339,17 @@ TOKENISE:
 	ld a,(bc)	; Next char classification.
 	cp TOKEN_LOOKUP.digit
 	jr z,.num_exp_loop
-	ld a,TOK_RAW_REAL
+	ld a,TOK_RAW_REAL>>1
 .num_exp_end:	ex de,hl
 	jp .long_token
 
 	; HEX LITERAL
-.dollar:	ld a,(de)	; Look for hex literal…
+.dollar:	push de	; Capture some hex:
+	ld a,(de)	; Look for hex literal…
 	ld c,a
 	ld a,(bc)
 	cp TOKEN_LOOKUP.hex_digit
-	jp c,.invalid_sym
-	push de	; Capture some hex:
+	jp c,.invalid_tok_inclfirst
 .hex_loop	inc de
 	ld a,(de)
 	cp '_'
@@ -339,11 +358,11 @@ TOKENISE:
 	ld a,(bc)
 	cp TOKEN_LOOKUP.hex_digit
 	jr nc,.hex_loop
-	ld a,TOK_RAW_HEXINT
-	jp .long_token
+	ld a,TOK_RAW_HEXINT>>1
+	jp .long_token_inclfirst
 
 	; OPEN-QUOTE (FOR STRING)
-.quote:	push de	; Exclude the opening quote in the capture
+.quote:	push de	; Include the opening quote in the capture
 .string_loop:	ld a,(de)
 	inc de
 	cp '"'
@@ -352,14 +371,10 @@ TOKENISE:
 	jr z,.string_end
 	or a	; Check for end of line
 	jr nz,.string_loop
-.string_unterminated:	pop bc
-	dec bc	; INclude opening quote :/
-	push bc
-	dec de	; Reverse back over \0 terminator.
-	ld a,TOK_INVALID
-	jp .long_token	; [or skip next 2 bytes]
-.string_end:	ld a,TOK_RAW_STRING
-	jp .long_token
+.string_unterminated:	dec de	; Reverse back over \0 terminator.
+	jp .invalid_tok_inclfirst	; [or skip next 2 bytes]
+.string_end:	ld a,TOK_RAW_STRING>>1
+	jp .long_token_inclfirst
 
 	; COMMENT
 .hash:	push de
@@ -368,8 +383,8 @@ TOKENISE:
 	or a
 	jr nz,.comment_loop
 	dec de
-	ld a,TOK_RAW_COMMENT
-	jp .long_token
+	ld a,TOK_RAW_COMMENT>>1
+	jp .long_token_inclfirst
 
 	; NOT-EQUALS ("!=" syntax)
 .exclam:	ld a,(de)	; Parse '!' (Either '!=' or (TODO) invalid)
