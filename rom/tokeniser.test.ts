@@ -3,7 +3,7 @@ import {asString, loadVm, type word, type Vm} from './testutils/testvm.ts'
 import type { byte } from '@zx/sys'
 import { rom } from "./generated/symbols.ts";
 import { expect } from "jsr:@std/expect/expect";
-import {EncodingFromSymbol, ReservedWords, tok} from './tokeniser.symbols.ts'
+import {EncodingFromSymbol, ReservedWords, tok, tokNoSpace} from './tokeniser.symbols.ts'
 
 const loadedVm = loadVm()
 
@@ -42,13 +42,13 @@ describe("Tokeniser", () => {
 
 	describe('Tokenises all symbols followed immediately by another', () => {
 		for(const [symbol, token] of Object.entries(EncodingFromSymbol)) {
-			it(`Interprets ‘${symbol}.’ as encoding ${token},NOSPACE,DOT`, async () => {
+			it(`Interprets ‘${symbol}.’ as encoding ${token},DOT<NOSPACE>`, async () => {
 				const vm = await loadedVm
 				const text = givenText(vm, symbol+'.')
 
 				const result = whenTokenised(text)
 
-				expect(result.tokenBytes).toEqual([tok(token), tok('NOSPACE'), tok('DOT')])
+				expect(result.tokenBytes).toEqual([tok(token), tokNoSpace('DOT')])
 			})
 		}
 	})
@@ -75,7 +75,7 @@ describe("Tokeniser", () => {
 
 				const result = whenTokenised(text)
 
-				expect(result.tokenBytes).toEqual([tok('RAW_INVALID1'), symbol.charCodeAt(0), tok('NOSPACE'), tok('RAW_INVALID1'), symbol.charCodeAt(0)])
+				expect(result.tokenBytes).toEqual([tok('RAW_INVALID1'), symbol.charCodeAt(0), tokNoSpace('RAW_INVALID1'), symbol.charCodeAt(0)])
 			})
 		}
 	})
@@ -419,13 +419,13 @@ describe("Tokeniser", () => {
 		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 7])
 	})
 
-	it("Interprets ‘6.6.6’ as RAW_REAL,NOSPACE,DOT,NOSPACE,RAW_DECINT", async () => {
+	it("Interprets ‘6.6.6’ as RAW_REAL,DOT<NOSPACE>,RAW_DECINT<NOSPACE>", async () => {
 		const vm = await loadedVm
 		const text = givenText(vm, "6.6.6")
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3, tok('NOSPACE'), tok('DOT'), tok('NOSPACE'), tok('RAW_DECINT1'), '6'.charCodeAt(0)])
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3, tokNoSpace('DOT'), tokNoSpace('RAW_DECINT1'), '6'.charCodeAt(0)])
 	})
 
 	it("Interprets ‘i’ as RAW_IDENT1", async () => {
@@ -566,7 +566,7 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		DE: start,
 		HL: tokenBuffer
 	})
-	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 224)
+	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 300)
 
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)

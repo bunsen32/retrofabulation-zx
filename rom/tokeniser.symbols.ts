@@ -80,8 +80,13 @@ export type TokType = Prefixed<'TOK_', keyof typeof rom>
 
 type Prefixed<P extends string, D extends string> = D extends `${P}${infer S}` ? S : never
 
+export function tokNoSpace(k: TokType): byte {
+	return (tok(k) | 1) as byte
+}
+
 export function tok(k: TokType): byte {
 	const v = rom[`TOK_${k}`].addr
 	if (v < 0 || v > 255) throw `Token ${k} does not hold a byte value: ${v}`
-	return v as byte
+	if (v > 127) throw `Token ${k} is ≥ 128: ${v}`
+	return (v << 1) as byte
 }

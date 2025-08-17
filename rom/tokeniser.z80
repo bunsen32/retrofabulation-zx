@@ -2,10 +2,18 @@
 
 	; DE: text stream
 	; HL: token stream
-TOKENISE:
+TOKENISE:	push bc
+	push ix
+	or a	; Clear carry flag
+	ex af,af'	; Alt carry flag = UNSET
+	push af	; Store caller’s AF'
 	call .next
-	ld (hl),0
+	ld (hl),0	; Add terminating zero to token stream.
 	inc hl
+	pop af
+	ex af,af'	; Restore caller’s AF'
+	pop ix
+	pop bc
 	ret
 
 .next:	ld a,(de)
@@ -70,9 +78,14 @@ TOKENISE:
 	cp '_'
 	ld b,TOK_DISCARD
 	jr z,.token_in_b
-	ld (hl),TOK_RAW_IDENT1
+	ld b,TOK_RAW_IDENT1
+	ex af,af'
+	rl b
+	ex af,af'
+	ld (hl),b
 	inc hl
-	jr .token_in_a	; Not ‘token’ but the single character
+	ld (hl),a
+	jr .after_token_incHL
 
 .two_plus:	; Identifier longer than 1 character
 	push hl	; Well be storing hash in H and length in L (nice!)
@@ -138,7 +151,7 @@ TOKENISE:
 	; SPACE
 .extra_space:	; Should not occur, but encode run of spaces.
 	; (Only encode one at a time. No point in optimising for bad code.)
-	ld (hl),TOK_EXTRASPACE
+	ld (hl),TOK_EXTRASPACE<<1 ; By definition never "no separator"
 	inc hl
 	jp .next
 
@@ -156,13 +169,16 @@ TOKENISE:
 	jr .long_token
 
 	; WRITE TOKEN
-.inc_token_in_b:	inc de
-.token_in_b:	ld (hl),b
-	jr .token_in_a_incHL	; [skip 2 bytes]
+.inc_token_in_b:	ld a,b
 
 .inc_token_in_a:	inc de
-.token_in_a:	ld (hl),a
-.token_in_a_incHL:	inc hl
+.token_in_a:	ld b,a
+
+.token_in_b:	ex af,af'	; Carry-flag := missing space?
+	rl b	; B[0] := missing space? Carry-flag := UNSET
+	ex af,af'
+	ld (hl),b
+.after_token_incHL:	inc hl
 .token_expect_sep:	ld a,(de)
 	cp 32
 	jr nz,.not_space
@@ -170,8 +186,8 @@ TOKENISE:
 	jp .next
 .not_space:	or a
 	ret z	; Return if end of stream.
-	ld (hl),TOK_NOSPACE
-	inc hl
+	scf
+	ex af,af'	; Alt carry flag = SET
 	jp .next
 
 	; MODULUS OPERATOR AND BINARY LITERAL
@@ -254,7 +270,11 @@ TOKENISE:
 	jr nz,.longlong_token
 .shortlong_token:
 	scf
-	rla
+	rla	; Shift left, 1 in LSb
+	ex af,af'
+	jr c,.shortlong_nosep
+	ex af,af'
+.shiftlong_writeType:	rla	; Shift again, put carry in bit 0
 	ld (hl),a
 	inc hl
 	ld a,(bc)	; A := the singular character
@@ -262,7 +282,11 @@ TOKENISE:
 	jr .long_token_end
 .longlong_token:
 	inc e
-	rlca
+	rlca	; Shift left, 0 in LSb
+	ex af,af'
+	jr c,.longlong_nosep
+	ex af,af'
+.longlong_writeType	rla	; Shift again, put carry in bit 0
 	ld (hl),a
 	inc hl	; Write token ID to the token stream.
 	ld (hl),c
@@ -273,6 +297,13 @@ TOKENISE:
 .long_token_end:	inc hl
 	pop de	; DE := character pointer
 	jp .token_expect_sep
+
+.longlong_nosep:	ex af,af'	; Get back ‘current’ A
+	scf
+	jr .longlong_writeType
+.shortlong_nosep:	ex af,af'	; Get back ‘current’ A
+	scf
+	jr .shiftlong_writeType
 
 	; MINUS SIGN (AS HYPHEN)
 .minus_alt:	cp TOKEN_LOOKUP.digit
@@ -398,10 +429,14 @@ TOKENISE:
 	cp '='
 	ld b,TOK_X_NE
 	jp z,.inc_token_in_b
-	ld a,'!'
-	ld (hl),TOK_RAW_INVALID1
+	ld b,TOK_RAW_INVALID1
+	ex af,af'
+	rl b
+	ex af,af'
+	ld (hl),b
 	inc hl
-	jp .token_in_a
+	ld (hl),'!'
+	jp .after_token_incHL
 
 	INCLUDE './tokens.lookup.z80'
 	ALIGN 256
