@@ -48,15 +48,20 @@
 
 ## Code editing/entering
 
+### Lexing
 * Code variant of text editor, which does some ‘lexing’ (transform input to insert some spaces, prevent multiple spaces, transform some characters—like sigils)
+
+### Tokeniser
 * Tokeniser running opportistically.
 * Syntax colouring
-* Compiler/encoder
-* First actual simple REPL loop
 * PARSING…
-  * Numbers with leading minus sign
+  * ~~Numbers with leading minus sign~~ [Done!]
 	* Numbers with leading plus sign?
 	* Interpret 1/4, 1/2, 3/4 symbols as numbers? (Either as special symbols or shortcuts for 0.25, 0.5, 0.75)
+
+### Parser & Code Generator
+* Compiler/encoder
+* First actual simple REPL loop
 
 ## Code module editor
 
