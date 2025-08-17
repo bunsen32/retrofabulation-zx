@@ -210,3 +210,30 @@ TOKEN_LOOKUP:
 	db .invalid	; $be THREE_QUARTERS
 	db .invalid	; $bf INVERTED_QUESTION
 
+	PADTO TOKEN_LOOKUP + $C0
+		; unassigned characters
+
+	PADTO TOKEN_LOOKUP + $D0
+		; block graphics
+
+	PADTO TOKEN_LOOKUP + $E0
+		; user-defined-graphics
+
+	PADTO TOKEN_LOOKUP + $F0	; Diacritics
+	db .in_token	; $f0 CEDILLA
+	db .in_token	; $f1 BACKWARDS_CEDILLA
+	db .invalid
+	db .invalid
+	db .in_token	; $f4 DOTLESS_I
+	db .in_token	; $f5 BREVE
+	db .in_token	; $f6 ACCUTE
+	db .in_token	; $f7 DERIESIS
+	db .in_token	; $f8 CIRCUMFLEX
+	db .in_token	; $f9 COMBINING_TILDE
+	db .in_token	; $fa LONG
+	db .in_token	; $fb SHORT
+	db .in_token	; $fc OVERDOT
+	db .in_token	; $fd RING
+	db .in_token	; $fe DOUBLE_ACCUTE
+	db .in_token	; $ff OVER_V
+		

@@ -66,12 +66,26 @@ describe("Tokeniser", () => {
 		}
 	})
 
-	describe('Tokenises invalid symbols', () => {
-		const invalidSymbols = ['!']
+	describe('Tokenises invalid symbols (individual)', () => {
+		const invalidSymbols = ['!', '$']
+		for (const symbol of invalidSymbols) {
+			it(`Interprets '${symbol}${symbol}' as RAW_INVALID1`, async () => {
+				const vm = await loadedVm
+				const text = givenText(vm, `${symbol}${symbol}`)
+
+				const result = whenTokenised(text)
+
+				expect(result.tokenBytes).toEqual([tok('RAW_INVALID1'), symbol.charCodeAt(0), tok('NOSPACE'), tok('RAW_INVALID1'), symbol.charCodeAt(0)])
+			})
+		}
+	})
+
+	describe('Tokenises invalid symbols (multi)', () => {
+		const invalidSymbols = ['`', '\'', '\\', '?', '@']
 		for (const symbol of invalidSymbols) {
 			it(`Interprets '${symbol}${symbol}' as RAW_INVALID`, async () => {
 				const vm = await loadedVm
-				const text = givenText(vm, '!!')
+				const text = givenText(vm, `${symbol}${symbol}`)
 
 				const result = whenTokenised(text)
 
@@ -552,7 +566,7 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		DE: start,
 		HL: tokenBuffer
 	})
-	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 200)
+	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 224)
 
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)

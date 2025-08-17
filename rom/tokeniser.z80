@@ -10,8 +10,6 @@ TOKENISE:
 
 .next:	ld a,(de)
 	ld c,a
-	cp $c0
-	jp nc,.invalid_symX	; TODO
 	ld b,TOKEN_LOOKUP>>8
 	ld a,(bc)
 	or a	; Clear carry flag (for start word)
@@ -51,7 +49,7 @@ TOKENISE:
 	; SYMBOL
 .simple_symbol:	or a	; Compare to zero
 	jp nz,.inc_token_in_a
-	jr .invalid_symX
+	jr .invalid_sym
 
 	; IDENTIFIER OR RESERVED WORD
 .start_word:	; Character is alphanumeric (including non-Latin letters), or ‘_’.
@@ -144,7 +142,6 @@ TOKENISE:
 	inc hl
 	jp .next
 
-.invalid_symX:	halt ;TODO
 .invalid_sym_prev:	dec de	; We’d already incremented
 .invalid_sym:	push de
 	ld b,TOKEN_LOOKUP>>8
