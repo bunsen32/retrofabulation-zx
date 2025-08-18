@@ -566,7 +566,7 @@ function whenTokenised(text: TextBuffer): TokenStream {
 		DE: start,
 		HL: tokenBuffer
 	})
-	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 300)
+	vm.callSubroutine(rom.TOKENISE, 130 + (text.length + 1) * 200)
 
 	const { HL } = vm.getRegisters()
 	expect(HL).toBeGreaterThan(tokenBuffer)

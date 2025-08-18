@@ -382,12 +382,13 @@ TOKENISE:	push bc
 	jp .long_token
 
 	; HEX LITERAL
-.dollar:	push de	; Capture some hex:
-	ld a,(de)	; Look for hex literal…
+.dollar:	ld a,(de)	; Look for hex literal…
 	ld c,a
 	ld a,(bc)
 	cp TOKEN_LOOKUP.hex_digit
-	jp c,.invalid_tok_inclfirst
+	ld a,'$'
+	jp c,.invalid1
+	push de	; Capture some hex digits:
 .hex_loop	inc de
 	ld a,(de)
 	cp '_'
@@ -429,13 +430,14 @@ TOKENISE:	push bc
 	cp '='
 	ld b,TOK_X_NE
 	jp z,.inc_token_in_b
-	ld b,TOK_RAW_INVALID1
+	ld a,'!'
+.invalid1	ld b,TOK_RAW_INVALID1
 	ex af,af'
 	rl b
 	ex af,af'
 	ld (hl),b
 	inc hl
-	ld (hl),'!'
+	ld (hl),a
 	jp .after_token_incHL
 
 	INCLUDE './tokens.lookup.z80'
