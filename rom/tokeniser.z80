@@ -7,6 +7,7 @@ TOKENISE:	push bc
 	or a	; Clear carry flag
 	ex af,af'	; Alt carry flag = UNSET
 	push af	; Store caller’s AF'
+	ld ixh,.complex_symbol_dispatch>>8
 	call .next
 	ld (hl),0	; Add terminating zero to token stream.
 	inc hl
@@ -26,7 +27,12 @@ TOKENISE:	push bc
 .start_symbol:	rra
 	jr nc,.simple_symbol
 .complex_symbol:	inc de	; Peek next char.
-	jp .jump_table
+	inc b	; Next page: dispatch table
+	ld c,a
+	ld a,(bc)
+	dec b	; Prev page: category table
+	ld ixl,a
+	jp (ix)
 
 	; SYMBOL
 .simple_symbol:	or a	; Compare to zero
@@ -38,7 +44,7 @@ TOKENISE:	push bc
 	cp TOKEN_LOOKUP.digit>>1
 	jp nc,.number	; If starts with a digit, parse number.
 	push de	; Start of word.
-	ld ixh,c	; Stash first character
+	ld ixl,c	; Stash first character
 	inc de
 	ld a,(de)	; Fetch second character
 	ld c,a
@@ -48,7 +54,7 @@ TOKENISE:	push bc
 
 .one_char_ident:	; Identifier 1 character long
 	pop af	; Discard start of word.
-	ld a,ixh	; Retrieve first char.
+	ld a,ixl	; Retrieve first char.
 	cp '_'
 	ld b,TOK_DISCARD
 	jp z,.token_in_b
@@ -64,7 +70,7 @@ TOKENISE:	push bc
 .two_plus:	; Identifier longer than 1 character
 	push hl	; Well be storing hash in H and length in L (nice!)
 	ld hl,(RESERVEDW_HASH.seed << 8)+1
-	ld a,ixh	; Retrieve first char
+	ld a,ixl	; Retrieve first char
 	add h
 	rrca
 	xor RESERVEDW_HASH.xor
@@ -122,18 +128,24 @@ TOKENISE:	push bc
 	pop hl
 	jp .long_ident
 
+.complex_symbol_dispatch:
+	SAME_PAGE .exclam
+
+.null:	ret
+
 	; MINUS SIGN (AS HYPHEN)
-.minus_alt:	cp TOKEN_LOOKUP.digit
+.minus_alt:	ld a,(de)
+	ld c,a
+	ld a,(bc)	; Look up category of next char
+	cp TOKEN_LOOKUP.digit
 	ld a,TOK_X_SUB
 	jp c,.token_in_a
 	jp .number_dec_de
 
 	; MINUS SIGN (AS EN-DASH)
-.minus:	rra	; carry-flag => alt version
-	ld a,(de)
+.minus:	ld a,(de)
 	ld c,a
 	ld a,(bc)	; Look up category of next char
-	jr c,.minus_alt
 	cp TOKEN_LOOKUP.digit
 	ld a,TOK_SUB
 	jp c,.token_in_a
@@ -180,37 +192,9 @@ TOKENISE:	push bc
 	ld a,TOK_X_GE	; WAS followed by equals. So ">=" (greater-or-equal ‘≥’)
 	jp .inc_token_in_a
 
-.jump_table:
-	rra	; Break down next 4 bits
-	jr c,.odd
-.even:	rra	; Common ones: ", #, -, /
-	jr c,.odd_even
-.even_even:	rra	; ", #
-	jr nc,.quote
-	jr .hash
-.odd_even:	rra	; -, /
-	jr nc,.minus
-	jr .slash
-.odd:	rra	; Less common: %, <, >, * $, !
-	jr c,.odd_odd
-.even_odd:	rra	; %, <, >
-	jr nc,.percent
-.odd_even_odd:	rra	; <, >
-	jr nc,.lt
-	jr .gt
-.odd_odd:	rra	; *, $, !
-	jp c,.odd_odd_odd
-.even_odd_odd:	rra
-	jr nc,.asterisk
-	jr .dollar
-.odd_odd_odd:	rra
-	jr nc,.extra_space
-.odd_odd_odd_odd:	rra
-	jr nc,.exclam
-	ret
-
 	; MODULUS OPERATOR AND BINARY LITERAL
-.percent:	ld a,(de)	; (<carry> = 0)
+.percent:	or a	; (<carry> = 0)
+	ld a,(de)
 	ld b,TOK_MOD
 	rra	; Get rid of low bit (don't care if it’s ‘0’ or ‘1’ for now)
 	cp '0'>>1

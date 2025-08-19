@@ -8,21 +8,21 @@ TOKEN_LOOKUP:
 
 .parsemore	equ %00000010
 
-.QUOTE	equ %00000010
-.QUOTE_ALT	equ %00100010
-.HASHMARK	equ %00010010
-.MINUS	equ %00001010
-.MINUS_ALT	equ %00101010
-.SLASH	equ %00011010
+.QUOTE	equ %00000010	; 0
+.QUOTE_ALT	equ %00000110	; 1
+.HASHMARK	equ %00001010	; 2
+.SLASH	equ %00001110	; 3
+.MINUS	equ %00010010	; 4
+.MINUS_ALT	equ %00010110	; 5
+.PERCENT	equ %00011010	; 6
+.LESSTHAN	equ %00011110	; 7
 
-.PERCENT	equ %00000110
-.LESSTHAN	equ %00010110
-.GREATERTHAN	equ %00110110
-.ASTERISK	equ %00001110
-.DOLLAR	equ %00101110
-.EXTRA_SPACE	equ %00011110
-.EXCLAMATION	equ %00111110
-.UNEXPECTED_END	equ %01111110
+.GREATERTHAN	equ %00100010	; 8
+.ASTERISK	equ %00100110	; 9
+.DOLLAR	equ %00101010	; A
+.EXTRA_SPACE	equ %00101110	; B
+.EXCLAMATION	equ %00110010	; C
+.UNEXPECTED_END	equ %00110110	; D
 
 	PADTO TOKEN_LOOKUP + $00
 	db .UNEXPECTED_END	; $00 NULL
@@ -236,4 +236,21 @@ TOKEN_LOOKUP:
 	db .in_token	; $fd RING
 	db .in_token	; $fe DOUBLE_ACCUTE
 	db .in_token	; $ff OVER_V
-		
+
+	ASSERT ($ & $FF) = 0
+COMPLEX_TOKEN_DISPATCH_TABLE:
+	db (TOKENISE.quote & $ff)
+	db (TOKENISE.quote & $ff)
+	db (TOKENISE.hash & $ff)
+	db (TOKENISE.slash & $ff)
+	db (TOKENISE.minus & $ff)
+	db (TOKENISE.minus_alt & $ff)
+	db (TOKENISE.percent & $ff)
+	db (TOKENISE.lt & $ff)
+	db (TOKENISE.gt & $ff)
+	db (TOKENISE.asterisk & $ff)
+	db (TOKENISE.dollar & $ff)
+	db (TOKENISE.extra_space & $ff)
+	db (TOKENISE.exclam & $ff)
+	db (TOKENISE.null & $ff)
+
