@@ -1,8 +1,60 @@
 	; Lookup table from (fixed) tokens to their string value.
 TOKENS_TEXT:
-	SAME_PAGE .end_of_table
-	ds 45
-	db .discard & $ff
+	SAME_PAGE TOKENS_TEXT.end_of_table
+	db 0
+.comparisons:	db .eq & $ff
+	db .ne & $ff
+	db .lt & $ff
+	db .le & $ff
+	db .gt & $ff
+	db .ge & $ff
+
+.arithmetic:	db .add & $ff
+	db .sub & $ff
+	db .mul & $ff
+	db .div & $ff
+	db .floordiv & $ff
+	db .mod & $ff
+	db .exp & $ff
+
+.bit_operators:	db .bitand & $ff
+	db .bitor & $ff
+	db .bitinv & $ff
+	db .bitsl & $ff
+	db .bitsr & $ff
+	db .bitxor & $ff
+
+	db .logor & $ff
+	db .logand & $ff
+	db .lognot & $ff
+
+	db .extraspace & $ff	; 23
+
+	db .ne_alt0 & $ff	; 24
+	db 0	; 25 
+	db .ne_alt1 & $ff	; 26
+	db 0	; 27
+	db .le_alt & $ff	; 28
+	db 0	; 29
+	db .ge_alt & $ff	; 30
+	db 0	; 31
+	db .sub_alt & $ff	; 32
+	db .mul_alt & $ff	; 33
+	db 0	; 34
+
+	db .pi & $ff
+
+.punctuation:	db .semicolon & $ff
+	db .colon & $ff
+	db .assign & $ff
+	db .comma & $ff
+	db .arropen & $ff
+	db .arrclose & $ff
+	db .parenopen & $ff
+	db .parenclose & $ff
+	db .dot & $ff
+
+.reserved_words:	db .discard & $ff
 	db .and & $ff
 	db .as & $ff
 	db .break & $ff
@@ -23,24 +75,74 @@ TOKENS_TEXT:
 	db .return & $ff
 	db .while & $ff
 
-.discard	db 1,'_',0
-.and	db 3,'and',0
-.as	db 2,'as',0
-.break	db 5,'break',0
-.continue	db 8,'continue',0
-.def	db 3,'def',0
-.elif	db 4,'elif',0
-.else	db 4,'else',0
-.for	db 3,'for',0
-.if	db 2,'if',0
-.import	db 6,'import',0
-.in	db 2,'in',0
-.let	db 3,'let',0
-.loop	db 4,'loop',0
-.not	db 3,'not',0
-.or	db 2,'or',0
-.pass	db 4,'pass',0
-.x_pi	db 2,'pi',0
-.return	db 6,'return',0
-.while	db 5,'while',0
+.as_strings:
+
+.eq	db 1,'='
+.ne	db 1,$81
+.lt	db 1,'<'
+.le	db 1,$a9
+.gt	db 1,'>'
+.ge	db 1,$b8
+
+.add	db 1,'+'
+.sub	db 1,$96
+.mul	db 1,$83
+.div	db 1,'/'
+.floordiv	db 2,'//'
+.mod	db 1,'%'
+.exp	db 2,'**'
+
+.bitand	db 1,'&'
+.bitor	db 1,'|'
+.bitxor	db 1,'^'
+.bitinv	db 1,'~'
+.bitsl	db 2,'<<'
+.bitsr	db 2,'>>'
+
+.logor	db 2,'or'
+.logand	db 3,'and'
+.lognot	db 3,'not'
+
+.extraspace	db 1,' '
+
+.ne_alt0	db 2,'<>'
+.ne_alt1	db 2,'!='
+.le_alt	db 2,'<='
+.ge_alt	db 2,'>='
+.sub_alt	db 1,'-'
+.mul_alt	db 1,'*'
+
+.pi	db 1,$90
+
+.semicolon	db 1,';'
+.colon	db 1,':'
+.assign	db 2,':='
+.comma	db 1,','
+.arropen	db 1,'['
+.arrclose	db 1,']'
+.parenopen	db 1,'('
+.parenclose	db 1,')'
+.dot	db 1,'.'
+
+.discard	db 1,'_'
+.and	db 3,'and'
+.as	db 2,'as'
+.break	db 5,'break'
+.continue	db 8,'continue'
+.def	db 3,'def'
+.elif	db 4,'elif'
+.else	db 4,'else'
+.for	db 3,'for'
+.if	db 2,'if'
+.import	db 6,'import'
+.in	db 2,'in'
+.let	db 3,'let'
+.loop	db 4,'loop'
+.not	db 3,'not'
+.or	db 2,'or'
+.pass	db 4,'pass'
+.x_pi	db 2,'pi'
+.return	db 6,'return'
+.while	db 5,'while'
+
 .end_of_table

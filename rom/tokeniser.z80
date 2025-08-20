@@ -431,6 +431,6 @@ TOKENISE:	push bc
 	jr .shiftlong_writeType
 
 	INCLUDE './tokens.lookup.z80'
+	INCLUDE './tokens.hash.z80'
 	ALIGN 256
 	INCLUDE './tokens.text.z80'
-	INCLUDE './tokens.hash.z80'
