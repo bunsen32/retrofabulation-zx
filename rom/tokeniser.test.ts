@@ -529,6 +529,22 @@ describe("Tokeniser", () => {
 			expect(result.tokenBytes).toEqual([tok('RAW_INVALID'), 0x00, 0x90, 3])
 		})
 	})
+
+	describe('Sequence of tokens', () => {
+		const cases = {
+			'import if': [tok('IMPORT'), tok('IF')]
+		}
+		for(const [str, expectedTokens] of Object.entries(cases)) {
+			it(`Tokenises “${str}”`, async () => {
+				const vm = await loadedVm
+				const text = givenText(vm, str)
+
+				const result = whenTokenised(text)
+
+				expect(result.tokenBytes).toEqual(expectedTokens)
+			})
+		}
+	})
 })
 
 interface TextBuffer {

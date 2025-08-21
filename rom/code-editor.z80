@@ -1,0 +1,166 @@
+
+TEXT_BUFFER	EQU $5C00
+LINE_OFFSET_STACK	EQU $5D00
+TOKEN_BUFFER	EQU $5D10
+
+
+	; Read-Execute-Print Loop
+POP_AND_REPL:
+	pop bc	; Pop off a return address
+REPL:
+.cls
+	ld a,7
+	out ($fe),a	; Set border to white
+	ld hl,$5800
+	ld (hl),0b00111111	; White ink; white paper
+	ld de,$5801
+	ld bc,768
+	ldir 	; Clear screen to all white (16123 t-states)
+.init_buffer:
+	ld hl,$0000
+	ld (G.CAPS_ICON_XY),hl
+	ld hl,$0004
+	ld (G.MODE_ICON_XY),hl
+	ld de,TEXT_BUFFER
+	ld bc,0	; prior-chars := 0; subsequent-chars := 0
+	ld a,b
+	exx
+	ld de,LINE_OFFSET_STACK
+	ld (de),a
+	ld b,$ff	; Max length
+	ld c,1	; Current line number
+	ld hl,$0300	; First line start coords
+	push hl
+	exx
+	pop hl
+	ld (G.CURSOR_XY), hl
+
+	; Clear first character cell so that flashing cursor is visible:
+	push bc
+	push de
+	push hl
+	ld de,TWO_SPACES
+	ld b,1
+	ld a,0b01111000	; black ink, white paper
+	call RENDER_TEXT
+	pop hl
+	pop de
+	pop bc
+
+	push hl
+	jr CODE_EDITOR.check_key	; We might have come in here with a keypress, so check.
+
+	; Buffer: [xxxxxx|xxxx-----]
+	; A: scratch register
+	; HL: screen position of cursor (row,half-cell)
+	; DE: buffer position of cursor (byte pointer)
+	; B : characters prior to cursor
+	; C : characters after cursor
+	; B': remaining space in buffer (characters)
+	; C': Current line number (1-based)
+	; HL': screen position of column-zero (row,half-cell)
+	; DE': buffer position of column-zero (we push lines on, and pop them off)
+CODE_EDITOR:	
+.frame_loop:	halt 	; Wait for some potential keyboard input.
+	push hl
+	call CURSOR_ANIM_FRAME
+	call CAPS_SHIFT_ANIM
+.check_key:	ld hl,G.KEY_CHAR
+	ld a,(hl)
+	ld (hl),0	; So we can detect if a key is pressed while we’re doing other things.
+	pop hl
+
+	or a
+	jr z,.no_key
+	call LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
+	or a
+	call nz,EDITOR.screen_cmd
+	jr .frame_loop
+
+.no_key:	; No key was pressed, so we can do OTHER things…
+	push hl
+	push de
+	push bc
+	ASSERT (TEXT_BUFFER & $ff) == 0
+	ld d,TEXT_BUFFER>>8
+	ld a,b
+	add c
+	ld e,a
+	xor a
+	ld (de),a
+	ld e,a
+	ld hl,TOKEN_BUFFER
+	call TOKENISE
+	ld hl,$0901
+	ld de,TOKEN_BUFFER
+	ld c,$40
+	call RENDER_TOKENISED
+	pop bc
+	pop de
+	pop hl
+	jr .frame_loop
+
+	; Render stream of tokens as text to the screen. Similar model to RENDER_TEXT (it keeps going
+	; until it hits the edge of the screen or the end of the stream). However, token stream is null-terminated
+	; rather than having an explicit length. And attributes are determined by the tokens!
+	; HL: Coordinates to render at
+	; DE: Token stream
+	; C: (max) number of columns (half-cells) allowed
+RENDER_TOKENISED:
+	ld a,(de)
+	inc de
+	srl a
+	jr .missing_sep_space	; First token never has preceding space!
+
+.loop:	ld a,(de)
+	inc de
+	srl a	; Carry := is_omitted_separator_space?
+	jr c,.missing_sep_space	; No space between previous token and this one
+	push de
+	ld de,TWO_SPACES
+	ld b,1
+	ex af,af'	; Restore previous attributes
+	call RENDER_TEXT
+	ex af,af'	; Restore token identifer
+	pop de
+.missing_sep_space:
+	cp TOK_END_SIMPLE
+	jr nc,.token_is_raw
+.token_is_simple:		; It’s a ‘simple’ token: reserved word or symbol.
+	or a
+	ret z
+	push de
+	ld d,TOKENS_TEXT>>8
+	ld e,a
+	ld a,(de)
+	ld e,a
+	ld a,(de)
+	inc e
+	ld b,a
+	ld a,0b00000010	; Red ink, white paper
+	call RENDER_TEXT
+	ex af,af'	; Stash attributes
+	pop de
+	jr .loop
+.token_is_raw:		; Carry = UNSET
+	rra	; Carry := is_single_character?
+	ld a,0b00111100	; Green ink, white paper
+	jr nc,.long_raw
+	ld b,1
+	call RENDER_TEXT
+	ex af,af'	; Stash attributes
+	jr .loop
+.long_raw:
+	push hl
+	ex de,hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	ex (sp),hl
+	call RENDER_TEXT
+	ex af,af'
+	pop de
+	jr .loop

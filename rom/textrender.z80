@@ -10,6 +10,7 @@
 	; DE	= pointer to next character, or 1 + end of buffer
 	; B	= remaining character count (if we hit the column limit) or zero
 	; C	= remaining half-cell column limit
+	; A (preserved)	= attrs
 RENDER_TEXT:
 	push af
 	ld a,64
@@ -56,6 +57,7 @@ RENDER_TEXT:
 	; DE	= pointer to next character, or 1 + end of buffer
 	; B	= remaining character count (if we hit the column limit) or zero
 	; C	= remaining half-cell column limit
+	; A (preserved)	= attrs
 	; TRASHES: BC', DE', HL'
 render_text:
 	inc b

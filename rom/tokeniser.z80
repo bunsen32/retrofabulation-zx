@@ -1,7 +1,11 @@
 	INCLUDE './tokens.def.z80'
 
-	; DE: text stream
-	; HL: token stream
+	; DE: text stream (NULL-TERMINATED!)
+	; HL: token buffer
+	; Returns:
+	; DE: End of text stream (null)
+	; HL: End of token stream (null + 1)
+	; Trashes A, preserves everything else.
 TOKENISE:	push bc
 	push ix
 	or a	; Clear carry flag

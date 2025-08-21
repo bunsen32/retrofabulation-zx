@@ -26,6 +26,8 @@ TOK_LOGOR	EQU 20	; 'or'
 TOK_LOGAND	EQU 21	; 'and'
 TOK_LOGNOT	EQU 22	; 'not' [unary operator]
 
+TOK_EXTRASPACE	EQU 23	; ' '
+
 ; These tokens are alternate versions of operators. Can usually subtract 24 to get to canonical:
 TOK_X0_NE	EQU 24	; <>	(Canonical glyph is ‘≠’)
 TOK_X_NE	EQU 24+TOK_NE	; !=	(Canonical glyph is ‘≠’)
@@ -67,7 +69,7 @@ TOK_X_PI	EQU 62	; ‘pi’	(Canonical is ‘π’)
 TOK_RETURN	EQU 63	; return
 TOK_WHILE	EQU 64	; while
 
-TOK_EXTRASPACE	EQU 23	; ' '
+TOK_END_SIMPLE	EQU 65
 
 ; Each of these followed by <length> byte and <offset> byte (to text buffer)
 TOK_RAW_STRING	EQU $60

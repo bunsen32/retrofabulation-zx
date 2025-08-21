@@ -1,4 +1,5 @@
 	; Lookup table from (fixed) tokens to their string value.
+	ALIGN 256
 TOKENS_TEXT:
 	SAME_PAGE TOKENS_TEXT.end_of_table
 	db 0

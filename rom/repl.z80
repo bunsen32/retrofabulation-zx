@@ -1,55 +1,10 @@
-TEXT_BUFFER	EQU $5C00
-LINE_OFFSET_STACK	EQU $5D00
-
 SCR_CUR_UP	EQU 0b0001
 SCR_CUR_DOWN	EQU 0b0011
 SCR_SHOW_CURSOR	EQU $80
 SCR_REDRAW_TEXT	EQU 0b0010
 SCR_ISSUE_RIGHT	EQU 0b0100
 
-	; Read-Execute-Print Loop
-POP_AND_REPL:
-	pop bc	; Pop off a return address
-REPL:
-.cls
-	ld a,7
-	out ($fe),a	; Set border to white
-	ld hl,$5800
-	ld (hl),0b00111111	; White ink; white paper
-	ld de,$5801
-	ld bc,768
-	ldir 	; Clear screen to all white (16123 t-states)
-.init_buffer:
-	ld hl,$0000
-	ld (G.CAPS_ICON_XY),hl
-	ld hl,$0004
-	ld (G.MODE_ICON_XY),hl
-	ld de,TEXT_BUFFER
-	ld bc,0	; prior-chars := 0; subsequent-chars := 0
-	ld a,b
-	exx
-	ld de,LINE_OFFSET_STACK
-	ld (de),a
-	ld b,$ff	; Max length
-	ld c,1	; Current line number
-	ld hl,$0300	; First line start coords
-	push hl
-	exx
-	pop hl
-	ld (G.CURSOR_XY), hl
-
-	; Clear first character cell so that flashing cursor is visible:
-	push bc
-	push de
-	push hl
-	ld de,TWO_SPACES
-	ld b,1
-	ld a,0b01111000	; black ink, white paper
-	call RENDER_TEXT
-	pop hl
-	pop de
-	pop bc
-
+	ds 63
 
 	; Buffer: [xxxxxx|xxxx-----]
 	; A: scratch register
@@ -60,20 +15,23 @@ REPL:
 	; B': remaining space in buffer (characters)
 	; C': Current line number (1-based)
 	; HL': screen position of column-zero (row,half-cell)
-	; (SP): buffer position of column-zero (we push lines on, and pop them off)
-REPL_LOOP:	
-.check_key:
-	ld a,(G.KEY_CHAR)
-	or a
-	call nz,LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
-	or a
-	call nz,.screen_cmd
-.await	halt 	; Wait for some potential keyboard input.
+	; DE': buffer position of column-zero (we push lines on, and pop them off)
+EDITOR:	
+.frame_loop:	halt 	; Wait for some potential keyboard input.
 	push hl
 	call CURSOR_ANIM_FRAME
 	call CAPS_SHIFT_ANIM
+.check_key:	ld hl,G.KEY_CHAR
+	ld a,(hl)
+	ld (hl),0	; So we can detect if a key is pressed while we’re doing other things.
 	pop hl
-	jr .check_key
+
+	or a
+	jr z,.frame_loop
+	call LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
+	or a
+	call nz,.screen_cmd
+	jr .frame_loop
 
 	; Cycle back round again and move cursor right
 .right_by_one:	ld a,CHAR_RIGHT

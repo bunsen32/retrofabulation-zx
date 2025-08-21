@@ -35,6 +35,7 @@
 	INCLUDE "keyboard.z80"
 	INCLUDE "repl.z80"
 	INCLUDE "tokeniser.z80"
+	INCLUDE "code-editor.z80"
 
 	INCLUDE "generated/font.z80"	; 38xx to 3fff
 
