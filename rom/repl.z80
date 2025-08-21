@@ -1,54 +1,54 @@
-TEXT_BUFFER	EQU	$5C00
-LINE_OFFSET_STACK	EQU	$5D00
+TEXT_BUFFER	EQU $5C00
+LINE_OFFSET_STACK	EQU $5D00
 
-SCR_CUR_UP	EQU	0b0001
-SCR_CUR_DOWN	EQU	0b0011
-SCR_SHOW_CURSOR	EQU	$80
-SCR_REDRAW_TEXT	EQU	0b0010
-SCR_ISSUE_RIGHT	EQU	0b0100
+SCR_CUR_UP	EQU 0b0001
+SCR_CUR_DOWN	EQU 0b0011
+SCR_SHOW_CURSOR	EQU $80
+SCR_REDRAW_TEXT	EQU 0b0010
+SCR_ISSUE_RIGHT	EQU 0b0100
 
 	; Read-Execute-Print Loop
 POP_AND_REPL:
-	pop	bc	; Pop off a return address
+	pop bc	; Pop off a return address
 REPL:
 .cls
-	ld	a,7
-	out	($fe),a	; Set border to white
-	ld	hl,$5800
-	ld	(hl),0b00111111	; White ink; white paper
-	ld	de,$5801
-	ld	bc,768
-	ldir		; Clear screen to all white (16123 t-states)
+	ld a,7
+	out ($fe),a	; Set border to white
+	ld hl,$5800
+	ld (hl),0b00111111	; White ink; white paper
+	ld de,$5801
+	ld bc,768
+	ldir 	; Clear screen to all white (16123 t-states)
 .init_buffer:
-	ld	hl,$0000
-	ld	(G.CAPS_ICON_XY),hl
-	ld	hl,$0004
-	ld	(G.MODE_ICON_XY),hl
-	ld	de,TEXT_BUFFER
-	ld	bc,0	; prior-chars := 0; subsequent-chars := 0
-	ld	a,b
+	ld hl,$0000
+	ld (G.CAPS_ICON_XY),hl
+	ld hl,$0004
+	ld (G.MODE_ICON_XY),hl
+	ld de,TEXT_BUFFER
+	ld bc,0	; prior-chars := 0; subsequent-chars := 0
+	ld a,b
 	exx
-	ld	de,LINE_OFFSET_STACK
-	ld	(de),a
-	ld	b,$ff	; Max length
-	ld	c,1	; Current line number
-	ld	hl, $0300	; First line start coords
-	push	hl
+	ld de,LINE_OFFSET_STACK
+	ld (de),a
+	ld b,$ff	; Max length
+	ld c,1	; Current line number
+	ld hl,$0300	; First line start coords
+	push hl
 	exx
-	pop	hl
-	ld	(G.CURSOR_XY), hl
+	pop hl
+	ld (G.CURSOR_XY), hl
 
 	; Clear first character cell so that flashing cursor is visible:
-	push	bc
-	push	de
-	push	hl
-	ld	de,TWO_SPACES
-	ld	b,1
-	ld	a,0b01111000	; black ink, white paper
-	call	RENDER_TEXT
-	pop	hl
-	pop	de
-	pop	bc
+	push bc
+	push de
+	push hl
+	ld de,TWO_SPACES
+	ld b,1
+	ld a,0b01111000	; black ink, white paper
+	call RENDER_TEXT
+	pop hl
+	pop de
+	pop bc
 
 
 	; Buffer: [xxxxxx|xxxx-----]
@@ -63,21 +63,21 @@ REPL:
 	; (SP): buffer position of column-zero (we push lines on, and pop them off)
 REPL_LOOP:	
 .check_key:
-	ld	a, (G.KEY_CHAR)
-	or	a
-	call	nz,LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
-	or	a
-	call	nz,.screen_cmd
-.await	halt		; Wait for some potential keyboard input.
-	push	hl
-	call	CURSOR_ANIM_FRAME
-	call	CAPS_SHIFT_ANIM
-	pop	hl
-	jr	.check_key
+	ld a,(G.KEY_CHAR)
+	or a
+	call nz,LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
+	or a
+	call nz,.screen_cmd
+.await	halt 	; Wait for some potential keyboard input.
+	push hl
+	call CURSOR_ANIM_FRAME
+	call CAPS_SHIFT_ANIM
+	pop hl
+	jr .check_key
 
 	; Cycle back round again and move cursor right
-.right_by_one:	ld	a,CHAR_RIGHT
-	call	LINE_EDIT
+.right_by_one:	ld a,CHAR_RIGHT
+	call LINE_EDIT
 	; fallthrough to .screen_cmd
 
 	// If we get here, we (might) need to move between lines, or redraw the display.
@@ -88,135 +88,135 @@ REPL_LOOP:
 	// 2: Issue CURSOR_RIGHT key to move cursor after inserting a character.
 	// 3–6: <unused>
 	// 7: (Can be set to 1 to show cursor and do nothing else.)
-.screen_cmd:	ex	af,af'
-	call	HIDE_CURSOR
-	ex	af,af'
+.screen_cmd:	ex af,af'
+	call HIDE_CURSOR
+	ex af,af'
 .bit_A:
-	rra		; Bit A+0: vertical movement (up or down arrow)
-	jr	c,.mov_vertical
+	rra 	; Bit A+0: vertical movement (up or down arrow)
+	jr c,.mov_vertical
 
 	// Sort out cursor position. If it’s to the left of the allowed screen area,
 	// move it to the end of the previous line (minus one character); if it’s
 	// to the right of allowed screen area, move it to start of next line (plus one
 	// character). Assumes that previous code has checked that it’s a valid character
 	// position. The right edge (64) IS a valid cursor position.
-.fixup_cursor:	ex	af,af'
-	ld	a,l
-	cp	-4
-	jr	nc,.wrap_to_prev_ln	; If -4, -3, -2, -1, move to prev line. 
-	sub	65
-	jr	c,.ex_bit_B	; ≤ margin (64): do nothing.
+.fixup_cursor:	ex af,af'
+	ld a,l
+	cp -4
+	jr nc,.wrap_to_prev_ln	; If -4, -3, -2, -1, move to prev line. 
+	sub 65
+	jr c,.ex_bit_B	; ≤ margin (64): do nothing.
 
 .wrap_to_next_ln:
-	dec	de	; Go 1 char to left in buffer (we’ll go back at the end)
-	dec	b
-	inc	c	; Adjust B & C to match
-	call	LINE_STACK_PUSH	; PUSH LINE BUFFER POINTER (and HL := start of next line)
-	jr	.right_by_one	; Now go 1 right, to original buffer position.
+	dec de	; Go 1 char to left in buffer (we’ll go back at the end)
+	dec b
+	inc c	; Adjust B & C to match
+	call LINE_STACK_PUSH	; PUSH LINE BUFFER POINTER (and HL := start of next line)
+	jr .right_by_one	; Now go 1 right, to original buffer position.
 
 .wrap_to_prev_ln:
-	call	LINE_STACK_POP	; DISCARD (POP) LINE BUFFER POINTER (A := start of line position)
-	push	hl	; Push start-of-line coords
-	sub	b
-	neg		; A := distance (in chars) to start of line
-	ex	de,hl	; HL: current buffer position
-	ld	d,0
-	ld	e,a	; DE := distance (in chars) to start of line
-	or	a	; (clear carry flag)
-	sbc	hl,de	; HL := start of line buffer pointer
-	ex	de,hl	; DE := start of line buffer pointer
+	call LINE_STACK_POP	; DISCARD (POP) LINE BUFFER POINTER (A := start of line position)
+	push hl	; Push start-of-line coords
+	sub b
+	neg 	; A := distance (in chars) to start of line
+	ex de,hl	; HL: current buffer position
+	ld d,0
+	ld e,a	; DE := distance (in chars) to start of line
+	or a	; (clear carry flag)
+	sbc hl,de	; HL := start of line buffer pointer
+	ex de,hl	; DE := start of line buffer pointer
 
-	push	bc
-	ld	b,a	; B := distance along line in characters
-	ld	c,64	; C := maximum line width (= "no limit")
-	call	MEASURE_SPAN	; DE := cursor buffer position; C := measured width of line
-	ld	a,c	; A := measured width of line
-	pop	bc
-	pop	hl	; HL := HL'
-	add	l	; A := width of line + left margin
-	ld	l,a	; L (cursor X) := width of line + left margin
+	push bc
+	ld b,a	; B := distance along line in characters
+	ld c,64	; C := maximum line width (= "no limit")
+	call MEASURE_SPAN	; DE := cursor buffer position; C := measured width of line
+	ld a,c	; A := measured width of line
+	pop bc
+	pop hl	; HL := HL'
+	add l	; A := width of line + left margin
+	ld l,a	; L (cursor X) := width of line + left margin
 
-.ex_bit_B:	ex	af,af'
-.bit_B:	rra		; Bit B: redraw
-	jr	nc,.bit_C
-	push	af
-	push	hl
-	ld	a,0b01111000	; black ink, white paper
-	call	PRINT_WRAP
-	pop	hl
-	pop	af
+.ex_bit_B:	ex af,af'
+.bit_B:	rra 	; Bit B: redraw
+	jr nc,.bit_C
+	push af
+	push hl
+	ld a,0b01111000	; black ink, white paper
+	call PRINT_WRAP
+	pop hl
+	pop af
 
 .bit_C:
-	rra		; Bit C: right-arrow
-	jr	c,.right_by_one
+	rra 	; Bit C: right-arrow
+	jr c,.right_by_one
 
 .set_ideal_x:	; Set the up-down target horizontal position:
-	ld	a,l
-	ld	(G.IDEAL_CUR_X),a
+	ld a,l
+	ld (G.IDEAL_CUR_X),a
 .end_screen_cmd:	; Set new cursor position & display it:
-	ld	(G.CURSOR_XY),hl
-	call	SHOW_CURSOR
+	ld (G.CURSOR_XY),hl
+	call SHOW_CURSOR
 	ret
 
-.mov_vertical:	rra		; Bit A+1: 0=UP 1=DOWN
-	jr	c,.mv_down
+.mov_vertical:	rra 	; Bit A+1: 0=UP 1=DOWN
+	jr c,.mv_down
 
 .mv_up:	; First: Move to start of CURRENT line:
-	call	LINE_START	; MOVE LINE BUFFER POINTER TO START OF LINE (Z = start of buffer)
-	jr	z,.set_ideal_x	; No prior lines? Stop here (with cursor at start of first line)
-	call	LINE_STACK_POP	; PREVIOUS LINE LINE BUFFER POINTER
-	call	LINE_START	; MOVE LINE BUFFER POINTER TO START OF LINE
+	call LINE_START	; MOVE LINE BUFFER POINTER TO START OF LINE (Z = start of buffer)
+	jr z,.set_ideal_x	; No prior lines? Stop here (with cursor at start of first line)
+	call LINE_STACK_POP	; PREVIOUS LINE LINE BUFFER POINTER
+	call LINE_START	; MOVE LINE BUFFER POINTER TO START OF LINE
 
 	; Last: Find desired cursor position:
-	jr	.mv_to_ideal_x
+	jr .mv_to_ideal_x
 
 .mv_down:	; First: Move to end of CURRENT line:
-	push	bc
-	ld	b,c	; B := # subsequent characters
-	ld	a,64
-	sub	l	; A := column space to end of line
-	ld	c,a	; C := allowed columns for characters
-	call	MEASURE_SPAN
-	ld	a,l
-	add	c	; A: = L (cursor-X) + span width
-	ld	l,a	; L := position of end of line
-	ld	a,b	; A := chars to end of line
-	pop	bc
-	call	MV_BC_FWD
-	inc	c
-	dec	c	; Check non-zero number of subsequent characters (and hence subsequent lines)	
-	jr	z,.set_ideal_x	; No subsequent lines? Stop here (with cursor at end of last line)
+	push bc
+	ld b,c	; B := # subsequent characters
+	ld a,64
+	sub l	; A := column space to end of line
+	ld c,a	; C := allowed columns for characters
+	call MEASURE_SPAN
+	ld a,l
+	add c	; A: = L (cursor-X) + span width
+	ld l,a	; L := position of end of line
+	ld a,b	; A := chars to end of line
+	pop bc
+	call MV_BC_FWD
+	inc c
+	dec c	; Check non-zero number of subsequent characters (and hence subsequent lines)	
+	jr z,.set_ideal_x	; No subsequent lines? Stop here (with cursor at end of last line)
 
 	; Next: Position cursor at start of NEXT line:
-	call	LINE_STACK_PUSH	; PUSH LINE BUFFER POINTER
+	call LINE_STACK_PUSH	; PUSH LINE BUFFER POINTER
 
 .mv_to_ideal_x	; Last: Find desired cursor position:
-	push	bc
-	ld	b,c	; B := number of characters after cursor
-	ld	a,(G.IDEAL_CUR_X)
-	sub	l
-	ld	c,a	; C := (IDEAL_CUR_X - left margin)
-	call	MEASURE_SPAN
-	ld	a,l
-	add	c
-	ld	l,a	; L (cursor X) := desired position
-	ld	a,b	; A := count of characters to desired position
-	pop	bc
-	call	MV_BC_FWD
+	push bc
+	ld b,c	; B := number of characters after cursor
+	ld a,(G.IDEAL_CUR_X)
+	sub l
+	ld c,a	; C := (IDEAL_CUR_X - left margin)
+	call MEASURE_SPAN
+	ld a,l
+	add c
+	ld l,a	; L (cursor X) := desired position
+	ld a,b	; A := count of characters to desired position
+	pop bc
+	call MV_BC_FWD
 
-	jr	.end_screen_cmd
+	jr .end_screen_cmd
 
 MV_BC_FWD:	; Add A to B; Subtract A from C.
 	; Trashes A
 	; Z set if B becomes 0
-	push	af
+	push af
 	neg
-	add	c
-	ld	c,a	; C := C - (char count)
-	pop	af
-	add	b
-	ld	b,a	; B := B + (char count)
-	ret		; Z := (B == 0)
+	add c
+	ld c,a	; C := C - (char count)
+	pop af
+	add b
+	ld b,a	; B := B + (char count)
+	ret 	; Z := (B == 0)
 
 	// Subroutine for the movement and editing operations within a single line.
 	// If we require a movement between lines, (or redraw of other lines),
@@ -225,160 +225,160 @@ MV_BC_FWD:	; Add A to B; Subtract A from C.
 	// RETURNS
 	// A = ‘screen command’
 LINE_EDIT:	; A != 0
-	cp	$10	; no-carry == printable character
-	jr	nc, TRY_INSERT	; If >= 16, insert it as a character
+	cp $10	; no-carry == printable character
+	jr nc,TRY_INSERT	; If >= 16, insert it as a character
 
 	; Otherwise, it’s a control character. Look up handler in table:
-	add	a	; Double it
-	add	(CONTROL_KEY_ROUTINES & $ff) - 2
-	push	hl
-	ld	l,a
-	ld	h,CONTROL_KEY_ROUTINES >> 8
-	ex	(sp),hl
+	add a	; Double it
+	add (CONTROL_KEY_ROUTINES & $ff) - 2
+	push hl
+	ld l,a
+	ld h,CONTROL_KEY_ROUTINES >> 8
+	ex (sp),hl
 	ret
 
 TRY_INSERT:
 	exx
-	inc	b
-	dec	b
-	jr	z,.exx_ret
-	dec	b	; Reduce buffer space.
+	inc b
+	dec b
+	jr z,.exx_ret
+	dec b	; Reduce buffer space.
 	exx
 
-	push	af
-	inc	c
-	dec	c	; Characters after cursor
-	jr	z,.after_ins_move	; If zero, nothing to move.
-	push	hl
-	push	bc
-	ld	b,0	; C already has letters-to-end.
-	ex	de,hl
-	add	hl,bc
-	ld	d,h
-	ld	e,l
-	dec	hl
-	lddr		; DE ends up pointing to insertion point afterwards.
-	pop	bc
-	pop	hl
+	push af
+	inc c
+	dec c	; Characters after cursor
+	jr z,.after_ins_move	; If zero, nothing to move.
+	push hl
+	push bc
+	ld b,0	; C already has letters-to-end.
+	ex de,hl
+	add hl,bc
+	ld d,h
+	ld e,l
+	dec hl
+	lddr 	; DE ends up pointing to insertion point afterwards.
+	pop bc
+	pop hl
 .after_ins_move:
-	pop	af
-	ld	(de), a	; Put the character into the buffer
-	inc	c	; Number of characters to the right
+	pop af
+	ld (de),a	; Put the character into the buffer
+	inc c	; Number of characters to the right
 
-			; Redraw the screen (including newly inserted char), and move cursor right:
-	ld	a,SCR_REDRAW_TEXT|SCR_ISSUE_RIGHT
+		; Redraw the screen (including newly inserted char), and move cursor right:
+	ld a,SCR_REDRAW_TEXT|SCR_ISSUE_RIGHT
 	ret
 
 	; No space in buffer, so exit:
 .exx_ret:	exx
-	xor	a
+	xor a
 	ret
 
 DEL_BACKSPACE:
-	xor	a
-	cp	b
-	ret	z	; Nothing to delete.
-	dec	b	; characters to left -= 1
+	xor a
+	cp b
+	ret z	; Nothing to delete.
+	dec b	; characters to left -= 1
 
-	dec	de	; Move back to character to be deleted.
-	ld	a,(de)	; Get it
-	call	MEASURE_CHAR	; Measure it
-	neg		; 0 - column-width
-	add	l	; Add to cursor column
-	ld	l,a	; Cursor column -= deleted character width
+	dec de	; Move back to character to be deleted.
+	ld a,(de)	; Get it
+	call MEASURE_CHAR	; Measure it
+	neg 	; 0 - column-width
+	add l	; Add to cursor column
+	ld l,a	; Cursor column -= deleted character width
 
 	exx
-	inc	b	; Buffer has space for one more char.
+	inc b	; Buffer has space for one more char.
 	exx
 
 .del_move:
-	push	hl
-	push	de
-	push	bc
-	ld	b,0	; C already has letters-to-end.
-	inc	c	; Increase by one (to avoid probelm if BC=0).
-			; At worst, this copies a junk byte into previous last position.
-	ld	h,d
-	ld	l,e
-	inc	hl
+	push hl
+	push de
+	push bc
+	ld b,0	; C already has letters-to-end.
+	inc c	; Increase by one (to avoid probelm if BC=0).
+		; At worst, this copies a junk byte into previous last position.
+	ld h,d
+	ld l,e
+	inc hl
 	ldir
-	pop	bc
-	pop	de
-	pop	hl
+	pop bc
+	pop de
+	pop hl
 
-	call	HIDE_CURSOR
-	ld	a,SCR_REDRAW_TEXT|SCR_SHOW_CURSOR
+	call HIDE_CURSOR
+	ld a,SCR_REDRAW_TEXT|SCR_SHOW_CURSOR
 	ret
 
-KEY_ARROW_UP:	ld	a,SCR_CUR_UP	; Screen command: move up
+KEY_ARROW_UP:	ld a,SCR_CUR_UP	; Screen command: move up
 	ret
 	
-KEY_ARROW_DOWN:	ld	a,SCR_CUR_DOWN	; Screen command: move down
+KEY_ARROW_DOWN:	ld a,SCR_CUR_DOWN	; Screen command: move down
 	ret
 
-KEY_TAB:	ld	a,$09
-	jr	TRY_INSERT
+KEY_TAB:	ld a,$09
+	jr TRY_INSERT
 
-KEY_ESC_EDIT:	ld	a,$0b
-	jr	TRY_INSERT
+KEY_ESC_EDIT:	ld a,$0b
+	jr TRY_INSERT
 
-KEY_INV_VID:	ld	a,$05
-	jr	TRY_INSERT
+KEY_INV_VID:	ld a,$05
+	jr TRY_INSERT
 
-KEY_TRU_VID:	ld	a,$06
-	jr	TRY_INSERT
+KEY_TRU_VID:	ld a,$06
+	jr TRY_INSERT
 
-KEY_ENTER:	ld	a,$0a
-	jr	TRY_INSERT
+KEY_ENTER:	ld a,$0a
+	jr TRY_INSERT
 
-KEY_BREAK	ld	a,$07
-	jr	TRY_INSERT
+KEY_BREAK	ld a,$07
+	jr TRY_INSERT
 
-KEY_EXT:	ld	a,MOD_EXTMODE_F
-	jr	TOGGLE_MODIFIER
+KEY_EXT:	ld a,MOD_EXTMODE_F
+	jr TOGGLE_MODIFIER
 
-KEY_CAPS_LOCK:	ld	a,MOD_CAPSLOCK_F
-	jr	TOGGLE_MODIFIER
+KEY_CAPS_LOCK:	ld a,MOD_CAPSLOCK_F
+	jr TOGGLE_MODIFIER
 
-KEY_GRAPHICS:	ld	a,MOD_GFXMODE_F
-TOGGLE_MODIFIER:	push	hl
-	ld	hl,G.KEY_MODIFIERS
-	xor	(hl)
-	ld	(hl),a
-	pop	hl
-	xor	a
+KEY_GRAPHICS:	ld a,MOD_GFXMODE_F
+TOGGLE_MODIFIER:	push hl
+	ld hl,G.KEY_MODIFIERS
+	xor (hl)
+	ld (hl),a
+	pop hl
+	xor a
 	ret
 
-LINE_STACK_PUSH:	ld	a,b
+LINE_STACK_PUSH:	ld a,b
 	exx
-	inc	de
-	ld	(de),a
-	inc	h
-	push	hl
+	inc de
+	ld (de),a
+	inc h
+	push hl
 	exx
-	pop	hl
+	pop hl
 	ret
 
 CONTROL_KEY_ROUTINES:
-	SAME_PAGE	.end
-	jr	CURSOR_LEFT	; $01 LEFT
-	jr	CURSOR_RIGHT	; $02 RIGHT
-	jr	KEY_ARROW_DOWN	; $03 DOWN
-	jr	KEY_ARROW_UP	; $04 UP
-	jr	KEY_INV_VID	; $05 INV VIDEO
-	jr	KEY_TRU_VID	; $06 TRU VIDEO
-	jr	KEY_BREAK	; $07 BREAK
-	jr	DEL_BACKSPACE	; $08 BACKSPACE
-	jr	KEY_TAB	; $09 TAB
-	jr	KEY_ENTER	; $0a LINEFEED
-	jr	KEY_ESC_EDIT	; $0b ESCAPE
-	jr	KEY_EXT	; $0c EXTENDED MODE SHIFT
+	SAME_PAGE .end
+	jr CURSOR_LEFT	; $01 LEFT
+	jr CURSOR_RIGHT	; $02 RIGHT
+	jr KEY_ARROW_DOWN	; $03 DOWN
+	jr KEY_ARROW_UP	; $04 UP
+	jr KEY_INV_VID	; $05 INV VIDEO
+	jr KEY_TRU_VID	; $06 TRU VIDEO
+	jr KEY_BREAK	; $07 BREAK
+	jr DEL_BACKSPACE	; $08 BACKSPACE
+	jr KEY_TAB	; $09 TAB
+	jr KEY_ENTER	; $0a LINEFEED
+	jr KEY_ESC_EDIT	; $0b ESCAPE
+	jr KEY_EXT	; $0c EXTENDED MODE SHIFT
 
-	xor a		; $0d <unused>
+	xor a	; $0d <unused>
 	ret
 	
-	jr	KEY_CAPS_LOCK	; $0e CAPS LOCK
-	jr	KEY_GRAPHICS	; $0f GRAPHICS
+	jr KEY_CAPS_LOCK	; $0e CAPS LOCK
+	jr KEY_GRAPHICS	; $0f GRAPHICS
 .end
 
 LINE_STACK_POP:	; Pop one entry of line start stack into A (not B!)
@@ -388,12 +388,12 @@ LINE_STACK_POP:	; Pop one entry of line start stack into A (not B!)
 	; HL' = HL
 	; <no other registers changed>
 	exx
-	dec	de
-	ld	a,(de)
-	dec	h
-	push	hl
+	dec de
+	ld a,(de)
+	dec h
+	push hl
 	exx
-	pop	hl
+	pop hl
 	ret
 
 LINE_START:	; Moves buffer pointer and screen coordinates to start of current editing line
@@ -401,26 +401,26 @@ LINE_START:	; Moves buffer pointer and screen coordinates to start of current ed
 	; DE, B, C: start of line buffer posn
 	; HL: Start of line coords
 	; Z flag if at start of buffer
-	ld	a,b	; A := current buffer index
+	ld a,b	; A := current buffer index
 	exx
-	ex	de,hl
-	sub	(hl)	; A := distance (chars) to start of line
-			; Carry flag must be false here: buffer index ≥ start-of-line index
-	ex	de,hl
-	push	hl	; Push coords of start of line
+	ex de,hl
+	sub (hl)	; A := distance (chars) to start of line
+		; Carry flag must be false here: buffer index ≥ start-of-line index
+	ex de,hl
+	push hl	; Push coords of start of line
 	exx
 
-	ex	de,hl
-	ld	d,0
-	ld	e,a
-	sbc	hl,de
-	ex	de,hl	; DE := buffer pointer for start-of-line
+	ex de,hl
+	ld d,0
+	ld e,a
+	sbc hl,de
+	ex de,hl	; DE := buffer pointer for start-of-line
 
 	neg
-	call	MV_BC_FWD	; Update B & C; Z := (is start of buffer)
+	call MV_BC_FWD	; Update B & C; Z := (is start of buffer)
 
-	pop	hl	; HL := Screen coords of start of line
-	ret		; Z flag set if at start of text
+	pop hl	; HL := Screen coords of start of line
+	ret 	; Z flag set if at start of text
 
 	; Renders multiple lines of text, until the end of the buffer:
 	; Takes:
@@ -430,70 +430,70 @@ LINE_START:	; Moves buffer pointer and screen coordinates to start of current ed
 	; HL = coords of the end of last line.
 	; On stack: start of last line.
 PRINT_WRAP:
-	push	bc
-	push	de
-	ld	b,c	; b := total characters to render.
+	push bc
+	push de
+	ld b,c	; b := total characters to render.
 	exx
-	push	hl	; Push start of line.
+	push hl	; Push start of line.
 	exx
-	jr	.first_line
+	jr .first_line
 
-.next_line:	pop	hl	; Pop start of line.
-	inc	h	; Down one line
-	push	hl	; Push start of line.
+.next_line:	pop hl	; Pop start of line.
+	inc h	; Down one line
+	push hl	; Push start of line.
 .first_line:
-	call	RENDER_TEXT	; Render as much as we can (stopping at end of line)
+	call RENDER_TEXT	; Render as much as we can (stopping at end of line)
 	
-	push	bc
-	push	de
-	ld	de, TWO_SPACES
-	ld	b,2
-	call	RENDER_TEXT	; Erase any junk at end of line.
-	pop	de	; de := next character (start of next line)
-	pop	bc	; b := remaining characters to render
+	push bc
+	push de
+	ld de,TWO_SPACES
+	ld b,2
+	call RENDER_TEXT	; Erase any junk at end of line.
+	pop de	; de := next character (start of next line)
+	pop bc	; b := remaining characters to render
 
-	inc	b
-	djnz	.next_line	; Loop if more characters (lines) to render.
-	pop	de	; pop (and discard) start-of-line (was HL)
-	pop	de
-	pop	bc
+	inc b
+	djnz .next_line	; Loop if more characters (lines) to render.
+	pop de	; pop (and discard) start-of-line (was HL)
+	pop de
+	pop bc
 	ret
 
-TWO_SPACES	db	' ', ' '
-EXT_MODE_CHAR	db	$0c
+TWO_SPACES	db ' ', ' '
+EXT_MODE_CHAR	db $0c
 
 CURSOR_LEFT:
-	xor	a	; (In case we need to exit early with NOP)
-	cp	b
-	ret	z	; We’ve hit the left limit
+	xor a	; (In case we need to exit early with NOP)
+	cp b
+	ret z	; We’ve hit the left limit
 
-	dec	b	; 1 more left
-	inc	c	; 1 less right
-	dec	de	; Back 1 char byte
-	ld	a,(de)	; Get prev char
-	call	MEASURE_CHAR	; Width in half-cells
+	dec b	; 1 more left
+	inc c	; 1 less right
+	dec de	; Back 1 char byte
+	ld a,(de)	; Get prev char
+	call MEASURE_CHAR	; Width in half-cells
 	neg
-	add	l
-	ld	l,a
-	jr	HIDE_AND_LD_CUR	; (Tail call)
+	add l
+	ld l,a
+	jr HIDE_AND_LD_CUR	; (Tail call)
 
 CURSOR_RIGHT:
-	xor	a	; (In case we need to exit early with NOP)
-	cp	c
-	ret	z	; We’ve hit the right limit
+	xor a	; (In case we need to exit early with NOP)
+	cp c
+	ret z	; We’ve hit the right limit
 
-	dec	c	; 1 more right
-	inc	b	; 1 less left
-	ld	a,(de)	; Get current char
-	call	MEASURE_CHAR	; Width in half-cells
-	inc	de	; Forward 1 char byte
-	add	l
-	ld	l,a
+	dec c	; 1 more right
+	inc b	; 1 less left
+	ld a,(de)	; Get current char
+	call MEASURE_CHAR	; Width in half-cells
+	inc de	; Forward 1 char byte
+	add l
+	ld l,a
 	; Fallthrough...
 
-HIDE_AND_LD_CUR:	call	HIDE_CURSOR
-	ld	(G.CURSOR_XY), hl
-	ld	a,SCR_SHOW_CURSOR
+HIDE_AND_LD_CUR:	call HIDE_CURSOR
+	ld (G.CURSOR_XY), hl
+	ld a,SCR_SHOW_CURSOR
 	ret
 
 	; Display cursor on the screen, if it is not already shown.
@@ -501,126 +501,126 @@ HIDE_AND_LD_CUR:	call	HIDE_CURSOR
 	; (Extend the displayed lifespan.)
 	; Trashes: A
 SHOW_CURSOR:
-	ld	a, (G.CURSOR_FRAMES)
-	rra		; Examine previous value of bit zero…
-	ld	a, (CURSOR_FLASH_RATE << 1) | 1
-	ld	(G.CURSOR_FRAMES), a
-	jr	nc,CURSOR_XOR
+	ld a,(G.CURSOR_FRAMES)
+	rra 	; Examine previous value of bit zero…
+	ld a,(CURSOR_FLASH_RATE << 1) | 1
+	ld (G.CURSOR_FRAMES), a
+	jr nc,CURSOR_XOR
 	ret
 
 	; Hide the cursor, if it is shown.
 	; Trashes: A
 HIDE_CURSOR:
-	ld	a, (G.CURSOR_FRAMES)
+	ld a,(G.CURSOR_FRAMES)
 	rra
-	ret	nc	; Cursor not on screen anyway
-	xor	a	; Cursor WAS on screen…
-	ld	(G.CURSOR_FRAMES), a	; And store back in variable.
-	jr	CURSOR_XOR
+	ret nc	; Cursor not on screen anyway
+	xor a	; Cursor WAS on screen…
+	ld (G.CURSOR_FRAMES), a	; And store back in variable.
+	jr CURSOR_XOR
 
 	; Decrement the frame counter and show or hide the cursor
 	; Trashes: A, HL
 CURSOR_ANIM_FRAME:
-	ld	hl, G.CURSOR_FRAMES
-	ld	a, (hl)
-	srl	a
-	dec	a
-	jr	z, .statechange
-	rla		; Put <carry> back into posn 0
-	ld	(hl), a	; And store back in variable.
+	ld hl,G.CURSOR_FRAMES
+	ld a,(hl)
+	srl a
+	dec a
+	jr z,.statechange
+	rla 	; Put <carry> back into posn 0
+	ld (hl),a	; And store back in variable.
 	ret
 .statechange:
-	rla		; Move <carry> back into low bit
-	xor	(CURSOR_FLASH_RATE << 1) | 1	; Add back in count and invert bit zero
-.store_and_xor:	ld	(hl), a
+	rla 	; Move <carry> back into low bit
+	xor (CURSOR_FLASH_RATE << 1) | 1	; Add back in count and invert bit zero
+.store_and_xor:	ld (hl),a
 	; Fallthrough...
 
 	; Invert cursor pixels. Current cursor posn is held in (CURSOR_XY)
 	; Trashes: A
 CURSOR_XOR:
-	push	hl
-	push	de
-	push	bc
-	ld	hl, (G.CURSOR_XY)
+	push hl
+	push de
+	push bc
+	ld hl,(G.CURSOR_XY)
 
-	ld	c,0b10000000
-	xor	a
-	cp	l	; Is X coordinate zero?
-	jr	z,.get_addr
+	ld c,0b10000000
+	xor a
+	cp l	; Is X coordinate zero?
+	jr z,.get_addr
 
-	dec	l
-	ld	c,0b00010000
+	dec l
+	ld c,0b00010000
 
-.get_addr:	call	ROWCOL_ADDR
-	bit	5, d
-	jr	z, .render
-	ld	c,0b00000001
+.get_addr:	call ROWCOL_ADDR
+	bit 5, d
+	jr z,.render
+	ld c,0b00000001
 
-.render:	res	5, d
-	ld	b, 8
+.render:	res 5, d
+	ld b,8
 
-.loop1:	ld	a, (de)
-	xor	c
-	ld	(de), a
-	inc	d
-	djnz	.loop1
+.loop1:	ld a,(de)
+	xor c
+	ld (de),a
+	inc d
+	djnz .loop1
 
-	pop	bc
-	pop	de
-	pop	hl
+	pop bc
+	pop de
+	pop hl
 	ret
 
 	; If CAPS_LOCK status has changed, change visual state.
 	; Trashes A, HL
-CAPS_SHIFT_ANIM:	ld	hl, G.KEY_MODIFIERS
-	ld	a, (G.KEY_MODIFIERS_PR)
-	xor	(hl)
-	ret	z	; If these bits are the same in both bytes, return
+CAPS_SHIFT_ANIM:	ld hl,G.KEY_MODIFIERS
+	ld a,(G.KEY_MODIFIERS_PR)
+	xor (hl)
+	ret z	; If these bits are the same in both bytes, return
 
-.update_screen:	push	de
-	push	bc
-	ld	a, (hl)
-	ld	(G.KEY_MODIFIERS_PR),a
+.update_screen:	push de
+	push bc
+	ld a,(hl)
+	ld (G.KEY_MODIFIERS_PR),a
 
 	; CAPS LOCK ICON
-.on:	ld	de,KEYMAP_CTRL+2	; CAPS-LOCK icon
-	ld	b,1	; One character to render.
-	rlca		; Is CAPS_LOCK bit set?
-	ld	a,0b00101000	; Black text on cyan
-	jr	c,.draw_caps	; Draw if CAPS_LOCK
-.off:	ld	de,TWO_SPACES	; Otherwise, change to printing a space.
-	ld	a,0b00111111	; White on white
+.on:	ld de,KEYMAP_CTRL+2	; CAPS-LOCK icon
+	ld b,1	; One character to render.
+	rlca 	; Is CAPS_LOCK bit set?
+	ld a,0b00101000	; Black text on cyan
+	jr c,.draw_caps	; Draw if CAPS_LOCK
+.off:	ld de,TWO_SPACES	; Otherwise, change to printing a space.
+	ld a,0b00111111	; White on white
 .draw_caps:
-	ld	hl,(G.CAPS_ICON_XY)
-	call	RENDER_TEXT
+	ld hl,(G.CAPS_ICON_XY)
+	call RENDER_TEXT
 
 	; KEYBOARD MODE ICON
-	ld	a, (G.KEY_MODIFIERS)
-	rlca		; Move two mode bits to the top of the byte
-	ld	b,1	; One character to render.
-	ld	hl,(G.MODE_ICON_XY)
+	ld a,(G.KEY_MODIFIERS)
+	rlca 	; Move two mode bits to the top of the byte
+	ld b,1	; One character to render.
+	ld hl,(G.MODE_ICON_XY)
 
-	rlca		; Is GFX mode bit set?
-	jr	c, .gfx_mode
+	rlca 	; Is GFX mode bit set?
+	jr c,.gfx_mode
 
-	rlca		; Is EXT mode bit set?
-	jr	nc,.l_mode	; ‘L’ mode
+	rlca 	; Is EXT mode bit set?
+	jr nc,.l_mode	; ‘L’ mode
 
-.ext_mode:	and	3 << 3	; And Z = !symbol shift set
-	ld	de,EXT_MODE_CHAR	; EXT-mode indicator
-	ld	a,0b01000100	; Bright green text on black
-	jp	pe,.draw_mode	; Green if both shifts or neither
-	ld	a,0b01000010	; Bright red text on black
-	jr	.draw_mode
+.ext_mode:	and 3 << 3	; And Z = !symbol shift set
+	ld de,EXT_MODE_CHAR	; EXT-mode indicator
+	ld a,0b01000100	; Bright green text on black
+	jp pe,.draw_mode	; Green if both shifts or neither
+	ld a,0b01000010	; Bright red text on black
+	jr .draw_mode
 
-.gfx_mode:	ld	de,KEYMAP_CTRL+3	; GFX-mode indicator
-	ld	a,0b01000111	; White on black
-	jr	.draw_mode	; TODO: save 1 byte/2 tstates by making this JP NC (shrug).
+.gfx_mode:	ld de,KEYMAP_CTRL+3	; GFX-mode indicator
+	ld a,0b01000111	; White on black
+	jr .draw_mode	; TODO: save 1 byte/2 tstates by making this JP NC (shrug).
 
-.l_mode:	ld	a,0b00111111	; White on white
+.l_mode:	ld a,0b00111111	; White on white
 
-.draw_mode:	call	RENDER_TEXT
+.draw_mode:	call RENDER_TEXT
 
-	pop	bc
-	pop	de
+	pop bc
+	pop de
 	ret

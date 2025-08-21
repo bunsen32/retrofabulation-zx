@@ -11,37 +11,37 @@
 	; B	= remaining character count (if we hit the column limit) or zero
 	; C	= remaining half-cell column limit
 RENDER_TEXT:
-	push	af
-	ld	a,64
-	sub	l	; a := half-cells to RHS of screen
-	jr	c,.margin_off_screen
-			; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
-.margin_ok:	ld	c,a
-	pop	af
+	push af
+	ld a,64
+	sub l	; a := half-cells to RHS of screen
+	jr c,.margin_off_screen
+		; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
+.margin_ok:	ld c,a
+	pop af
 
-	push	ix
-	ld	ix, (G.FONT)
-
-	exx
-	push	hl
-	push	de
-	push	bc
-	exx
-
-	call	render_text
+	push ix
+	ld ix,(G.FONT)
 
 	exx
-	pop	bc
-	pop	de
-	pop	hl
-	exx		; Restore original values of BC', DE' & HL'
-	pop	ix
+	push hl
+	push de
+	push bc
+	exx
+
+	call render_text
+
+	exx
+	pop bc
+	pop de
+	pop hl
+	exx 	; Restore original values of BC', DE' & HL'
+	pop ix
 
 	ret
 
 .margin_off_screen:
-	pop	af	; Already beyond the RHS
-	ret		; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
+	pop af	; Already beyond the RHS
+	ret 	; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
 
 
 	; Render some text
@@ -58,588 +58,588 @@ RENDER_TEXT:
 	; C	= remaining half-cell column limit
 	; TRASHES: BC', DE', HL'
 render_text:
-	inc	b
-	dec	b
-	ret	z		; Return if no characters to render.
+	inc b
+	dec b
+	ret z	; Return if no characters to render.
 
-	inc	b		; b := characters to print + 1
+	inc b	; b := characters to print + 1
 
-	push	af		; push attrs value
-	ex	af,af'
-	push	af
+	push af	; push attrs value
+	ex af,af'
+	push af
 
-	push	hl
-	exx			; de' := char pointer; b' := remaining character count + 1
-	pop	hl		; hl := (row, column)
-	push	hl		; Push (row, column) to return, modified, at the end.
+	push hl
+	exx 	; de' := char pointer; b' := remaining character count + 1
+	pop hl	; hl := (row, column)
+	push hl	; Push (row, column) to return, modified, at the end.
 	; get screen position pointer into DE from HL coordinates (and attr pointer in HL)
-	call	ROWCOL_ADDR	; de := pixel address; hl := attr address
-	push	hl		; Push address of attr block, to colour in character cells at the end.
-	bit	5, d
-	ex	de, hl
-	jr	z, render_common_char
-	ex	de, hl
-starts_mid_cell:			; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
-	ld	a, (hl)	; a := starting attribute
+	call ROWCOL_ADDR	; de := pixel address; hl := attr address
+	push hl	; Push address of attr block, to colour in character cells at the end.
+	bit 5, d
+	ex de,hl
+	jr z,render_common_char
+	ex de,hl
+starts_mid_cell:		; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
+	ld a,(hl)	; a := starting attribute
 	rra
 	rra
 	rra
-	xor	(hl)	; Want to check if paper==ink; in which case, clear the *whole* cell
-	and	7
-	jr	z, clr_half_cell0
-	ld	a, $f0
+	xor (hl)	; Want to check if paper==ink; in which case, clear the *whole* cell
+	and 7
+	jr z,clr_half_cell0
+	ld a,$f0
 clr_half_cell0:
-	ld	h, d
-	ld	l, e	; hl := de = screen pointer
-	res	5, h
-	ld	c, a	; c := char-cell mask (to clear rhs of cell)
-	ld	b, $08	; b := count of cell lines
+	ld h,d
+	ld l,e	; hl := de = screen pointer
+	res 5, h
+	ld c,a	; c := char-cell mask (to clear rhs of cell)
+	ld b,$08	; b := count of cell lines
 clr_half_cell:
-	ld	a, (hl)
-	and	c
-	ld	(hl), a
-	inc	h
-	djnz	clr_half_cell
+	ld a,(hl)
+	and c
+	ld (hl),a
+	inc h
+	djnz clr_half_cell
 
 render_zw_character:		; Jumped to if we hit a glyph with zero width. (At some point we want to render diacritics here.)
-	ex	de, hl	; hl := screen pointer
-	jr	render_common_char
+	ex de,hl	; hl := screen pointer
+	jr render_common_char
 
 render_next_char_offset:
-	ex	af, af'
-	or	1<<5	; Set bit 5 => offset next char by 4 pixels
+	ex af,af'
+	or 1<<5	; Set bit 5 => offset next char by 4 pixels
 render_next_char_line_from_a:
-	ld	h, a		; hl := screen pointer
+	ld h,a	; hl := screen pointer
 
 render_common_char:
-	exx			; de := char pointer; b := remaining characters + 1; hl' := screen pointer
-	dec	b
-	jr	z, colour_it_in
-	ld	a, (de)		; a := next character to render
-	inc	de
+	exx 	; de := char pointer; b := remaining characters + 1; hl' := screen pointer
+	dec b
+	jr z,colour_it_in
+	ld a,(de)	; a := next character to render
+	inc de
 
-	exx			; de := screen pointer
-	ld	d,ixh
-	ld	e,ixl	; de := font
-	ex	de, hl	; de := screen pointer; hl := font
+	exx 	; de := screen pointer
+	ld d,ixh
+	ld e,ixl	; de := font
+	ex de,hl	; de := screen pointer; hl := font
 
 	; Force character (in A) to be in range of glyphs:
-	sub	(hl)	; First character represented
-	inc	hl	; (DOES NOT AFFECT CARRY)
-	jr	c, .replace
-	cp	(hl)	; #number characters represented - 1
-	jr	c, .lookup	; (Limit should be > index...)
-	jr	z, .lookup	; (...or equal to it.)
-.replace:	xor	a	; ...Otherwise replace with the first glyph.
+	sub (hl)	; First character represented
+	inc hl	; (DOES NOT AFFECT CARRY)
+	jr c,.replace
+	cp (hl)	; #number characters represented - 1
+	jr c,.lookup	; (Limit should be > index...)
+	jr z,.lookup	; (...or equal to it.)
+.replace:	xor a	; ...Otherwise replace with the first glyph.
 .lookup:
 	; Look up glyph data:
-	inc	a
-	ld	c, a
-	ld	b, 0
-	add	hl, bc
-	add	hl, bc
-	ld	b, (hl)	; b := HIGH byte of offset to character data pointer
-	ld	a, b
-	exx		; c <-> c' = remaining allowed character width
+	inc a
+	ld c,a
+	ld b,0
+	add hl,bc
+	add hl,bc
+	ld b,(hl)	; b := HIGH byte of offset to character data pointer
+	ld a,b
+	exx 	; c <-> c' = remaining allowed character width
 	rlca
-	rlca		; Width of char is now in low bits of A
-	and	3	; Mask it out
+	rlca 	; Width of char is now in low bits of A
+	and 3	; Mask it out
 	neg
-	add	c	; (0 - char width) + space remaining
-	jr	nc,beyond_rhs	; Exit early if beyond RHS screen/window margin.
-			; cos we added negative, carry has opposite meaning
-	ld	c,a	; c := new space remaining
+	add c	; (0 - char width) + space remaining
+	jr nc,beyond_rhs	; Exit early if beyond RHS screen/window margin.
+		; cos we added negative, carry has opposite meaning
+	ld c,a	; c := new space remaining
 	exx
-	ld	a, b	; HIGH byte of offset to character data pointer...
-	bit	5, d	; Offset flag stored in Z
-	ex	af, af'	; ...has width encoded in top 2 bits
-	ld	a, $3f	; Reset top 2 bits
-	and	b
-	ld	b, a	; Top byte (or 6 bits of it anyway)	
-	dec	hl
-	ld	c, (hl)	; LOW byte of offset to character data pointer
-	add	hl, bc	; hl := character pointer
-	ex	de, hl	; hl := screen pointer; de := glyph pixel data
+	ld a,b	; HIGH byte of offset to character data pointer...
+	bit 5, d	; Offset flag stored in Z
+	ex af,af'	; ...has width encoded in top 2 bits
+	ld a,$3f	; Reset top 2 bits
+	and b
+	ld b,a	; Top byte (or 6 bits of it anyway)	
+	dec hl
+	ld c,(hl)	; LOW byte of offset to character data pointer
+	add hl,bc	; hl := character pointer
+	ex de,hl	; hl := screen pointer; de := glyph pixel data
 
 	; Decode character info:
-	ld	a, (de)	; <char-info> = binary X<height:4><start-row:3>
-	and	7
-	ld	b, a	; b := <start-row:3>
-	ld	a, (de)
+	ld a,(de)	; <char-info> = binary X<height:4><start-row:3>
+	and 7
+	ld b,a	; b := <start-row:3>
+	ld a,(de)
 	rra
 	rra
 	rra
-	and	$f
-	ld	c, a	; c := <height:4>
+	and $f
+	ld c,a	; c := <height:4>
 
-	inc	de	; Advance to pixel data
-	ld	a,h	; Store high byte of screen pointer for rendering next char.
-	ex	af, af'	; a := <chr-info>; a' := high byte of pixel pointer; Z flag: !half-cell-offset
-	jp	nz, render_o4
+	inc de	; Advance to pixel data
+	ld a,h	; Store high byte of screen pointer for rendering next char.
+	ex af,af'	; a := <chr-info>; a' := high byte of pixel pointer; Z flag: !half-cell-offset
+	jp nz,render_o4
 
 	; RENDER AT OFFSET ZERO
 render_o0:
 	rla
-	jp	nc, render_w0w1_o0
+	jp nc,render_w0w1_o0
 render_w2w3_o0:
 	rla
-	jr	c, render_w3_o0
+	jr c,render_w3_o0
 
 
 	; RENDER 8-BIT GLYPH AT OFFSET ZERO
 render_w2_o0:
-	xor	a
-	cp	b
-	jr	z, r_w2_top_end_o0
+	xor a
+	cp b
+	jr z,r_w2_top_end_o0
 r_w2_top_o0:
-	ld	(hl), a
-	inc	h
-	djnz	r_w2_top_o0
+	ld (hl),a
+	inc h
+	djnz r_w2_top_o0
 r_w2_top_end_o0:
-	or	c
-	jr	z, r_w2_bot_o0_init
-	inc	a
+	or c
+	jr z,r_w2_bot_o0_init
+	inc a
 	rra
-	ld	b, a
-	jr	nc, r_w2_mid_o0_row2
+	ld b,a
+	jr nc,r_w2_mid_o0_row2
 r_w2_mid_o0_row1:
-	ld	a, (de)
-	ld	(hl), a
-	inc	de
-	inc	h
+	ld a,(de)
+	ld (hl),a
+	inc de
+	inc h
 r_w2_mid_o0_row2:
-	ld	a, (de)
-	ld	(hl), a
-	inc	de
-	inc	h
-	djnz	r_w2_mid_o0_row1
+	ld a,(de)
+	ld (hl),a
+	inc de
+	inc h
+	djnz r_w2_mid_o0_row1
 
 r_w2_bot_o0_init:
-	xor	a
-	sub	h
-	and	7
-	jr	z, r_w2_bot_end_o0
-	ld	b, a
-	xor	a
+	xor a
+	sub h
+	and 7
+	jr z,r_w2_bot_end_o0
+	ld b,a
+	xor a
 r_w2_bot_o0:
-	ld	(hl), a
-	inc	h
-	djnz	r_w2_bot_o0
+	ld (hl),a
+	inc h
+	djnz r_w2_bot_o0
 r_w2_bot_end_o0:
-	inc	l		; move to next column
-	ex	af, af'
-	jp	render_next_char_line_from_a
+	inc l	; move to next column
+	ex af,af'
+	jp render_next_char_line_from_a
 
-beyond_rhs:			; c has OLD space remaining
-	dec	de	; Go back a character in buffer.
+beyond_rhs:		; c has OLD space remaining
+	dec de	; Go back a character in buffer.
 	exx
-	ex	de,hl
+	ex de,hl
 	exx
-			; (No need to increase 'b' here since we already did that at the start.)
+		; (No need to increase 'b' here since we already did that at the start.)
 colour_it_in:
-	exx		; hl := screen pointer
-	ld	a, l
-	pop	de	; de := pointer to attribute block (of FIRST char)
-	sub	e
-	ld	b, a	; b := count cells to colour in
+	exx 	; hl := screen pointer
+	ld a,l
+	pop de	; de := pointer to attribute block (of FIRST char)
+	sub e
+	ld b,a	; b := count cells to colour in
 
-	or	a	; clear carry flag
-	bit	5, h
-	jr	z, .no_half_incr
-.has_half_incr:	scf		; Carry flag := extra half cell to add
-	inc	b	; We gonna colour into the next cell
-.no_half_incr:	rla		; Multiply width in cells by 2, adding a half-cell if necessary (if Carry flag was set)
-	pop	hl	; Pop initial (row, column)
-	res	0,l	; (New half-cell offset INCLUDES original odd/even bit.)
-	add	l	; Add half-cell offset to column originally passed in
-	ld	l, a	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
+	or a	; clear carry flag
+	bit 5, h
+	jr z,.no_half_incr
+.has_half_incr:	scf 	; Carry flag := extra half cell to add
+	inc b	; We gonna colour into the next cell
+.no_half_incr:	rla 	; Multiply width in cells by 2, adding a half-cell if necessary (if Carry flag was set)
+	pop hl	; Pop initial (row, column)
+	res 0,l	; (New half-cell offset INCLUDES original odd/even bit.)
+	add l	; Add half-cell offset to column originally passed in
+	ld l,a	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
 
-	pop	af
-	ex	af,af'	; Restore original value of AF'
-	pop	af	; a  := attrs
-	inc	b
-	jr	.colour_loop_rpt	; Add 1 and jump to end of the loop, to deal with 0-case.
+	pop af
+	ex af,af'	; Restore original value of AF'
+	pop af	; a  := attrs
+	inc b
+	jr .colour_loop_rpt	; Add 1 and jump to end of the loop, to deal with 0-case.
 .colour_loop:
-	ld	(de), a
-	inc	e
-.colour_loop_rpt:	djnz	.colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
-			; For short runs, up to 10 characters, djnz is faster. For 32 characters, ldir is 10% faster.
-			; For VERY short runs (1–2 characters), djnz is twice as fast.
-	push	hl	; Push end-of-text coordinates
+	ld (de),a
+	inc e
+.colour_loop_rpt:	djnz .colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
+		; For short runs, up to 10 characters, djnz is faster. For 32 characters, ldir is 10% faster.
+		; For VERY short runs (1–2 characters), djnz is twice as fast.
+	push hl	; Push end-of-text coordinates
 	exx
-	pop	hl	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
-			; de = pointer to next char
-			; b = remaining characters in buffer
-			; c = remaining half-cells on screen.
+	pop hl	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
+		; de = pointer to next char
+		; b = remaining characters in buffer
+		; c = remaining half-cells on screen.
 	ret
 
 	; RENDER 12-BIT GLYPH AT OFFSET ZERO
 render_w3_o0:
-	xor	a
-	cp	b
-	jr	z, r_w3_top_end_o0
+	xor a
+	cp b
+	jr z,r_w3_top_end_o0
 r_w3_top_o0:
-	ld	(hl), a
-	inc	l
-	ld	(hl), a
-	dec	l
-	inc	h
-	djnz	r_w3_top_o0
+	ld (hl),a
+	inc l
+	ld (hl),a
+	dec l
+	inc h
+	djnz r_w3_top_o0
 r_w3_top_end_o0:
-	inc	l
-	or	c
-	jr	z, r_w3_bot_o0_init
-	inc	a
+	inc l
+	or c
+	jr z,r_w3_bot_o0_init
+	inc a
 	rra
-	ld	b, a
-	jr	nc, r_w3_mid_o0_row2
-	dec	l
+	ld b,a
+	jr nc,r_w3_mid_o0_row2
+	dec l
 
 r_w3_mid_o0_row1:	; ROW ONE
-	ld	a, (de)		; First byte of glyph pixels
-	inc	de
-	ld	(hl), a		; Write first byte
-	inc	l
-	ld	a, (de)		; Second byte of glyph pixels
-	inc	de
-	ld	(hl), a		; Write second byte
-	inc	h
+	ld a,(de)	; First byte of glyph pixels
+	inc de
+	ld (hl),a	; Write first byte
+	inc l
+	ld a,(de)	; Second byte of glyph pixels
+	inc de
+	ld (hl),a	; Write second byte
+	inc h
 
 r_w3_mid_o0_row2:	; ROW TWO
-	ld	a, (de)		; First byte of glyph pixels
-	inc	de
-	ld	c, a
-	ld	a, (de)		; Second byte of glyph pixels
-	inc	de
-	ld	(hl), a		; Write second (rightmost) byte
-	dec	l
-	ld	(hl), c		; Write first (leftmost) byte
-	inc	h
-	djnz	r_w3_mid_o0_row1
+	ld a,(de)	; First byte of glyph pixels
+	inc de
+	ld c,a
+	ld a,(de)	; Second byte of glyph pixels
+	inc de
+	ld (hl),a	; Write second (rightmost) byte
+	dec l
+	ld (hl),c	; Write first (leftmost) byte
+	inc h
+	djnz r_w3_mid_o0_row1
 
-	inc	l		; move to next column
+	inc l	; move to next column
 r_w3_bot_o0_init:
-	xor	a
-	sub	h
-	and	7
-	jr	z, r_w3_bot_end_o0
-	ld	b, a
-	xor	a
+	xor a
+	sub h
+	and 7
+	jr z,r_w3_bot_end_o0
+	ld b,a
+	xor a
 r_w3_bot_o0:
-	ld	(hl), a
-	dec	l
-	ld	(hl), a
-	inc	l
-	inc	h
-	djnz	r_w3_bot_o0
+	ld (hl),a
+	dec l
+	ld (hl),a
+	inc l
+	inc h
+	djnz r_w3_bot_o0
 r_w3_bot_end_o0:
-	jp	render_next_char_offset
+	jp render_next_char_offset
 
 render_w0w1_o0:
 	rla
-	jp	nc, render_zw_character
+	jp nc,render_zw_character
 
 
 	; RENDER 4-BIT GLYPH AT OFFSET ZERO
 render_w1_o0:
-	xor	a
-	cp	b
-	jr	z, r_w1_top_end_o0
+	xor a
+	cp b
+	jr z,r_w1_top_end_o0
 r_w1_top_o0:
-	ld	(hl), a
-	inc	h
-	djnz	r_w1_top_o0
+	ld (hl),a
+	inc h
+	djnz r_w1_top_o0
 r_w1_top_end_o0:
-	or	c
-	ld	c, $f0
-	jr	z, r_w1_bot_o0_init
-	inc	a
+	or c
+	ld c,$f0
+	jr z,r_w1_bot_o0_init
+	inc a
 	rra
-	ld	b, a
-	jr	nc, r_w1_mid_o0_row2
+	ld b,a
+	jr nc,r_w1_mid_o0_row2
 r_w1_mid_o0_row1:
-	ld	a, (de)
-	inc	de
-	and	c
-	ld	(hl), a
-	inc	h
+	ld a,(de)
+	inc de
+	and c
+	ld (hl),a
+	inc h
 r_w1_mid_o0_row2:
-	ld	a, (de)
-	inc	de
-	and	c
-	ld	(hl), a
-	inc	h
-	djnz	r_w1_mid_o0_row1
+	ld a,(de)
+	inc de
+	and c
+	ld (hl),a
+	inc h
+	djnz r_w1_mid_o0_row1
 
 r_w1_bot_o0_init:
-	xor	a
-	sub	h
-	and	7
-	jr	z, r_w1_bot_end_o0
-	ld	b, a
-	xor	a
+	xor a
+	sub h
+	and 7
+	jr z,r_w1_bot_end_o0
+	ld b,a
+	xor a
 r_w1_bot_o0:
-	ld	(hl), a
-	inc	h
-	djnz	r_w1_bot_o0
+	ld (hl),a
+	inc h
+	djnz r_w1_bot_o0
 r_w1_bot_end_o0:
-	jp	render_next_char_offset
+	jp render_next_char_offset
 
 
 
 
 	; RENDER AT OFFSET 4
 render_o4:
-	res	5, h
+	res 5, h
 	rla
-	jp	nc, render_w0w1_o4
+	jp nc,render_w0w1_o4
 render_w2w3_o4:
 	rla
-	jr	c, render_w3_o4
+	jr c,render_w3_o4
 
 
 	; RENDER 8-BIT GLYPH AT OFFSET4
 render_w2_o4:
-	inc	l
-	xor	a
-	cp	b
-	jr	z, r_w2_top_end_o4
+	inc l
+	xor a
+	cp b
+	jr z,r_w2_top_end_o4
 	; Clear only 2nd column:
 r_w2_top_o4:
-	ld	(hl), a
-	inc	h
-	djnz	r_w2_top_o4
+	ld (hl),a
+	inc h
+	djnz r_w2_top_o4
 r_w2_top_end_o4:
-	or	c
-	jr	z, r_w2_bot_o4_init
-	inc	a
+	or c
+	jr z,r_w2_bot_o4_init
+	inc a
 	rra
-	ld	b, a
-	jr	nc, r_w2_mid_o4_row2
+	ld b,a
+	jr nc,r_w2_mid_o4_row2
 	; Render both columns:
 
-	dec	l
+	dec l
 r_w2_mid_o4_row1:	; ROW 1
-	ld	a, (de)		; Next byte of glyph pixels
-	inc	de
+	ld a,(de)	; Next byte of glyph pixels
+	inc de
 
-	rrca		; Rotate A by 4 bits
+	rrca 	; Rotate A by 4 bits
 	rrca
 	rrca
 	rrca
 	
-	ld	c,a	; Stash a copy
-	and	$f	; Mask out RIGHT side
-	or	(hl)	; Merge onto screen
-	ld	(hl),a
-	inc	l	; Next column
+	ld c,a	; Stash a copy
+	and $f	; Mask out RIGHT side
+	or (hl)	; Merge onto screen
+	ld (hl),a
+	inc l	; Next column
 
-	ld	a,c
-	and	$f0	; Mask out LEFT side
-	ld	(hl),a	; Copy onto screen
-	inc	h	; Next row
+	ld a,c
+	and $f0	; Mask out LEFT side
+	ld (hl),a	; Copy onto screen
+	inc h	; Next row
 
 r_w2_mid_o4_row2:	; ROW 2
-	ld	a, (de)	; Next byte of glyph pixels
-	inc	de
-	rrca		; Rotate A by 4 bits
+	ld a,(de)	; Next byte of glyph pixels
+	inc de
+	rrca 	; Rotate A by 4 bits
 	rrca
 	rrca
 	rrca
 
-	ld	c,a	; Stash a copy
-	and	$f0	; Mask out LEFT side
-	ld	(hl),a	; Copy onto screen
-	dec	l	; Prior column
+	ld c,a	; Stash a copy
+	and $f0	; Mask out LEFT side
+	ld (hl),a	; Copy onto screen
+	dec l	; Prior column
 
-	ld	a,c
-	and	$f	; Mask out RIGHT side
-	or	(hl)	; Merge onto screen
-	ld	(hl),a
+	ld a,c
+	and $f	; Mask out RIGHT side
+	or (hl)	; Merge onto screen
+	ld (hl),a
 
-	inc	h	; Next row
-	djnz	r_w2_mid_o4_row1
+	inc h	; Next row
+	djnz r_w2_mid_o4_row1
 
-	inc	l		; move to second column
+	inc l	; move to second column
 r_w2_bot_o4_init:
-	xor	a
-	sub	h
-	and	7
-	jr	z, r_w2_bot_end_o4
-	ld	b, a
-	xor	a
+	xor a
+	sub h
+	and 7
+	jr z,r_w2_bot_end_o4
+	ld b,a
+	xor a
 	; Clear only 2nd column:
 r_w2_bot_o4:
-	ld	(hl), a
-	inc	h
-	djnz	r_w2_bot_o4
+	ld (hl),a
+	inc h
+	djnz r_w2_bot_o4
 r_w2_bot_end_o4:
-	ex	af,af'
-	jp	render_next_char_line_from_a
+	ex af,af'
+	jp render_next_char_line_from_a
 
 
 	; RENDER 12-BIT GLYPH AT OFFSET4
 render_w3_o4:
-	inc	l
-	xor	a
-	cp	b
-	jr	z, r_w3_top_end_o4
+	inc l
+	xor a
+	cp b
+	jr z,r_w3_top_end_o4
 r_w3_top_o4:
-	ld	(hl), a
-	inc	h
-	djnz	r_w3_top_o4
+	ld (hl),a
+	inc h
+	djnz r_w3_top_o4
 r_w3_top_end_o4:
-	or	c
-	jr	z, r_w3_bot_o4_init
-	inc	a
+	or c
+	jr z,r_w3_bot_o4_init
+	inc a
 	rra
-	ld	b, a
-	jr	nc, r_w3_mid_o4_row2
-	dec	l
+	ld b,a
+	jr nc,r_w3_mid_o4_row2
+	dec l
 
 r_w3_mid_o4_row1:
-	ld	a, (de)
-	inc	de
-	ld	c, a		; C := leftmost byte of glyph pixels
-	ld	a, (de)		; A  := rightmost byte of glyph pixels
-	inc	de
-	add	a
-	rl	c
-	adc	a
-	rl	c
-	adc	a
-	rl	c
-	adc	a
-	rl	c
-	adc	a
-	or	(hl)
-	ld	(hl), a		; merge first (shifted) byte onto screen
-	inc	l
-	ld	(hl), c		; copy second (shifted) byte onto screen
-	inc	h
+	ld a,(de)
+	inc de
+	ld c,a	; C := leftmost byte of glyph pixels
+	ld a,(de)	; A  := rightmost byte of glyph pixels
+	inc de
+	add a
+	rl c
+	adc a
+	rl c
+	adc a
+	rl c
+	adc a
+	rl c
+	adc a
+	or (hl)
+	ld (hl),a	; merge first (shifted) byte onto screen
+	inc l
+	ld (hl),c	; copy second (shifted) byte onto screen
+	inc h
 
 r_w3_mid_o4_row2:
-	ld	a, (de)
-	inc	de
-	ld	c, a		; C := leftmost byte of glyph pixels
-	ld	a, (de)		; A  := rightmost byte of glyph pixels
-	inc	de
-	srl	c
+	ld a,(de)
+	inc de
+	ld c,a	; C := leftmost byte of glyph pixels
+	ld a,(de)	; A  := rightmost byte of glyph pixels
+	inc de
+	srl c
 	rra
-	srl	c
+	srl c
 	rra
-	srl	c
+	srl c
 	rra
-	srl	c
+	srl c
 	rra
-	ld	(hl), a		; copy second (shifted) byte onto screen
-	dec	l
-	ld	a, c
-	or	(hl)
-	ld	(hl), a		; merge first (shifted) byte onto screen
-	inc	h
+	ld (hl),a	; copy second (shifted) byte onto screen
+	dec l
+	ld a,c
+	or (hl)
+	ld (hl),a	; merge first (shifted) byte onto screen
+	inc h
 
-	djnz	r_w3_mid_o4_row1
+	djnz r_w3_mid_o4_row1
 
-	inc	l
+	inc l
 r_w3_bot_o4_init:
-	xor	a
-	sub	h
-	and	7
-	jr	z, r_w3_bot_end_o4
-	ld	b, a
-	xor	a
+	xor a
+	sub h
+	and 7
+	jr z,r_w3_bot_end_o4
+	ld b,a
+	xor a
 r_w3_bot_o4:
-	ld	(hl), a
-	inc	h
-	djnz	r_w3_bot_o4
+	ld (hl),a
+	inc h
+	djnz r_w3_bot_o4
 r_w3_bot_end_o4:
-	inc	l		; move to next column
-	ex	af, af'
-	and	~(1<<5)	; Clear bit 5 => next char not offset
-	jp	render_next_char_line_from_a
+	inc l	; move to next column
+	ex af,af'
+	and ~(1<<5)	; Clear bit 5 => next char not offset
+	jp render_next_char_line_from_a
 
 render_w0w1_o4:
 	rla
-	jp	nc, render_zw_character
+	jp nc,render_zw_character
 
 
 	; RENDER 4-BIT GLYPH AT OFFSET4
 render_w1_o4:
-	ld	a, h
-	add	b
-	ld	h, a
+	ld a,h
+	add b
+	ld h,a
 
-	xor	a
-	or	c
-	ld	c, $0f
-	jr	z, r_w1_bot_o4_init
-	inc	a
+	xor a
+	or c
+	ld c,$0f
+	jr z,r_w1_bot_o4_init
+	inc a
 	rra
-	ld	b, a
-	jr	nc, r_w1_mid_o4_half
+	ld b,a
+	jr nc,r_w1_mid_o4_half
 r_w1_mid_o4:
-	ld	a, (de)
-	inc	de
-	and	c
-	or	(hl)
-	ld	(hl), a
-	inc	h
+	ld a,(de)
+	inc de
+	and c
+	or (hl)
+	ld (hl),a
+	inc h
 r_w1_mid_o4_half:
-	ld	a, (de)
-	inc	de
-	and	c
-	or	(hl)
-	ld	(hl), a
-	inc	h
-	djnz	r_w1_mid_o4
+	ld a,(de)
+	inc de
+	and c
+	or (hl)
+	ld (hl),a
+	inc h
+	djnz r_w1_mid_o4
 
 r_w1_bot_o4_init:
-	inc	l		; move to next column
-	ex	af, af'
-	and	~(1<<5)	; Clear bit 5 => next char not offset
-	jp	render_next_char_line_from_a
+	inc l	; move to next column
+	ex af,af'
+	and ~(1<<5)	; Clear bit 5 => next char not offset
+	jp render_next_char_line_from_a
 
 
 	; row/column (HL) to screen address (DE) and attr pointer (HL). (Column is half-cell column, 0–63)
 	; Note that screen address pointer gets bit 5 set if column was odd.
 	; Trashes: A
 ROWCOL_ADDR:
-	ld	a, 63
-	cp	l
-	jr	c, rowcol_out_of_range
-	ld	a, 23
-	cp	h
-	jr	c, rowcol_out_of_range
-	srl	l	; <carry flag> := positioned on half-column.
-	adc	(%01011111 - 23)	; A already contained 23, so A := %1011111 + <carry flag>
-	and	%11100000	; A := %01000000 (even columns) or %01100000 (odd columns)
-	or	h
-	and	%11111000	; A := %01<o><RR>000 where <o> is ‘odd column’, <RR> are two high row bits 0–3
-	ld	d, a
+	ld a,63
+	cp l
+	jr c,rowcol_out_of_range
+	ld a,23
+	cp h
+	jr c,rowcol_out_of_range
+	srl l	; <carry flag> := positioned on half-column.
+	adc (%01011111 - 23)	; A already contained 23, so A := %1011111 + <carry flag>
+	and %11100000	; A := %01000000 (even columns) or %01100000 (odd columns)
+	or h
+	and %11111000	; A := %01<o><RR>000 where <o> is ‘odd column’, <RR> are two high row bits 0–3
+	ld d,a
 	
-	ld	a, h
+	ld a,h
 	rrca
 	rrca
 	rrca
-	ld	h, a
-	and	%11100000	; A := %<rrr>00000 where <rrr> are 3 low row bits
-	or	l	; A := %<rrr><CCCCC> where <CCCCC> are ‘high column bits’ (all but the half-cell discriminator)
-	ld	e, a	; de := pixel cell pointer
+	ld h,a
+	and %11100000	; A := %<rrr>00000 where <rrr> are 3 low row bits
+	or l	; A := %<rrr><CCCCC> where <CCCCC> are ‘high column bits’ (all but the half-cell discriminator)
+	ld e,a	; de := pixel cell pointer
 	
-	ld	a, %00000011
-	and	h	; A := %000000<RR> where <RR> are high row bits
-	or	$58	; %01011000 Start of screen attributes
-	ld	h, a
-	ld	l, e	; hl := attribute cell pointer
+	ld a,%00000011
+	and h	; A := %000000<RR> where <RR> are high row bits
+	or $58	; %01011000 Start of screen attributes
+	ld h,a
+	ld l,e	; hl := attribute cell pointer
 
 	ret
 
-rowcol_out_of_range:	xor	a	; Return all zeros for out of range coordinates. Means that we harmlessless write to ROM
-	ld	d, a	; if we try to do any graphics. (TBH, maybe the _middle_ of ROM would be even more harmless…)
-	ld	e, a
-	ld	h, a
-	ld	l, a
+rowcol_out_of_range:	xor a	; Return all zeros for out of range coordinates. Means that we harmlessless write to ROM
+	ld d,a	; if we try to do any graphics. (TBH, maybe the _middle_ of ROM would be even more harmless…)
+	ld e,a
+	ld h,a
+	ld l,a
 	ret
 
 	; Iterate through a buffer of characters, for a given maximum count and
@@ -652,57 +652,57 @@ rowcol_out_of_range:	xor	a	; Return all zeros for out of range coordinates. Mean
 	; B:  character count to fit (or zero)
 	; C:  column count of text (or zero)
 MEASURE_SPAN:
-	push	af
-	push	hl
-	ld	h,0	; Char count to fit := 0
-	ld	l,c	; Limit column := C (parameter)
-	ld	c,h	; Column count := 0
-	inc	b
-	dec	b
-	jr	z,.end	; Return if char count = 0
+	push af
+	push hl
+	ld h,0	; Char count to fit := 0
+	ld l,c	; Limit column := C (parameter)
+	ld c,h	; Column count := 0
+	inc b
+	dec b
+	jr z,.end	; Return if char count = 0
 .loop:
-	ld	a, (de)
-	call	MEASURE_CHAR
-	add	c	; Add char width to columns so far (C)
-	cp	l	; Compare to column limit (L)
-	jr	z,.eq
-	jr	nc,.end	; Beyond column limit?
-.eq	ld	c,a
-	inc	de
-	inc	h	; One more char
-	djnz	.loop
+	ld a,(de)
+	call MEASURE_CHAR
+	add c	; Add char width to columns so far (C)
+	cp l	; Compare to column limit (L)
+	jr z,.eq
+	jr nc,.end	; Beyond column limit?
+.eq	ld c,a
+	inc de
+	inc h	; One more char
+	djnz .loop
 .end:
-	ld	b,h	; B := char count to fit
-	pop	hl
-	pop	af
+	ld b,h	; B := char count to fit
+	pop hl
+	pop af
 	ret
 6
 	; Take a character (in A), and return its glyph width,
 	; 0–3, also in A. Preserves all other registers.
 MEASURE_CHAR:
-	push	hl
-	push	bc
-	ld	hl, FONT_LOOKUP	; Character index table
+	push hl
+	push bc
+	ld hl,FONT_LOOKUP	; Character index table
 
 	; Force character (in A) to be in range of glyphs:
-	sub	(hl)	; First character represented
-	inc	hl	; (DOES NOT AFFECT CARRY)
-	jr	c, .replace
-	cp	(hl)	; #number characters represented - 1
-	jr	c, .lookup	; (Limit should be > index...)
-	jr	z, .lookup	; (...or equal to it.)
-.replace:	xor	a	; ...Otherwise replace with the first glyph.
+	sub (hl)	; First character represented
+	inc hl	; (DOES NOT AFFECT CARRY)
+	jr c,.replace
+	cp (hl)	; #number characters represented - 1
+	jr c,.lookup	; (Limit should be > index...)
+	jr z,.lookup	; (...or equal to it.)
+.replace:	xor a	; ...Otherwise replace with the first glyph.
 .lookup:
 	; Look up glyph data:
-	inc	a
-	ld	c, a
-	ld	b, 0
-	add	hl, bc
-	add	hl, bc
-	ld	a, (hl)	; HIGH byte of offset to character data pointer
+	inc a
+	ld c,a
+	ld b,0
+	add hl,bc
+	add hl,bc
+	ld a,(hl)	; HIGH byte of offset to character data pointer
 	rlca
 	rlca
-	and	3
-	pop	bc
-	pop	hl
+	and 3
+	pop bc
+	pop hl
 	ret

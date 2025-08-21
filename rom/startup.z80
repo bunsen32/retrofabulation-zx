@@ -1,51 +1,51 @@
 INIT:
 SPLASH_INIT:
-	ld	sp,$5B00
-	ld	b, (24 * 32) / 8
-	ld	de, $0000	; No bright, paper = black, ink = black
-.cls_black:	push	de
-	push	de
-	push	de
-	push	de
-	djnz	.cls_black
+	ld sp,$5B00
+	ld b,(24 * 32) / 8
+	ld de,$0000	; No bright, paper = black, ink = black
+.cls_black:	push de
+	push de
+	push de
+	push de
+	djnz .cls_black
 
-	ld	h,3	; 3 screen-thirds (loop counter)
+	ld h,3	; 3 screen-thirds (loop counter)
 .loop_screen_thirds:
-	exx		; [[START...
-	ld	de,$0f0f
-	exx		; ...END]]
-	ld	de,$ffff
-	ld	l,4	; 4 pattern repeats in screen-third (loop counter)
+	exx 	; [[START...
+	ld de,$0f0f
+	exx 	; ...END]]
+	ld de,$ffff
+	ld l,4	; 4 pattern repeats in screen-third (loop counter)
 .loop_lines_in_cell:
-	ld	a,16	; 16 pairs of identical pixel bytes in screen third (loop counter)
+	ld a,16	; 16 pairs of identical pixel bytes in screen third (loop counter)
 .loop_cells_in_third:
-	ld	b,32/4	; 4-byte (32-bit) ‘words’ in the pixel line (loop counter)
+	ld b,32/4	; 4-byte (32-bit) ‘words’ in the pixel line (loop counter)
 .loop_words_in_line:
-	push	de
-	push	de
-	djnz	.loop_words_in_line
-.next_pixel_row:	exx		; BALANCED BECAUSE EVEN # LOOP ITERATIONS (16)
-	dec	a
-	jr	nz,.loop_cells_in_third
-	srl	e
-	ld	d,e
-	exx		; [[START...
-	srl	e
-	ld	d,e
-	exx		; ...END]]
-	dec	l
-	jr	nz,.loop_lines_in_cell
-	dec	h
-	jr	nz,.loop_screen_thirds
+	push de
+	push de
+	djnz .loop_words_in_line
+.next_pixel_row:	exx 	; BALANCED BECAUSE EVEN # LOOP ITERATIONS (16)
+	dec a
+	jr nz,.loop_cells_in_third
+	srl e
+	ld d,e
+	exx 	; [[START...
+	srl e
+	ld d,e
+	exx 	; ...END]]
+	dec l
+	jr nz,.loop_lines_in_cell
+	dec h
+	jr nz,.loop_screen_thirds
 
 GLOBALS_INIT:
-	ld	hl, INITIAL_GLOBAL_VALUES
-	ld	de, G.need_init
-	ld	bc, INITIAL_GLOBAL_VALUES.length
+	ld hl,INITIAL_GLOBAL_VALUES
+	ld de,G.need_init
+	ld bc,INITIAL_GLOBAL_VALUES.length
 	ldir
 
-	ld	sp, $f000	; Placeholder stack top.
-	call	RESET_UDG
+	ld sp,$f000	; Placeholder stack top.
+	call RESET_UDG
 	ei
 
 SPLASH_ANIM:
@@ -64,191 +64,191 @@ SPLASH_ANIM:
 .white_white	=	%00111111
 .white_red	=	%00111010
 
-	ld	hl, .data
-.next_phase	ld	a, (hl)
-	or	a
-	jr	z, .end
-	ld	b, a	; b := width of trailing colour stripe
-	inc	hl
-	ld	a, (hl)	; a := starting x position
-	inc	hl
-	ld	c, (hl)	; c := loop counter: steps across the screen
-	inc	hl
-	ld	d, (hl)	; d := trailing colour
-	inc	hl
-	ld	e, (hl)	; e := leading colour
-	inc	hl
+	ld hl,.data
+.next_phase	ld a,(hl)
+	or a
+	jr z,.end
+	ld b,a	; b := width of trailing colour stripe
+	inc hl
+	ld a,(hl)	; a := starting x position
+	inc hl
+	ld c,(hl)	; c := loop counter: steps across the screen
+	inc hl
+	ld d,(hl)	; d := trailing colour
+	inc hl
+	ld e,(hl)	; e := leading colour
+	inc hl
 .phase_loop:
-	call	FRAME_CHECK	; Wait a frame & exit if keyboard input
-	call	STRIPE_n
-	dec	c
-	jr	nz, .phase_loop
-	jr	.next_phase
+	call FRAME_CHECK	; Wait a frame & exit if keyboard input
+	call STRIPE_n
+	dec c
+	jr nz,.phase_loop
+	jr .next_phase
 
 .data:
 	; WIPE CYAN
-	db	2, 0	; width, startx
-	db	22	; iterations
-	db	.cyan_cyan, .cyan_black
+	db 2, 0	; width, startx
+	db 22	; iterations
+	db .cyan_cyan, .cyan_black
 
 	; WIPE GREEN
-	db	2, 1	; width, startx
-	db	21	; iterations
-	db	.green_green, .green_cyan
+	db 2, 1	; width, startx
+	db 21	; iterations
+	db .green_green, .green_cyan
 
 	; WIPE YELLOW
-	db	4, 0	; width, startx
-	db	11	; iterations
-	db	.yellow_yellow, .yellow_green
+	db 4, 0	; width, startx
+	db 11	; iterations
+	db .yellow_yellow, .yellow_green
 
 	; WIPE RED
-	db	4, -1	; width, startx
-	db	11	; iterations
-	db	.red_red, .red_yellow
+	db 4, -1	; width, startx
+	db 11	; iterations
+	db .red_red, .red_yellow
 
 	; WIPE WHITE
-	db	4, -2	; width, startx
-	db	11	; iterations
-	db	.white_white, .white_red
+	db 4, -2	; width, startx
+	db 11	; iterations
+	db .white_white, .white_red
 
 	; END
-	DB	0
+	DB 0
 .end
-	ld	b, 8	; We could save two bytes here by rearranging data a bit, and assigning B in the loop…
-	ld	c, 0b00101000	; Cyan paper
-.border_loop	call	FRAME_CHECK	; Wait a frame & exit if keyboard input
-	out	($fe), a	; set border, in spectrum from black to white. Makes transition softer & less jarring.
-	xor	c	; Add in paper colour.
-	ld	($5aff), a	; bottom-right screen cell
-	ld	($5adf), a	; (bottom-1)-right screen cell
-	xor	c	; Remove paper colour again.
-	inc	a
-	djnz	.border_loop
+	ld b,8	; We could save two bytes here by rearranging data a bit, and assigning B in the loop…
+	ld c,0b00101000	; Cyan paper
+.border_loop	call FRAME_CHECK	; Wait a frame & exit if keyboard input
+	out ($fe), a	; set border, in spectrum from black to white. Makes transition softer & less jarring.
+	xor c	; Add in paper colour.
+	ld ($5aff), a	; bottom-right screen cell
+	ld ($5adf), a	; (bottom-1)-right screen cell
+	xor c	; Remove paper colour again.
+	inc a
+	djnz .border_loop
 
 COPYRIGHT:
-	ld	de, COPYRIGHT_TEXT
-	ld	bc, (COPYRIGHT_TEXT.length << 8) | $7f
-	ld	a, %00111000	; Black ink on white paper
-	ld	hl, $1602	; x := 2 (half-cells), y := 22
-	call	RENDER_TEXT
+	ld de,COPYRIGHT_TEXT
+	ld bc,(COPYRIGHT_TEXT.length << 8) | $7f
+	ld a,%00111000	; Black ink on white paper
+	ld hl,$1602	; x := 2 (half-cells), y := 22
+	call RENDER_TEXT
 
-.wait_for_key:	call	FRAME_CHECK
-	jr	.wait_for_key
+.wait_for_key:	call FRAME_CHECK
+	jr .wait_for_key
 
 	; Wait a frame, check for (keyboard) input, and quit to REPL as soon as that happens.
 FRAME_CHECK:	halt
-	ex	af,af'
-	ld	a, (G.KEY_CHAR)
-	or	a
-	jp	nz,POP_AND_REPL
-	ex	af,af'
+	ex af,af'
+	ld a,(G.KEY_CHAR)
+	or a
+	jp nz,POP_AND_REPL
+	ex af,af'
 	ret
 
 STRIPE_n:
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,
 	; A: x-position (0–45); D: trailing attribute; E: leading attribute; B: number of trailing cells (1+)
 	; B,C,D,E,H,L preserved; A incremented by B
-	push	hl
-	push	bc
-	ld	c, e
-	call	STRIPE
-	ld	c, d
+	push hl
+	push bc
+	ld c,e
+	call STRIPE
+	ld c,d
 
-.trail_loop:	dec	a
-	call	STRIPE
-	djnz	.trail_loop
-	pop	bc
-	pop	hl
-	add	b
-	add	b
+.trail_loop:	dec a
+	call STRIPE
+	djnz .trail_loop
+	pop bc
+	pop hl
+	add b
+	add b
 	ret
 
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,
 	; A: x-position (0–45); C: attribute to paint
 	; A,F,B,C,D,E preserved; H,L trashed
 STRIPE:
-	push	af
-	push	bc
-	push	de
-	ld	de, 32
-	ld	h, $58	; HL := attribute pointer
-	ld	l, a
-	sub	e
-	jr	nc, .stripe_rightoff	; Stripe position is beyond edge of screen
-	ld	a, l
-	ld	b, 12
-	cp	b	; half of screen height
-	jr	nc, .loop	; pattern is uninterrupted, and does not cross off screen
+	push af
+	push bc
+	push de
+	ld de,32
+	ld h,$58	; HL := attribute pointer
+	ld l,a
+	sub e
+	jr nc,.stripe_rightoff	; Stripe position is beyond edge of screen
+	ld a,l
+	ld b,12
+	cp b	; half of screen height
+	jr nc,.loop	; pattern is uninterrupted, and does not cross off screen
 .stripe_leftoff:
-	inc	a
+	inc a
 .counter_is_in_a
-	ld	b, a
+	ld b,a
 .loop:
-	ld	(hl), c
-	add	hl, de
-	ld	(hl), c
-	add	hl, de
-	dec	l
-	djnz	.loop
-	pop	de
-	pop	bc
-	pop	af
+	ld (hl),c
+	add hl,de
+	ld (hl),c
+	add hl,de
+	dec l
+	djnz .loop
+	pop de
+	pop bc
+	pop af
 	ret
 .stripe_rightoff:
-	inc	a	; a := distance past last column + 1
-	add	a	; a := double that (so row to start painting on)
-	ld	b, a	; b := same thing (but in B, to use as counter)
-	ld	a, 32+12
-	sub	l	; a := height (in double cells) of stripe to paint
-	ld	l, 31	; l := 31 (last column)
+	inc a	; a := distance past last column + 1
+	add a	; a := double that (so row to start painting on)
+	ld b,a	; b := same thing (but in B, to use as counter)
+	ld a,32+12
+	sub l	; a := height (in double cells) of stripe to paint
+	ld l,31	; l := 31 (last column)
 .drop_down:
-	add	hl, de
-	djnz	.drop_down
-	jr	.counter_is_in_a
+	add hl,de
+	djnz .drop_down
+	jr .counter_is_in_a
 
 COPYRIGHT_TEXT:
-	db	$a9,' 1982 Sinclair Research Ltd.'
+	db $a9,' 1982 Sinclair Research Ltd.'
 .length	= $ - COPYRIGHT_TEXT
 
 INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
-.font:	dw	FONT_LOOKUP
-.repdel:	db	35
-.repper:	db	5
-.i_handler:	jp	DEFAULT_INTERRUPT_HANDLER
+.font:	dw FONT_LOOKUP
+.repdel:	db 35
+.repper:	db 5
+.i_handler:	jp DEFAULT_INTERRUPT_HANDLER
 .length
 
 	; Copies User Defined Graphics into RAM
 	; We depend on the destination buffer fitting inside a 256-byte page, and do all-8-bit maths.
 	; We also depend on ALL UDG template characters being 2 half-cells wide, 6 pixels tall and
 	; 1 pixel of top leading.
-	ASSERT	(UDG_RAM_START & $ff) + UDG_RAM_LENGTH <= 256
-	ASSERT	FONT_DATA.udg_are_all_6px_high_with_1px_leading == 1
-RESET_UDG:	push	hl
-	push	de
-	push	bc
+	ASSERT (UDG_RAM_START & $ff) + UDG_RAM_LENGTH <= 256
+	ASSERT FONT_DATA.udg_are_all_6px_high_with_1px_leading == 1
+RESET_UDG:	push hl
+	push de
+	push bc
 
-	ld	de,FONT_DATA.udg_start
-	ld	hl,UDG_RAM_START
-	ld	c,16	; Count of UDG characters
-	xor	a	; Start with empty pixel line
+	ld de,FONT_DATA.udg_start
+	ld hl,UDG_RAM_START
+	ld c,16	; Count of UDG characters
+	xor a	; Start with empty pixel line
 .each_char:
-	ld	(hl),%1000000	; Transformed to 8-pixels-high and 0 leading
-	inc	l
-	ld	b,7	; 7 pixels tall INCLUDING leading
+	ld (hl),%1000000	; Transformed to 8-pixels-high and 0 leading
+	inc l
+	ld b,7	; 7 pixels tall INCLUDING leading
 
-.pixel_data:	ld	(hl),a
-	inc	l
-	inc	de	; First iteration, this skips past glyph header
-	ld	a,(de)
-	djnz	.pixel_data
+.pixel_data:	ld (hl),a
+	inc l
+	inc de	; First iteration, this skips past glyph header
+	ld a,(de)
+	djnz .pixel_data
 
-	xor	a
-	ld	(hl),a
-	inc	l
-	dec	c
-	jr	nz,.each_char
+	xor a
+	ld (hl),a
+	inc l
+	dec c
+	jr nz,.each_char
 
-	pop	bc
-	pop	de
-	pop	hl
+	pop bc
+	pop de
+	pop hl
 	ret
