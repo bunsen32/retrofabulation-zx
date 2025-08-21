@@ -1,0 +1,436 @@
+	INCLUDE './tokens.def.z80'
+
+	; DE: text stream
+	; HL: token stream
+TOKENISE:	push bc
+	push ix
+	or a	; Clear carry flag
+	ex af,af'	; Alt carry flag = UNSET
+	push af	; Store caller’s AF'
+	ld ixh,.complex_symbol_dispatch>>8
+	call .next
+	ld (hl),0	; Add terminating zero to token stream.
+	inc hl
+	pop af
+	ex af,af'	; Restore caller’s AF'
+	pop ix
+	pop bc
+	ret
+
+.next:	ld a,(de)
+	ld c,a
+	ld b,TOKEN_LOOKUP>>8
+	ld a,(bc)
+	or a	; Clear carry flag (for start word)
+	rra
+	jr c,.start_word
+.start_symbol:	rra
+	jr nc,.simple_symbol
+.complex_symbol:	inc de	; Peek next char.
+	inc b	; Next page: dispatch table
+	ld c,a
+	ld a,(bc)
+	dec b	; Prev page: category table
+	ld ixl,a
+	jp (ix)
+
+	; SYMBOL
+.simple_symbol:	or a	; Compare to zero
+	jp nz,.inc_token_in_a
+	jp .invalid_sym
+
+	; IDENTIFIER OR RESERVED WORD
+.start_word:	; Character is alphanumeric (including non-Latin letters), or ‘_’.
+	cp TOKEN_LOOKUP.digit>>1
+	jp nc,.number	; If starts with a digit, parse number.
+	push de	; Start of word.
+	ld ixl,c	; Stash first character
+	inc de
+	ld a,(de)	; Fetch second character
+	ld c,a
+	ld a,(bc)	; Get type of second character
+	cp TOKEN_LOOKUP.in_token
+	jr nc,.two_plus
+
+.one_char_ident:	; Identifier 1 character long
+	pop af	; Discard start of word.
+	ld a,ixl	; Retrieve first char.
+	cp '_'
+	ld b,TOK_DISCARD
+	jp z,.token_in_b
+	ld b,TOK_RAW_IDENT1
+	ex af,af'
+	rl b
+	ex af,af'
+	ld (hl),b
+	inc hl
+	ld (hl),a
+	jp .after_token_incHL
+
+.two_plus:	; Identifier longer than 1 character
+	push hl	; Well be storing hash in H and length in L (nice!)
+	ld hl,(RESERVEDW_HASH.seed << 8)+1
+	ld a,ixl	; Retrieve first char
+	add h
+	rrca
+	xor RESERVEDW_HASH.xor
+	ld h,a	; h := hashed first character
+	
+.word_loop:	inc l	; Increase length
+	ld a,h	; Add char to hash
+	add c
+	rrca
+	xor RESERVEDW_HASH.xor
+	ld h,a
+	inc de
+	ld a,(de)
+	ld c,a
+	ld a,(bc)
+	cp TOKEN_LOOKUP.in_token
+	jr nc,.word_loop
+
+.word_end_loop:	ld a,l
+	cp 9
+	jp nc,.long_ident_pophl	; Too long; not reserved word.
+	ld a,h
+	and 63
+	sub RESERVEDW_HASH.first
+	jp c,.long_ident_pophl
+	add RESERVEDW_HASH & $ff	; Low byte of lookup hash table
+	ld c,a
+	ld b,RESERVEDW_HASH >> 8	; High byte of lookup hash table
+	ld a,(bc)
+	or a
+	jp z,.long_ident_pophl
+	ld b,l
+	ld h,TOKENS_TEXT>>8	; TOKENS_TEXT is within 256-byte page.
+	ld l,a
+	ld c,a	; Stash copy of r'word token code
+	ld l,(hl)	; Jump to r'word characters
+	ld a,(hl)	; Fetch r'word length
+	cp b	; Same as scanned length?
+	jp nz,.long_ident_pophl
+	push de	; Stash end of token
+	add l	; <length>A + <pointer>L
+	ld l,a	; L := last char of r'word
+.check_loop:	dec de
+	ld a,(de)
+	cp (hl)
+	jr nz,.no_hash_match
+	dec l	; DEC [H]L
+	djnz .check_loop
+	pop de	; Restore end of token pointer
+	pop hl
+	pop af	; Discard pushed start of word.
+	ld a,c
+	jp .token_in_a	; Hash matches, and text matches!
+.no_hash_match:	pop de	; Restore end of token pointer
+	pop hl
+	jp .long_ident
+
+.complex_symbol_dispatch:
+	SAME_PAGE .exclam
+
+.null:	ret
+
+	; MINUS SIGN (AS HYPHEN)
+.minus_alt:	ld a,(de)
+	ld c,a
+	ld a,(bc)	; Look up category of next char
+	cp TOKEN_LOOKUP.digit
+	ld a,TOK_X_SUB
+	jp c,.token_in_a
+	jp .number_dec_de
+
+	; MINUS SIGN (AS EN-DASH)
+.minus:	ld a,(de)
+	ld c,a
+	ld a,(bc)	; Look up category of next char
+	cp TOKEN_LOOKUP.digit
+	ld a,TOK_SUB
+	jp c,.token_in_a
+	jp .number_dec_de
+
+	; DIVIDE AND FLOOR-DIVISION
+.slash:	ld a,(de)
+	cp '/'
+	ld a,TOK_DIV
+	jp nz,.token_in_a	; Was not followed by another slash. So plain "/" (divide)
+	ld a,TOK_FLOORDIV	; WAS followed by another slash. So "//" (floor div)
+	jp .inc_token_in_a
+
+	; MULTIPLY OR EXPONENT
+.asterisk:	ld a,(de)
+	cp '*'
+	ld a,TOK_X_MUL
+	jp nz,.token_in_a	; Was not followed by another asterisk. So plain "*" (multiply)
+	ld a,TOK_EXP	; WAS followed by another asterisk. So "**" (exponent)
+	jp .inc_token_in_a
+
+	; LESS-THAN (AND <=, <>, <<)
+.lt:	ld a,(de)
+	cp '='
+	ld b,TOK_X_LE	; ‘<=’: Longhand less-than-or-equal ‘≤’
+	jp z,.inc_token_in_b
+	cp '>'
+	ld b,TOK_X0_NE	; ‘<>’: BASIC-style not-equal operator ‘≠’
+	jp z,.inc_token_in_b
+	cp '<'
+	ld b,TOK_LT	; ‘<<’
+	jp nz,.token_in_b	; NOT followed by equals or less-than. So plain "<" (less-than)
+	ld a,TOK_BITSL
+	jp .inc_token_in_a
+
+	; GREATER-THAN (AND >=, >>)
+.gt:	ld a,(de)
+	cp '>'
+	ld b,TOK_BITSR
+	jp z,.inc_token_in_b
+	cp '='
+	ld a,TOK_GT
+	jp nz,.token_in_a	; Was NOT followed by equals. So plain ">" (less-than)
+	ld a,TOK_X_GE	; WAS followed by equals. So ">=" (greater-or-equal ‘≥’)
+	jp .inc_token_in_a
+
+	; MODULUS OPERATOR AND BINARY LITERAL
+.percent:	or a	; (<carry> = 0)
+	ld a,(de)
+	ld b,TOK_MOD
+	rra	; Get rid of low bit (don't care if it’s ‘0’ or ‘1’ for now)
+	cp '0'>>1
+	jp nz,.token_in_b
+	push de	; Capture some binary:
+.bin_loop	inc de
+	ld a,(de)
+	cp '_'
+	jr z,.bin_loop
+	or a
+	rra
+	cp '0'>>1
+	jr z,.bin_loop
+	ld a,TOK_RAW_BININT>>1
+	jp .long_token_inclfirst
+
+	; HEX LITERAL
+.dollar:	ld a,(de)	; Look for hex literal…
+	ld c,a
+	ld a,(bc)
+	cp TOKEN_LOOKUP.hex_digit
+	ld a,'$'
+	jp c,.invalid1
+	push de	; Capture some hex digits:
+.hex_loop	inc de
+	ld a,(de)
+	cp '_'
+	jr z,.hex_loop
+	ld c,a
+	ld a,(bc)
+	cp TOKEN_LOOKUP.hex_digit
+	jr nc,.hex_loop
+	ld a,TOK_RAW_HEXINT>>1
+	jp .long_token_inclfirst
+
+	; OPEN-QUOTE (FOR STRING)
+.quote:	push de	; Include the opening quote in the capture
+.string_loop:	ld a,(de)
+	inc de
+	cp '"'
+	jr z,.string_end
+	cp $94	; Double-quote close
+	jr z,.string_end
+	or a	; Check for end of line
+	jr nz,.string_loop
+.string_unterminated:	dec de	; Reverse back over \0 terminator.
+	jp .invalid_tok_inclfirst	; [or skip next 2 bytes]
+.string_end:	ld a,TOK_RAW_STRING>>1
+	jp .long_token_inclfirst
+
+	; COMMENT
+.hash:	push de
+.comment_loop:	ld a,(de)	; Tokenise comment!
+	inc de
+	or a
+	jr nz,.comment_loop
+	dec de
+	ld a,TOK_RAW_COMMENT>>1
+	jp .long_token_inclfirst
+
+	; SPACE
+.extra_space:	; Should not occur, but encode run of spaces.
+	; (Only encode one at a time. No point in optimising for bad code.)
+	ld (hl),TOK_EXTRASPACE<<1 ; By definition never "no separator"
+	inc hl
+	jp .next
+
+	; NOT-EQUALS ("!=" syntax)
+.exclam:	ld a,(de)	; Parse '!' (Either '!=' or invalid)
+	cp '='
+	ld b,TOK_X_NE
+	jp z,.inc_token_in_b
+	ld a,'!'
+.invalid1	ld b,TOK_RAW_INVALID1
+	ex af,af'
+	rl b
+	ex af,af'
+	ld (hl),b
+	inc hl
+	ld (hl),a
+	jp .after_token_incHL
+
+	; NEGATIVE NUMBER
+.number_dec_de	dec de	; Must include minus symbol in token
+	; fall through to number	
+
+	; INTEGER OR FLOAT LITERAL
+.number:	push de	; Capture start position
+	ld b,0	; Count the decimal points
+.num_loop:	inc de
+	ld a,(de)
+	cp '0'
+	jr c,.not_digit
+	cp '9'+1
+	jr c,.num_loop
+.num_gt9:	cp $b7	; Middle-punct
+	jr z,.num_decimal_point	; Increment number of decimal points
+	cp '_'
+	jr z,.num_loop
+.not_digit:	cp '.'	; Period
+	jr z,.num_decimal_point	; Increment number of decimal points
+	and %11011111	; Upper-case it.
+	cp 'E'
+	jr z,.num_exp
+	; otherwise, end loop:
+.num_end:	ld a,TOK_RAW_DECINT>>1
+	djnz .long_token	; 0 decimal points: TOK_RAW_DECINT
+.num_is_real:	ld a,TOK_RAW_REAL>>1
+	jr .long_token	; 1 decimal point: TOK_RAW_REAL
+.num_decimal_point:	dec b
+	jr z,.num_is_real	; If already encountered a point, skip to end.
+	inc b	; B := 0
+	inc b	; B := 1
+	jr .num_loop
+
+.num_exp:	ex de,hl	; Scan real number exponent:
+	ld b,TOKEN_LOOKUP>>8	; Use HL for characters, and BC for lookup.
+	inc hl
+	ld c,(hl)	; Next char
+	ld a,(bc)	; Next char classification.
+	cp TOKEN_LOOKUP.digit
+	jr z,.num_exp_loop
+	cp TOK_ADD<<2	; Was plus?
+	jr z,.num_exp_1st_digit	; Now look for digit
+	and ~(TOKEN_LOOKUP.MINUS ^ TOKEN_LOOKUP.MINUS_ALT)
+	cp TOKEN_LOOKUP.MINUS
+	ld a,TOK_RAW_INVALID>>1
+	jr nz,.num_exp_end	; Wasn’t a minus (nor plus, nor digit)
+.num_exp_1st_digit:	inc hl	; Expect a digit now
+	ld c,(hl)	; Next char
+	ld a,(bc)	; Next char classification.
+	cp TOKEN_LOOKUP.digit
+	ld a,TOK_RAW_INVALID>>1
+	jr nz,.num_exp_end	; Wasn’t a digit :(
+	; Now just loop for digits til end:
+.num_exp_loop:	inc hl
+	ld c,(hl)	; Next char
+	ld a,(bc)	; Next char classification.
+	cp TOKEN_LOOKUP.digit
+	jr z,.num_exp_loop
+	ld a,TOK_RAW_REAL>>1
+.num_exp_end:	ex de,hl
+	jp .long_token
+	
+	; WRITE TOKEN
+.inc_token_in_b:	ld a,b
+
+.inc_token_in_a:	inc de
+.token_in_a:	ld b,a
+
+.token_in_b:	ex af,af'	; Carry-flag := missing space?
+	rl b	; B[0] := missing space? Carry-flag := UNSET
+	ex af,af'
+	ld (hl),b
+.after_token_incHL:	inc hl
+.token_expect_sep:	ld a,(de)
+	cp 32
+	jr nz,.not_space
+.is_space:	inc de	; Fine. We got a space, which indicates token separator.
+	jp .next
+.not_space:	or a
+	ret z	; Return if end of stream.
+	scf
+	ex af,af'	; Alt carry flag = SET
+	jp .next
+
+.invalid_sym_prev:	dec de	; We’d already incremented
+.invalid_sym:	push de
+	ld b,TOKEN_LOOKUP>>8
+.invalid_sym_loop:	inc de
+	ld a,(de)
+	ld c,a
+	ld a,(bc)
+	or a
+	jr z,.invalid_sym_loop	; Still invalid!
+	; Will automatically exit loop on '\0' (since its category is non-zero)
+	ld a,TOK_RAW_INVALID>>1
+	jr .long_token
+
+.invalid_tok_inclfirst:	ld a,TOK_RAW_INVALID>>1
+.long_token_inclfirst:	pop bc	; BC := point to start of content
+	dec bc
+	jr .long_token_after_pop
+
+	; WRITE ‘LONG’ TOKENS
+.long_ident_pophl:	pop hl
+.long_ident:	ld a,TOK_RAW_IDENT>>1
+.long_token:	; It’s a token composed of several characters. Write it to the stream.
+	; A: token byte; DE: point to after token content; <stack>: point to start of content.
+	pop bc	; BC := point to start of token
+.long_token_after_pop:	; BC = start of token
+	push de	; Save the "end of content" pointer (to later restore it)
+	ex de,hl
+	or a	; Clear Carry bit
+	sbc hl,bc	; HL := length of token. (Assume H == 0)
+	ex de,hl	; HL := token ptr, E := length of token
+	dec e
+	jr nz,.longlong_token
+.shortlong_token:
+	scf
+	rla	; Shift left, 1 in LSb
+	ex af,af'
+	jr c,.shortlong_nosep
+	ex af,af'
+.shiftlong_writeType:	rla	; Shift again, put carry in bit 0
+	ld (hl),a
+	inc hl
+	ld a,(bc)	; A := the singular character
+	ld (hl),a	; Write to token stream
+	jr .long_token_end
+.longlong_token:
+	inc e
+	rlca	; Shift left, 0 in LSb
+	ex af,af'
+	jr c,.longlong_nosep
+	ex af,af'
+.longlong_writeType	rla	; Shift again, put carry in bit 0
+	ld (hl),a
+	inc hl	; Write token ID to the token stream.
+	ld (hl),c
+	inc hl
+	ld (hl),b
+	inc hl	; Write <start> to the token stream
+	ld (hl),e
+.long_token_end:	inc hl
+	pop de	; DE := character pointer
+	jp .token_expect_sep
+
+.longlong_nosep:	ex af,af'	; Get back ‘current’ A
+	scf
+	jr .longlong_writeType
+.shortlong_nosep:	ex af,af'	; Get back ‘current’ A
+	scf
+	jr .shiftlong_writeType
+
+	INCLUDE './tokens.lookup.z80'
+	ALIGN 256
+	INCLUDE './tokens.text.z80'
+	INCLUDE './tokens.hash.z80'
