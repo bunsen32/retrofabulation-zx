@@ -1,6 +1,6 @@
 // Test the startup sequence:
 import { describe, it } from "jsr:@std/testing/bdd";
-import {loadVm, type Vm} from './testutils/testvm.ts'
+import {hex16, loadVm, type Vm} from './testutils/testvm.ts'
 import {getScreenMono, type Bitmap, cls1, getScreenColour, assertBitmapImageMatches, clearAttrs} from "./testutils/screen.ts"
 import {rom} from './generated/symbols.ts'
 import { existsSync } from "node:fs";
@@ -154,11 +154,4 @@ function writeZigzags(vm: Vm) {
 			p++
 		}
 	}
-}
-
-export function hex16(word: number): string {
-	const hex = word.toString(16)
-	return hex.length === 1
-		? `0${hex}`
-		: hex
 }

@@ -182,8 +182,10 @@ export class Vm {
 		const tStatesPlusOverhead = forTStates + 17 + 4 // Add overhead for CALL + HALT
 		this.setRegisters({SP: stackTop})
 		this.runPcAt({addr:0x8000}, tStatesPlusOverhead)
+		const {SP} = this.getRegisters()
 
 		expect(this.core.getHalted(), `Should have HALTED (PC=${this.core.getPC()})`).toBe(1)
+		expect(SP, `Subroutine should balance stack (SP=${hex16(SP)})`).toBe(stackTop)
 	}
 }
 
@@ -271,3 +273,9 @@ export function asString(bytesOrString: ArrayLike<byte>|string): string {
 	return str
 }
 
+export function hex16(word: number): string {
+	const hex = word.toString(16)
+	return hex.length === 1
+		? `0${hex}`
+		: hex
+}
