@@ -7,7 +7,7 @@ SCR_ISSUE_RIGHT	EQU 0b0100
 	ds 63
 
 	; Buffer: [xxxxxx|xxxx-----]
-	; A: scratch register
+	; A,A': scratch registers
 	; HL: screen position of cursor (row,half-cell)
 	; DE: buffer position of cursor (byte pointer)
 	; B : characters prior to cursor
