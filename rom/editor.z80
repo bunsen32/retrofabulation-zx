@@ -7,7 +7,7 @@ SCR_ISSUE_RIGHT	EQU 0b0100
 	ds 63
 
 	; Buffer: [xxxxxx|xxxx-----]
-	; A,A': scratch registers
+	; A: scratch register (trashed)
 	; HL: screen position of cursor (row,half-cell)
 	; DE: buffer position of cursor (byte pointer)
 	; B : characters prior to cursor
@@ -16,6 +16,7 @@ SCR_ISSUE_RIGHT	EQU 0b0100
 	; C': Current line number (1-based)
 	; HL': screen position of column-zero (row,half-cell)
 	; DE': buffer position of column-zero (we push lines on, and pop them off)
+	; AF',IX,IY,others: Unmodified
 EDITOR:	
 .frame_loop:	halt 	; Wait for some potential keyboard input.
 	push hl
@@ -30,13 +31,8 @@ EDITOR:
 	jr z,.frame_loop
 	call LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
 	or a
-	call nz,.screen_cmd
+	call nz,SCREEN_EDIT_CMD
 	jr .frame_loop
-
-	; Cycle back round again and move cursor right
-.right_by_one:	ld a,CHAR_RIGHT
-	call LINE_EDIT
-	; fallthrough to .screen_cmd
 
 	// If we get here, we (might) need to move between lines, or redraw the display.
 	// Implies a cursor move/reset too. Takes in bits of A:
@@ -46,11 +42,17 @@ EDITOR:
 	// 2: Issue CURSOR_RIGHT key to move cursor after inserting a character.
 	// 3–6: <unused>
 	// 7: (Can be set to 1 to show cursor and do nothing else.)
-.screen_cmd:	ex af,af'
+SCREEN_EDIT_CMD:	ex af,af'
+	push af	; Stash AF' from caller
 	call HIDE_CURSOR
 	ex af,af'
-.bit_A:
-	rra 	; Bit A+0: vertical movement (up or down arrow)
+	jr .bit_A
+
+	; Cycle back round again and move cursor right
+.right_by_one:	ld a,CHAR_RIGHT
+	call LINE_EDIT
+
+.bit_A:	rra 	; Bit A+0: vertical movement (up or down arrow)
 	jr c,.mov_vertical
 
 	// Sort out cursor position. If it’s to the left of the allowed screen area,
@@ -114,6 +116,8 @@ EDITOR:
 .end_screen_cmd:	; Set new cursor position & display it:
 	ld (G.CURSOR_XY),hl
 	call SHOW_CURSOR
+	pop af
+	ex af,af'	; Restore AF' from caller
 	ret
 
 .mov_vertical:	rra 	; Bit A+1: 0=UP 1=DOWN

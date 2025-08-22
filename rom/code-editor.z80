@@ -74,7 +74,7 @@ CODE_EDITOR:
 	jr z,.no_key
 	call LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
 	or a
-	call nz,EDITOR.screen_cmd
+	call nz,SCREEN_EDIT_CMD
 	jr .frame_loop
 
 .no_key:	; No key was pressed, so we can do OTHER things…
