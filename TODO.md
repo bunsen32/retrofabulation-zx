@@ -51,8 +51,12 @@
 * [ ] Code variant of text editor, which does some ‘lexing’ (transform input to insert some spaces, prevent multiple spaces, transform some characters—like sigils)
 
 ### Tokeniser
+* [ ] BUG! Space after identifier not being recognised?
+* [ ] Change space-before-token semantics to be more consistent, including for first token. 1 should indicate space.
 * [ ] Tokeniser running opportistically.
 * [ ] Syntax colouring
+  * [ ] Distinguish categories of tokens and select colour from colour scheme
+  * [ ] Tokens are coloured live inline in edited text.
 * [ ] PARSING…
   * [x] ~~Numbers with leading minus sign~~ [Done!]
 	* [ ] Numbers with leading plus sign?
