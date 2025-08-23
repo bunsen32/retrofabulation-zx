@@ -60,6 +60,8 @@ REPL:
 	; C': Current line number (1-based)
 	; HL': screen position of column-zero (row,half-cell)
 	; DE': buffer position of column-zero (we push lines on, and pop them off)
+
+	; AF': Carry' = buffer-dirty?
 CODE_EDITOR:	
 .frame_loop:	halt 	; Wait for some potential keyboard input.
 	push hl
@@ -71,33 +73,48 @@ CODE_EDITOR:
 	pop hl
 
 	or a
-	jr z,.no_key
+	jr z,.do_other_stuff
 	call LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
 	or a
+	jr z,.do_other_stuff
+	push af
+	rra	; Examine low bit
+	jr c,.no_redraw	; Low bit = 1 => cursor move.
+	rra	; Examine next bit (redraw)
+	jr nc,.no_redraw
+	ex af,af'
+	scf	; Set buffer dirty
+	ex af,af'
+.no_redraw:	pop af
 	call nz,SCREEN_EDIT_CMD
 	jr .frame_loop
 
-.no_key:	; No key was pressed, so we can do OTHER things…
-	push hl
+.do_other_stuff:	; No key was pressed, so we can do OTHER things…
+	ex af,af'	; Check dirty flag in AF'
+	jr nc,.frame_loop
+
+.is_dirty:	push hl
 	push de
 	push bc
 	ASSERT (TEXT_BUFFER & $ff) == 0
-	ld d,TEXT_BUFFER>>8
+	ld d,TEXT_BUFFER>>8	; Add null-terminator to text:
 	ld a,b
-	add c
+	add c	; Find end of text...
 	ld e,a
 	xor a
-	ld (de),a
+	ld (de),a	; ...and add \0
 	ld e,a
 	ld hl,TOKEN_BUFFER
 	call TOKENISE
 	ld hl,$0901
 	ld de,TOKEN_BUFFER
 	ld c,$40
-	call RENDER_TOKENISED
+	call RENDER_TOKENISED	; (This will trash our dirty flag in F')
 	pop bc
 	pop de
 	pop hl
+	or a	; Clear (primary) carry flag
+	ex af,af'	; AF' Dirty flag is now clear.
 	jr .frame_loop
 
 	; Render stream of tokens as text to the screen. Similar model to RENDER_TEXT (it keeps going
@@ -128,7 +145,7 @@ RENDER_TOKENISED:
 	jr nc,.token_is_raw
 .token_is_simple:		; It’s a ‘simple’ token: reserved word or symbol.
 	or a
-	ret z
+	ret z	; Return if null.
 	push de
 	ld d,TOKENS_TEXT>>8
 	ld e,a
