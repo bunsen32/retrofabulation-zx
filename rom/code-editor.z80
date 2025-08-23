@@ -106,7 +106,7 @@ CODE_EDITOR:
 	ld e,a
 	ld hl,TOKEN_BUFFER
 	call TOKENISE
-	ld hl,$0901
+	ld hl,$0900
 	ld de,TOKEN_BUFFER
 	ld c,$40
 	call RENDER_TOKENISED	; (This will trash our dirty flag in F')
@@ -124,15 +124,11 @@ CODE_EDITOR:
 	; DE: Token stream
 	; C: (max) number of columns (half-cells) allowed
 RENDER_TOKENISED:
-	ld a,(de)
-	inc de
-	srl a
-	jr .missing_sep_space	; First token never has preceding space!
 
 .loop:	ld a,(de)
 	inc de
-	srl a	; Carry := is_omitted_separator_space?
-	jr c,.missing_sep_space	; No space between previous token and this one
+	srl a	; Carry := was_previous_space?
+	jr nc,.missing_sep_space	; No space between previous token and this one
 	push de
 	ld de,TWO_SPACES
 	ld b,1

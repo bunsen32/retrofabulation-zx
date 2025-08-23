@@ -3,7 +3,7 @@ import {asString, loadVm, type word, type Vm} from './testutils/testvm.ts'
 import type { byte } from '@zx/sys'
 import { rom } from "./generated/symbols.ts";
 import { expect } from "jsr:@std/expect/expect";
-import {EncodingFromSymbol, ReservedWords, tok, tokNoSpace} from './tokeniser.symbols.ts'
+import {EncodingFromSymbol, ReservedWords, tok, spaceTok} from './tokeniser.symbols.ts'
 
 const loadedVm = loadVm()
 
@@ -48,7 +48,7 @@ describe("Tokeniser", () => {
 
 				const result = whenTokenised(text)
 
-				expect(result.tokenBytes).toEqual([tok(token), tokNoSpace('DOT')])
+				expect(result.tokenBytes).toEqual([tok(token), tok('DOT')])
 			})
 		}
 	})
@@ -61,7 +61,7 @@ describe("Tokeniser", () => {
 
 				const result = whenTokenised(text)
 
-				expect(result.tokenBytes).toEqual([tok(token), tok('DOT')])
+				expect(result.tokenBytes).toEqual([tok(token), spaceTok('DOT')])
 			})
 		}
 	})
@@ -75,7 +75,7 @@ describe("Tokeniser", () => {
 
 				const result = whenTokenised(text)
 
-				expect(result.tokenBytes).toEqual([tok('RAW_INVALID1'), symbol.charCodeAt(0), tokNoSpace('RAW_INVALID1'), symbol.charCodeAt(0)])
+				expect(result.tokenBytes).toEqual([tok('RAW_INVALID1'), symbol.charCodeAt(0), tok('RAW_INVALID1'), symbol.charCodeAt(0)])
 			})
 		}
 	})
@@ -155,7 +155,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('DOT'), tok('DOT')])
+		expect(result.tokenBytes).toEqual([tok('DOT'), spaceTok('DOT')])
 	})
 
 	it(`Interprets ‘.  .’ as encoding DOT,EXTRASPACE,DOT`, async () => {
@@ -164,7 +164,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('DOT'), tok('EXTRASPACE'), tok('DOT')])
+		expect(result.tokenBytes).toEqual([tok('DOT'), spaceTok('EXTRASPACE'), tok('DOT')])
 	})
 
 	it(`Interprets ‘.   .’ as encoding DOT,EXTRASPACE,EXTRASPACE,DOT`, async () => {
@@ -173,7 +173,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('DOT'), tok('EXTRASPACE'), tok('EXTRASPACE'), tok('DOT')])
+		expect(result.tokenBytes).toEqual([tok('DOT'), spaceTok('EXTRASPACE'), spaceTok('DOT')])
 	})
 
 	it("Interprets ‘%0’ as RAW_BININT", async () => {
@@ -425,7 +425,7 @@ describe("Tokeniser", () => {
 
 		const result = whenTokenised(text)
 
-		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3, tokNoSpace('DOT'), tokNoSpace('RAW_DECINT1'), '6'.charCodeAt(0)])
+		expect(result.tokenBytes).toEqual([tok('RAW_REAL'), 0x00, 0x90, 3, tok('DOT'), tok('RAW_DECINT1'), '6'.charCodeAt(0)])
 	})
 
 	it("Interprets ‘i’ as RAW_IDENT1", async () => {
@@ -532,7 +532,7 @@ describe("Tokeniser", () => {
 
 	describe('Sequence of tokens', () => {
 		const cases = {
-			'import if': [tok('IMPORT'), tok('IF')]
+			'import if': [tok('IMPORT'), spaceTok('IF')]
 		}
 		for(const [str, expectedTokens] of Object.entries(cases)) {
 			it(`Tokenises “${str}”`, async () => {

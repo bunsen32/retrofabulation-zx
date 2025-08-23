@@ -9,10 +9,10 @@
 TOKENISE:	push bc
 	push ix
 	or a	; Clear carry flag
-	ex af,af'	; Alt carry flag = UNSET
+	ex af,af'	; Alt carry flag = cleared (=> ‘no preceding space’)
 	push af	; Store caller’s AF'
 	ld ixh,.complex_symbol_dispatch>>8
-	call .next
+	call .first
 	ld (hl),0	; Add terminating zero to token stream.
 	inc hl
 	pop af
@@ -21,7 +21,9 @@ TOKENISE:	push bc
 	pop bc
 	ret
 
-.next:	ld a,(de)
+.ccf_next:	ccf
+.next:	ex af,af'
+.first:	ld a,(de)
 	ld c,a
 	ld b,TOKEN_LOOKUP>>8
 	ld a,(bc)
@@ -262,9 +264,8 @@ TOKENISE:	push bc
 	; SPACE
 .extra_space:	; Should not occur, but encode run of spaces.
 	; (Only encode one at a time. No point in optimising for bad code.)
-	ld (hl),TOK_EXTRASPACE<<1 ; By definition never "no separator"
-	inc hl
-	jp .next
+	ld b,TOK_EXTRASPACE
+	jr .token_in_b
 
 	; NOT-EQUALS ("!=" syntax)
 .exclam:	ld a,(de)	; Parse '!' (Either '!=' or invalid)
@@ -350,20 +351,18 @@ TOKENISE:	push bc
 .token_in_a:	ld b,a
 
 .token_in_b:	ex af,af'	; Carry-flag := missing space?
-	rl b	; B[0] := missing space? Carry-flag := UNSET
-	ex af,af'
+	rl b	; B[0] := preceding space? (New value calculated below.)
 	ld (hl),b
 .after_token_incHL:	inc hl
 .token_expect_sep:	ld a,(de)
 	cp 32
 	jr nz,.not_space
 .is_space:	inc de	; Fine. We got a space, which indicates token separator.
-	jp .next
-.not_space:	or a
+	jp .ccf_next	; Carry flag is clear, (because z flag is set) so invert it.
+
+.not_space:	or a	; Check for \0
 	ret z	; Return if end of stream.
-	scf
-	ex af,af'	; Alt carry flag = SET
-	jp .next
+	jp .next	; Carry flag is cleared by "or a"
 
 .invalid_sym_prev:	dec de	; We’d already incremented
 .invalid_sym:	push de
