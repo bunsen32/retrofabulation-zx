@@ -137,7 +137,7 @@ RENDER_TOKENISED:
 	ld a,(de)
 	inc e
 	ld b,a
-	ld a,0b00000010	; Red ink, white paper
+	ld a,0b00111010	; Red ink, white paper
 	call RENDER_TEXT
 	ex af,af'	; Stash attributes
 	pop de
