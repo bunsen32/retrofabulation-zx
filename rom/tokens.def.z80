@@ -8,6 +8,7 @@ TOK_LT	EQU 3	; <
 TOK_LE	EQU 4	; ≤
 TOK_GT	EQU 5	; >
 TOK_GE	EQU 6	; ≥
+; Arithmetic:
 TOK_ADD	EQU 7	; +
 TOK_SUB	EQU 8	; –
 TOK_MUL	EQU 9	; ×
@@ -15,6 +16,7 @@ TOK_DIV	EQU 10	; /
 TOK_FLOORDIV	EQU 11	; //
 TOK_MOD	EQU 12	; %
 TOK_EXP	EQU 13	; **
+; Bit operators:
 TOK_BITAND	EQU 14	; &
 TOK_BITOR	EQU 15	; |
 TOK_BITINV	EQU 16	; ~ [unary operator]
@@ -22,52 +24,52 @@ TOK_BITSL	EQU 17	; <<
 TOK_BITSR	EQU 18	; >>
 TOK_BITXOR	EQU 19	; ^
 
-TOK_LOGOR	EQU 20	; 'or'
-TOK_LOGAND	EQU 21	; 'and'
-TOK_LOGNOT	EQU 22	; 'not' [unary operator]
-
-TOK_EXTRASPACE	EQU 23	; ' '
+TOK_EXTRASPACE	EQU 20	; ' '
 
 ; These tokens are alternate versions of operators. Can usually subtract 24 to get to canonical:
-TOK_X0_NE	EQU 24	; <>	(Canonical glyph is ‘≠’)
-TOK_X_NE	EQU 24+TOK_NE	; !=	(Canonical glyph is ‘≠’)
-TOK_X_LE	EQU 24+TOK_LE	; <=	(Canonical glyph is ‘≤’)
-TOK_X_GE	EQU 24+TOK_GE	; >=	(Canonical glyph is ‘≥’)
-TOK_X_SUB	EQU 24+TOK_SUB	; -	(Canonical glyph is n-dash for minus, not hyphen)
-TOK_X_MUL	EQU 24+TOK_MUL	; *	(Canonical glyph is cross-multiply symbol, not asterisk)
+; TODO: Could possibly arrange these to fall in an 16-aligned block… easier to test for.
+TOK_X0_NE	EQU 21	; <>	(Canonical glyph is ‘≠’)
+TOK_X_NE	EQU 21+TOK_NE	; !=	(Canonical glyph is ‘≠’)
+TOK_X_LE	EQU 21+TOK_LE	; <=	(Canonical glyph is ‘≤’)
+TOK_X_GE	EQU 21+TOK_GE	; >=	(Canonical glyph is ‘≥’)
+TOK_X_SUB	EQU 21+TOK_SUB	; -	(Canonical glyph is n-dash for minus, not hyphen)
+TOK_X_MUL	EQU 21+TOK_MUL	; *	(Canonical glyph is cross-multiply symbol, not asterisk)
 
-TOK_PI	EQU 35	; Pi
+TOK_X_PI	EQU 31	; ‘pi’	(Canonical is ‘π’)
+TOK_PI	EQU 32	; π
 
-TOK_SEMICOLON	EQU 36	; ;
-TOK_COLON	EQU 37	; :
-TOK_ASSIGN	EQU 38	; :=
-TOK_COMMA	EQU 39	; ,
-TOK_ARROPEN	EQU 40	; [
-TOK_ARRCLOSE	EQU 41	; ]
-TOK_PARENOPEN	EQU 42	; (
-TOK_PARENCLOSE	EQU 43	; )
-TOK_DOT	EQU 44	; .
+TOK_SEMICOLON	EQU 33	; ;
+TOK_COLON	EQU 34	; :
+TOK_ASSIGN	EQU 35	; :=
+TOK_COMMA	EQU 36	; ,
+TOK_ARROPEN	EQU 37	; [
+TOK_ARRCLOSE	EQU 38	; ]
+TOK_PARENOPEN	EQU 39	; (
+TOK_PARENCLOSE	EQU 40	; )
+TOK_DOT	EQU 41	; .
 
-TOK_DISCARD	EQU 45	; _
-TOK_AND	EQU 46	; and
-TOK_AS	EQU 47	; as
-TOK_BREAK	EQU 48	; break
-TOK_CONTINUE	EQU 49	; continue
-TOK_DEF	EQU 50	; def
-TOK_ELIF	EQU 51	; elif
-TOK_ELSE	EQU 52	; else
-TOK_FOR	EQU 53	; for
-TOK_IF	EQU 54	; if
-TOK_IMPORT	EQU 55	; import
-TOK_IN	EQU 56	; in
-TOK_LET	EQU 57	; let
-TOK_LOOP	EQU 58	; loop
-TOK_NOT	EQU 59	; not
-TOK_OR	EQU 60	; or
-TOK_PASS	EQU 61	; pass
-TOK_X_PI	EQU 62	; ‘pi’	(Canonical is ‘π’)
-TOK_RETURN	EQU 63	; return
-TOK_WHILE	EQU 64	; while
+TOK_DISCARD	EQU 42	; _
+TOK_LET	EQU 43	; let
+
+TOK_AND	EQU 44	; and
+TOK_OR	EQU 45	; or
+TOK_NOT	EQU 46	; not [unary operator]
+
+TOK_BREAK	EQU 47	; break
+TOK_CONTINUE	EQU 48	; continue
+TOK_ELIF	EQU 49	; elif
+TOK_ELSE	EQU 50	; else
+TOK_FOR	EQU 51	; for
+TOK_IF	EQU 52	; if
+TOK_IN	EQU 53	; in
+TOK_LOOP	EQU 54	; loop
+TOK_PASS	EQU 55	; pass
+TOK_RETURN	EQU 56	; return
+TOK_WHILE	EQU 57	; while
+
+TOK_DEF	EQU 58	; def
+TOK_IMPORT	EQU 59	; import
+TOK_AS	EQU 60	; as
 
 TOK_END_SIMPLE	EQU 65
 

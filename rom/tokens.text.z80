@@ -3,78 +3,76 @@
 TOKENS_TEXT:
 	SAME_PAGE TOKENS_TEXT.end_of_table
 	db 0
-.comparisons:	db .eq & $ff
-	db .ne & $ff
-	db .lt & $ff
-	db .le & $ff
-	db .gt & $ff
-	db .ge & $ff
+.comparisons:	db .eq & $ff	; 1
+	db .ne & $ff	; 2
+	db .lt & $ff	; 3
+	db .le & $ff	; 4
+	db .gt & $ff	; 5
+	db .ge & $ff	; 6
 
-.arithmetic:	db .add & $ff
-	db .sub & $ff
-	db .mul & $ff
-	db .div & $ff
-	db .floordiv & $ff
-	db .mod & $ff
-	db .exp & $ff
+.arithmetic:	db .add & $ff	; 7
+	db .sub & $ff	; 8
+	db .mul & $ff	; 9
+	db .div & $ff	; 10
+	db .floordiv & $ff	; 11
+	db .mod & $ff	; 12
+	db .exp & $ff	; 13
 
-.bit_operators:	db .bitand & $ff
-	db .bitor & $ff
-	db .bitinv & $ff
-	db .bitsl & $ff
-	db .bitsr & $ff
-	db .bitxor & $ff
+.bit_operators:	db .bitand & $ff	; 14
+	db .bitor & $ff	; 15
+	db .bitinv & $ff	; 16
+	db .bitsl & $ff	; 17
+	db .bitsr & $ff	; 18
+	db .bitxor & $ff	; 19
 
-	db .logor & $ff
-	db .logand & $ff
-	db .lognot & $ff
+	db .extraspace & $ff	; 20
 
-	db .extraspace & $ff	; 23
+	db .ne_alt0 & $ff	; 21
+	db 0	; 22 
+	db .ne_alt1 & $ff	; 23
+	db 0	; 24
+	db .le_alt & $ff	; 25
+	db 0	; 26
+	db .ge_alt & $ff	; 27
+	db 0	; 28
+	db .sub_alt & $ff	; 29
+	db .mul_alt & $ff	; 30
 
-	db .ne_alt0 & $ff	; 24
-	db 0	; 25 
-	db .ne_alt1 & $ff	; 26
-	db 0	; 27
-	db .le_alt & $ff	; 28
-	db 0	; 29
-	db .ge_alt & $ff	; 30
-	db 0	; 31
-	db .sub_alt & $ff	; 32
-	db .mul_alt & $ff	; 33
-	db 0	; 34
+	db .pi_alt & $ff	; 31
+	db .pi & $ff	; 32
 
-	db .pi & $ff
+.punctuation:	db .semicolon & $ff	; 33
+	db .colon & $ff	; 34
+	db .assign & $ff	; 35
+	db .comma & $ff	; 36
+	db .arropen & $ff	; 37
+	db .arrclose & $ff	; 38
+	db .parenopen & $ff	; 39
+	db .parenclose & $ff	; 40
+	db .dot & $ff	; 41
 
-.punctuation:	db .semicolon & $ff
-	db .colon & $ff
-	db .assign & $ff
-	db .comma & $ff
-	db .arropen & $ff
-	db .arrclose & $ff
-	db .parenopen & $ff
-	db .parenclose & $ff
-	db .dot & $ff
+.reserved_words:	db .discard & $ff	; 42
+	db .let & $ff	; 43
 
-.reserved_words:	db .discard & $ff
-	db .and & $ff
-	db .as & $ff
-	db .break & $ff
-	db .continue & $ff
-	db .def & $ff
-	db .elif & $ff
-	db .else & $ff
-	db .for & $ff
-	db .if & $ff
-	db .import & $ff
-	db .in & $ff
-	db .let & $ff
-	db .loop & $ff
-	db .not & $ff
-	db .or & $ff
-	db .pass & $ff
-	db .x_pi & $ff
-	db .return & $ff
-	db .while & $ff
+	db .and & $ff	; 44
+	db .or & $ff	; 45
+	db .not & $ff	; 46
+
+	db .break & $ff	; 47
+	db .continue & $ff	; 48
+	db .elif & $ff	; 49
+	db .else & $ff	; 50
+	db .for & $ff	; 51
+	db .if & $ff	; 52
+	db .in & $ff	; 53
+	db .loop & $ff	; 54
+	db .pass & $ff	; 55
+	db .return & $ff	; 56
+	db .while & $ff	; 57
+
+	db .def & $ff	; 58
+	db .import & $ff	; 59
+	db .as & $ff	; 60
 
 .as_strings:
 
@@ -142,7 +140,7 @@ TOKENS_TEXT:
 .not	db 3,'not'
 .or	db 2,'or'
 .pass	db 4,'pass'
-.x_pi	db 2,'pi'
+.pi_alt	db 2,'pi'
 .return	db 6,'return'
 .while	db 5,'while'
 
