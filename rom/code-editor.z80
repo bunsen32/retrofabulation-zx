@@ -93,9 +93,14 @@ CODE_EDITOR:
 	ex af,af'	; Check dirty flag in AF'
 	jr nc,.frame_loop
 
-.is_dirty:	push hl
+.is_dirty:
+	push hl
 	push de
 	push bc
+	exx
+	push hl
+	push bc
+	exx
 	ASSERT (TEXT_BUFFER & $ff) == 0
 	ld d,TEXT_BUFFER>>8	; Add null-terminator to text:
 	ld a,b
@@ -110,6 +115,10 @@ CODE_EDITOR:
 	ld de,TOKEN_BUFFER
 	ld c,$40
 	call RENDER_TOKENISED	; (This will trash our dirty flag in F')
+	exx
+	pop bc
+	pop hl
+	exx
 	pop bc
 	pop de
 	pop hl
@@ -136,12 +145,14 @@ RENDER_TOKENISED:
 	call RENDER_TEXT
 	ex af,af'	; Restore token identifer
 	pop de
+	ld c,a	; Stash token	
 .missing_sep_space:
 	cp TOK_END_SIMPLE
-	jr nc,.token_is_raw
-.token_is_simple:		; It’s a ‘simple’ token: reserved word or symbol.
+	jr nc,.long_raw_token
+.not_raw_token:		; It’s a ‘simple’ token: reserved word or symbol.
 	or a
 	ret z	; Return if null.
+.simple_token:
 	push de
 	ld d,TOKENS_TEXT>>8
 	ld e,a
@@ -155,15 +166,16 @@ RENDER_TOKENISED:
 	ex af,af'	; Stash attributes
 	pop de
 	jr .loop
-.token_is_raw:		; Carry = UNSET
+.long_raw_token:		; Carry = UNSET
 	rra	; Carry := is_single_character?
 	ld a,0b00111100	; Green ink, white paper
-	jr nc,.long_raw
-	ld b,1
+	jr nc,.longlong
+
+.shortlong:	ld b,1
 	call RENDER_TEXT
 	ex af,af'	; Stash attributes
 	jr .loop
-.long_raw:
+.longlong:
 	push hl
 	ex de,hl
 	ld e,(hl)
@@ -174,6 +186,6 @@ RENDER_TOKENISED:
 	inc hl
 	ex (sp),hl
 	call RENDER_TEXT
-	ex af,af'
+	ex af,af'	; Stash attributes
 	pop de
 	jr .loop
