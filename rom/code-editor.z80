@@ -133,7 +133,19 @@ CODE_EDITOR:
 	; DE: Token stream
 	; C: (max) number of columns (half-cells) allowed
 RENDER_TOKENISED:
-
+	exx
+	push hl
+	push de
+	ld hl,(G.CODE_PALETTE)
+	ex de,hl
+	exx
+	call .body
+	exx
+	pop de
+	pop hl
+	exx
+	ret
+.body:
 .loop:	ld a,(de)
 	inc de
 	srl a	; Carry := was_previous_space?
@@ -167,8 +179,16 @@ RENDER_TOKENISED:
 	pop de
 	jr .loop
 .long_raw_token:		; Carry = UNSET
+	ld b,a	; Stash token
+	exx	; Now look up colour
 	rra	; Carry := is_single_character?
-	ld a,0b00111100	; Green ink, white paper
+	and 0b111
+	ld l,a
+	ld h,0
+	add hl,de
+	ld a,(hl)	; A := attributes for token
+	exx
+	rr b	; Test lowest bit of token.
 	jr nc,.longlong
 
 .shortlong:	ld b,1
@@ -189,3 +209,16 @@ RENDER_TOKENISED:
 	ex af,af'	; Stash attributes
 	pop de
 	jr .loop
+
+CODE_PALETTE:
+	db 0b01000010	; Invalid
+	db 0b00111001	; String
+	db 0b00111010	; Identifier
+	db 0b00111011	; Comment
+	db 0b00111100	; Real
+	db 0b00111101	; Int (decimal)
+	db 0b00111110	; Int (hex)
+	db 0b00111001	; Int (binary)
+	db 0b00111001	; Operator
+	db 0b00111001	; Control flow
+	db 0b00111001	; Punctuation

@@ -212,6 +212,7 @@ COPYRIGHT_TEXT:
 
 INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
 .font:	dw FONT_LOOKUP
+.code_palette:	dw CODE_PALETTE
 .repdel:	db 35
 .repper:	db 5
 .i_handler:	jp DEFAULT_INTERRUPT_HANDLER
