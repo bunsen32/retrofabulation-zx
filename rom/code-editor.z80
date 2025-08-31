@@ -136,7 +136,7 @@ RENDER_TOKENISED:
 	exx
 	push hl
 	push de
-	ld hl,(G.CODE_PALETTE)
+	ld hl,(G.SYNTAX_COLOURS)
 	ex de,hl
 	exx
 	call .body
@@ -150,45 +150,72 @@ RENDER_TOKENISED:
 	inc de
 	srl a	; Carry := was_previous_space?
 	jr nc,.missing_sep_space	; No space between previous token and this one
-	push de
+	push de	; Stash stream pointer
 	ld de,TWO_SPACES
 	ld b,1
 	ex af,af'	; Restore previous attributes
 	call RENDER_TEXT
 	ex af,af'	; Restore token identifer
-	pop de
-	ld c,a	; Stash token	
+	pop de	; Restore stream pointer
 .missing_sep_space:
 	cp TOK_END_SIMPLE
 	jr nc,.long_raw_token
 .not_raw_token:		; It’s a ‘simple’ token: reserved word or symbol.
 	or a
 	ret z	; Return if null.
-.simple_token:
+
+.simple_token:	; Simple token. First work out colour:
 	push de
 	ld d,TOKENS_TEXT>>8
-	ld e,a
+	ld e,a	; Stash token
+
+	exx
+	ASSERT AFTER_OPERATORS < AFTER_PUNCTUATION
+	ASSERT AFTER_PUNCTUATION < AFTER_BOOLEANS
+	ASSERT AFTER_BOOLEANS < AFTER_CONTROLFLOW
+	ASSERT AFTER_CONTROLFLOW < AFTER_DEFINITION
+	cp AFTER_PUNCTUATION
+	jr nc,.after_punctuation
+.ops_punct:	cp AFTER_OPERATORS
+	ld l,SYNTAX_COLOURS.punctuation
+	jr nc,.got_category
+	ld l,SYNTAX_COLOURS.operator
+	jp .got_category
+.after_punctuation:	cp AFTER_BOOLEANS
+	jr c,.boolean_ops
+	cp AFTER_CONTROLFLOW
+	ld l,SYNTAX_COLOURS.control_flow
+	jr c,.got_category
+	ld l,SYNTAX_COLOURS.definition
+	jr .got_category	; [skip 2 bytes]
+.boolean_ops:	ld l,SYNTAX_COLOURS.boolean
+.got_category:	ld h,0
+	add hl,de
+	ld a,(hl)
+	exx
+	ex af,af'	; Stash attributes
+
 	ld a,(de)
 	ld e,a
 	ld a,(de)
 	inc e
 	ld b,a
-	ld a,0b00111010	; Red ink, white paper
+	ex af,af'	; Restore attributes
 	call RENDER_TEXT
 	ex af,af'	; Stash attributes
 	pop de
 	jr .loop
 .long_raw_token:		; Carry = UNSET
-	ld b,a	; Stash token
+	ld c,a	; Stash token	
 	exx	; Now look up colour
-	rra	; Carry := is_single_character?
+	rra	; Ignore low bit
 	and 0b111
 	ld l,a
 	ld h,0
 	add hl,de
 	ld a,(hl)	; A := attributes for token
 	exx
-	rr b	; Test lowest bit of token.
+	rr c	; Test lowest bit of token.
 	jr nc,.longlong
 
 .shortlong:	ld b,1
@@ -210,15 +237,35 @@ RENDER_TOKENISED:
 	pop de
 	jr .loop
 
-CODE_PALETTE:
-	db 0b01000010	; Invalid
-	db 0b00111001	; String
-	db 0b00111010	; Identifier
-	db 0b00111011	; Comment
-	db 0b00111100	; Real
-	db 0b00111101	; Int (decimal)
-	db 0b00111110	; Int (hex)
-	db 0b00111001	; Int (binary)
-	db 0b00111001	; Operator
-	db 0b00111001	; Control flow
-	db 0b00111001	; Punctuation
+	STRUCT SYNTAX_COLOURS
+invalid	db
+comment	db
+identifier	db
+string	db
+real	db
+int_decimal	db
+int_hex	db
+int_binary	db
+operator	db
+punctuation	db
+boolean	db
+control_flow	db
+definition	db
+	ENDS
+
+DEFAULT_SYNTAX_COLOURS:	SYNTAX_COLOURS {
+	0b01000010,	; Invalid
+	0b00111011,	; Comment
+	0b00111010,	; Identifier
+	0b00111001,	; String
+	0b00111100,	; Real
+	0b00111101,	; Int (decimal, hex & binary)
+	0b00111110,	; Int (hex)
+	0b00111001,	; Int (binary)
+	
+	0b01111001,	; Operator
+	0b01111010,	; Punctuation
+	0b01111011,	; 'true', 'false', 'and', 'or', 'not'
+	0b01111100,	; Control flow
+	0b01111101	; Definition ('let', 'def', 'import', 'as')
+}

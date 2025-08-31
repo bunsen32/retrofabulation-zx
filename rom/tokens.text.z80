@@ -43,20 +43,20 @@ TOKENS_TEXT:
 
 .punctuation:	db .semicolon & $ff	; 33
 	db .colon & $ff	; 34
-	db .assign & $ff	; 35
-	db .comma & $ff	; 36
-	db .arropen & $ff	; 37
-	db .arrclose & $ff	; 38
-	db .parenopen & $ff	; 39
-	db .parenclose & $ff	; 40
-	db .dot & $ff	; 41
+	db .comma & $ff	; 35
+	db .arropen & $ff	; 36
+	db .arrclose & $ff	; 37
+	db .parenopen & $ff	; 38
+	db .parenclose & $ff	; 39
+	db .dot & $ff	; 40
 
-.reserved_words:	db .discard & $ff	; 42
-	db .let & $ff	; 43
+.reserved_words:	db .discard & $ff	; 41
 
-	db .and & $ff	; 44
-	db .or & $ff	; 45
-	db .not & $ff	; 46
+	db .and & $ff	; 42
+	db .or & $ff	; 43
+	db .not & $ff	; 44
+	db .false & $ff	; 45
+	db .true & $ff	; 46
 
 	db .break & $ff	; 47
 	db .continue & $ff	; 48
@@ -70,9 +70,10 @@ TOKENS_TEXT:
 	db .return & $ff	; 56
 	db .while & $ff	; 57
 
-	db .def & $ff	; 58
-	db .import & $ff	; 59
-	db .as & $ff	; 60
+	db .let & $ff	; 58
+	db .def & $ff	; 59
+	db .import & $ff	; 60
+	db .as & $ff	; 61
 
 .as_strings:
 
@@ -115,7 +116,6 @@ TOKENS_TEXT:
 
 .semicolon	db 1,';'
 .colon	db 1,':'
-.assign	db 2,':='
 .comma	db 1,','
 .arropen	db 1,'['
 .arrclose	db 1,']'
@@ -131,6 +131,7 @@ TOKENS_TEXT:
 .def	db 3,'def'
 .elif	db 4,'elif'
 .else	db 4,'else'
+.false	db 5,'false'
 .for	db 3,'for'
 .if	db 2,'if'
 .import	db 6,'import'
@@ -142,6 +143,7 @@ TOKENS_TEXT:
 .pass	db 4,'pass'
 .pi_alt	db 2,'pi'
 .return	db 6,'return'
+.true	db 4,'true'
 .while	db 5,'while'
 
 .end_of_table
