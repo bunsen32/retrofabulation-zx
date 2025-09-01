@@ -82,6 +82,17 @@ export class Vm {
 				}
 			}
 		)
+		const {F} = result
+		result.flags = {
+			C: !!(F & 0b1),
+			N: !!(F & 0b10),
+			PV:!!(F & 0b100),
+			y: !!(F & 0b1000),
+			H: !!(F & 0b10000),
+			x: !!(F & 0b100000),
+			Z: !!(F & 0b1000000),
+			S: !!(F & 0b10000000),
+		}
 		return result as RegisterSet
 	}
 
@@ -194,6 +205,17 @@ const ROM = "./dist/neo48.rom"
 const memoryPageWriteMap = [11, 5, 2, 0]
 export const stackTop = 0xF000
 
+export type FlagsRegister = {
+	C: boolean,
+	N: boolean,
+	PV: boolean,
+	y: boolean,
+	H: boolean,
+	x: boolean,
+	Z: boolean,
+	S: boolean
+}
+
 export type RegisterSet = {
 	AF: number,
 	BC: number,
@@ -229,6 +251,7 @@ export type RegisterSet = {
 	IYl: byte,
 	I: byte,
 	R: byte,
+	flags: FlagsRegister,
 }
 type RegisterName = keyof RegisterSet
 export type PartialRegisterSet = Partial<RegisterSet>

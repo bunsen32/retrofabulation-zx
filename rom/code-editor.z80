@@ -139,37 +139,68 @@ RENDER_TOKENISED:
 	ld hl,(G.SYNTAX_COLOURS)
 	ex de,hl
 	exx
-	call .body
+	push hl	; Coordinates stay on the stack
+	ex de,hl	; HL := token stream; DE := coords
+	call .render
+	ex de,hl	; DE := token stream; HL := coords
+	pop hl	; Pop END coordinates
 	exx
 	pop de
 	pop hl
 	exx
 	ret
-.body:
-.loop:	ld a,(de)
-	inc de
-	srl a	; Carry := was_previous_space?
-	jr nc,.missing_sep_space	; No space between previous token and this one
-	push de	; Stash stream pointer
-	ld de,TWO_SPACES
-	ld b,1
-	ex af,af'	; Restore previous attributes
+
+.render:	push de	; Coordinates stay on the stack
+.loop:
+	call DECODE
+	jr z,.return	; Return if end of stream.
+
+	ex (sp),hl	; (SP) := Token pointer; HL := coords
+	jr nc,.render_token
+.preceding_space:
+	inc l
+.render_token:
 	call RENDER_TEXT
-	ex af,af'	; Restore token identifer
-	pop de	; Restore stream pointer
-.missing_sep_space:
+	ex (sp),hl	; (SP) := coords; HL := token pointer
+	jr .loop
+.return:
+	pop de
+	ret
+
+DECODE:	; Takes:
+	;  HL: Token pointer
+	;  DE': Palette pointer
+	; Returns:
+	;  HL: Point to next token (or end of stream)
+	;  Zero flag: is end of stream
+	;  Carry flag: has preceding space
+	;  DE: Point to text of token (or undefined)
+	;  B: Length of token text (or undefined)
+	;  A: Attributes (or undefined)
+	; Trashes:
+	;  HL', C, AF'
+	ld c,(hl)
+	inc hl
+	srl c	; Carry := was_previous_space? Z := zero token
+	ret z
+
+	ex af,af'	; Stash Carry bit & Zero flag
+	ld a,c
 	cp TOK_END_SIMPLE
 	jr nc,.long_raw_token
-.not_raw_token:		; It’s a ‘simple’ token: reserved word or symbol.
-	or a
-	ret z	; Return if null.
 
-.simple_token:	; Simple token. First work out colour:
-	push de
+	; It’s a ‘simple’ token: reserved word or symbol.
+.simple_token:	; Simple token. First get token text:
 	ld d,TOKENS_TEXT>>8
-	ld e,a	; Stash token
+	ld e,a	; DE := token text lookup
+	ld a,(de)	; A := pointer to token string
+	ld e,a	; DE := pointer to token string
+	ld a,(de)	; A := string length
+	inc e	; DE := pointer to token characters
+	ld b,a	; B := string length
 
-	exx
+	ld a,c	; Restore token
+	exx	; Now compute colour by category:
 	ASSERT AFTER_OPERATORS < AFTER_PUNCTUATION
 	ASSERT AFTER_PUNCTUATION < AFTER_BOOLEANS
 	ASSERT AFTER_BOOLEANS < AFTER_CONTROLFLOW
@@ -191,51 +222,40 @@ RENDER_TOKENISED:
 .boolean_ops:	ld l,SYNTAX_COLOURS.boolean
 .got_category:	ld h,0
 	add hl,de
+	ex af,af'	; Retore Flags
 	ld a,(hl)
 	exx
-	ex af,af'	; Stash attributes
+	ret
 
-	ld a,(de)
-	ld e,a
-	ld a,(de)
-	inc e
-	ld b,a
-	ex af,af'	; Restore attributes
-	call RENDER_TEXT
-	ex af,af'	; Stash attributes
-	pop de
-	jr .loop
-.long_raw_token:		; Carry = UNSET
-	ld c,a	; Stash token	
+.long_raw_token:	
 	exx	; Now look up colour
 	rra	; Ignore low bit
 	and 0b111
 	ld l,a
 	ld h,0
 	add hl,de
+	ex af,af'	; Restore Flags
 	ld a,(hl)	; A := attributes for token
+	ex af,af'	; Stash attrs & flags
 	exx
 	rr c	; Test lowest bit of token.
 	jr nc,.longlong
 
-.shortlong:	ld b,1
-	call RENDER_TEXT
-	ex af,af'	; Stash attributes
-	jr .loop
+.shortlong:	ld d,h
+	ld e,l
+	ld b,1
+	inc hl
+	ex af,af'	; Restore attrs & flags
+	ret
 .longlong:
-	push hl
-	ex de,hl
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
 	inc hl
 	ld b,(hl)
 	inc hl
-	ex (sp),hl
-	call RENDER_TEXT
-	ex af,af'	; Stash attributes
-	pop de
-	jr .loop
+	ex af,af'	; Restore attrs & flags
+	ret
 
 	STRUCT SYNTAX_COLOURS
 invalid	db
