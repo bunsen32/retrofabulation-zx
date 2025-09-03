@@ -135,9 +135,9 @@ render_common_char:
 .replace:	xor a	; ...Otherwise replace with the first glyph.
 .lookup:
 	; Look up glyph data:
-	inc a
 	ld c,a
 	ld b,0
+	inc bc	; Can’t just increase A (or C) because it might be 255…
 	add hl,bc
 	add hl,bc
 	ld b,(hl)	; b := HIGH byte of offset to character data pointer
@@ -654,6 +654,10 @@ rowcol_out_of_range:	xor a	; Return all zeros for out of range coordinates. Mean
 	; B:  character count to fit (or zero)
 	; C:  column count of text (or zero)
 MEASURE_SPAN:
+	exx
+	push hl
+	push bc
+	exx
 	push af
 	push hl
 	ld h,0	; Char count to fit := 0
@@ -664,7 +668,9 @@ MEASURE_SPAN:
 	jr z,.end	; Return if char count = 0
 .loop:
 	ld a,(de)
-	call MEASURE_CHAR
+	exx
+	call MEASURE_CHAR.core
+	exx
 	add c	; Add char width to columns so far (C)
 	cp l	; Compare to column limit (L)
 	jr z,.eq
@@ -677,6 +683,10 @@ MEASURE_SPAN:
 	ld b,h	; B := char count to fit
 	pop hl
 	pop af
+	exx
+	pop bc
+	pop hl
+	exx
 	ret
 6
 	; Take a character (in A), and return its glyph width,
@@ -684,8 +694,12 @@ MEASURE_SPAN:
 MEASURE_CHAR:
 	push hl
 	push bc
-	ld hl,FONT_LOOKUP	; Character index table
+	call .core
+	pop bc
+	pop hl
+	ret
 
+.core:	ld hl,(G.FONT)	; Character index table
 	; Force character (in A) to be in range of glyphs:
 	sub (hl)	; First character represented
 	inc hl	; (DOES NOT AFFECT CARRY)
@@ -696,15 +710,13 @@ MEASURE_CHAR:
 .replace:	xor a	; ...Otherwise replace with the first glyph.
 .lookup:
 	; Look up glyph data:
-	inc a
 	ld c,a
 	ld b,0
+	inc bc	; Can’t just increase A (or C) because it might be 255…
 	add hl,bc
 	add hl,bc
 	ld a,(hl)	; HIGH byte of offset to character data pointer
 	rlca
 	rlca
 	and 3
-	pop bc
-	pop hl
 	ret

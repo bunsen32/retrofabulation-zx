@@ -368,6 +368,7 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, 
 function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {
 	const bufferAddress = 0x9000
 	vm.setRam(bufferAddress, asBytes(text))
+	vm.pokeWord(globals.FONT, rom.FONT_LOOKUP.addr)
 	vm.setRegisters({
 		DE: bufferAddress,
 		B: text.length as byte,
