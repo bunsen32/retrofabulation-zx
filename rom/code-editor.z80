@@ -178,28 +178,27 @@ DECODE:	; Takes:
 	;  B: Length of token text (or undefined)
 	;  A: Attributes (or undefined)
 	; Trashes:
-	;  HL', C, AF'
-	ld c,(hl)
+	;  HL'
+	ld b,(hl)
 	inc hl
-	srl c	; Carry := was_previous_space? Z := zero token
+	srl b	; Carry := was_previous_space? Z := zero token
 	ret z
 
 	ex af,af'	; Stash Carry bit & Zero flag
-	ld a,c
+	push af
+	ld a,b
 	cp TOK_END_SIMPLE
 	jr nc,.long_raw_token
 
 	; It’s a ‘simple’ token: reserved word or symbol.
 .simple_token:	; Simple token. First get token text:
-	ld d,TOKENS_TEXT>>8
-	ld e,a	; DE := token text lookup
-	ld a,(de)	; A := pointer to token string
-	ld e,a	; DE := pointer to token string
-	ld a,(de)	; A := string length
-	inc e	; DE := pointer to token characters
-	ld b,a	; B := string length
-
-	ld a,c	; Restore token
+	ex de,hl
+	ld h,TOKENS_TEXT>>8
+	ld l,a	; HL := token text lookup
+	ld l,(hl)	; HL := pointer to token string
+	ld b,(hl)	; B := string length
+	inc l	; HL := pointer to token characters
+	ex de,hl	; DE := pointer to token characters
 	exx	; Now compute colour by category:
 	ASSERT AFTER_OPERATORS < AFTER_PUNCTUATION
 	ASSERT AFTER_PUNCTUATION < AFTER_BOOLEANS
@@ -222,6 +221,7 @@ DECODE:	; Takes:
 .boolean_ops:	ld l,SYNTAX_COLOURS.boolean
 .got_category:	ld h,0
 	add hl,de
+	pop af
 	ex af,af'	; Retore Flags
 	ld a,(hl)
 	exx
@@ -238,13 +238,14 @@ DECODE:	; Takes:
 	ld a,(hl)	; A := attributes for token
 	ex af,af'	; Stash attrs & flags
 	exx
-	rr c	; Test lowest bit of token.
+	rr b	; Test lowest bit of token.
 	jr nc,.longlong
 
 .shortlong:	ld d,h
 	ld e,l
 	ld b,1
 	inc hl
+	pop af
 	ex af,af'	; Restore attrs & flags
 	ret
 .longlong:
@@ -254,6 +255,7 @@ DECODE:	; Takes:
 	inc hl
 	ld b,(hl)
 	inc hl
+	pop af
 	ex af,af'	; Restore attrs & flags
 	ret
 
