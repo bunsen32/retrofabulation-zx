@@ -649,20 +649,22 @@ rowcol_out_of_range:	xor a	; Return all zeros for out of range coordinates. Mean
 
 	; Iterate through a buffer of characters, for a given maximum count and
 	; text width, and return the ending position (by width and char count)
-	; DE: char pointer
-	; B:  max number of characters
-	; C:  maximum width in half-cell columns.
+	;   DE: char pointer
+	;   B:  max number of characters
+	;   C:  maximum width in half-cell columns.
 	; RETURNS
-	; DE: point to NEXT character (or end of span)
-	; B:  character count to fit (or zero)
-	; C:  column count of text (or zero)
+	;   DE: point to NEXT character (or end of span)
+	;   B:  character count to fit (or zero)
+	;   C:  column count of text (or zero)
+	; TRASHES
+	;   NOTHING! (Not even A or flags).
 MEASURE_SPAN:
+	push af
+	push hl
 	exx
 	push hl
 	push bc
 	exx
-	push af
-	push hl
 	ld h,0	; Char count to fit := 0
 	ld l,c	; Limit column := C (parameter)
 	ld c,h	; Column count := 0
@@ -684,12 +686,12 @@ MEASURE_SPAN:
 	djnz .loop
 .end:
 	ld b,h	; B := char count to fit
-	pop hl
-	pop af
 	exx
 	pop bc
 	pop hl
 	exx
+	pop hl
+	pop af
 	ret
 6
 	; Take a character (in A), and return its glyph width,
