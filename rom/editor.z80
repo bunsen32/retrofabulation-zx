@@ -102,6 +102,7 @@ SCREEN_EDIT_CMD:	ex af,af'
 	push af
 	push hl
 	ld a,0b01111000	; black ink, white paper
+	or a	; Clear Colour Flag
 	call PRINT_WRAP
 	pop hl
 	pop af

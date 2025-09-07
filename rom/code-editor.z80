@@ -111,7 +111,7 @@ CODE_EDITOR:
 	ld e,a
 	ld hl,TOKEN_BUFFER
 	call TOKENISE
-	ld hl,$0900
+	ld hl,$0300
 	ld de,TOKEN_BUFFER
 	ld c,$40
 	call RENDER_TOKENISED	; (This will trash our dirty flag in F')
@@ -129,9 +129,12 @@ CODE_EDITOR:
 	; Render stream of tokens as text to the screen. Similar model to RENDER_TEXT (it keeps going
 	; until it hits the edge of the screen or the end of the stream). However, token stream is null-terminated
 	; rather than having an explicit length. And attributes are determined by the tokens!
-	; HL: Coordinates to render at
-	; DE: Token stream
-	; C: (max) number of columns (half-cells) allowed
+	; Takes:
+	;   HL: Coordinates to render at
+	;   DE: Token stream
+	;   C: (max) number of columns (half-cells) allowed
+	; Trashes:
+	;   HL, DE, A, B, C, AF'
 RENDER_TOKENISED:
 	exx
 	push hl
@@ -139,29 +142,49 @@ RENDER_TOKENISED:
 	ld hl,(G.SYNTAX_COLOURS)
 	ex de,hl
 	exx
-	push hl	; Coordinates stay on the stack
-	ex de,hl	; HL := token stream; DE := coords
 	call .render
-	ex de,hl	; DE := token stream; HL := coords
-	pop hl	; Pop END coordinates
 	exx
 	pop de
 	pop hl
 	exx
 	ret
 
-.render:	push de	; Coordinates stay on the stack
-.loop:
-	call DECODE
-	jr z,.return	; Return if end of stream.
+.render:
+	push de	; Token stream
+	call ROWCOL_ADDR	; HL := attributes pointer
+	xor a
+	bit 5,d
+	jr z,.no_initial_space
+	inc a
+.no_initial_space:	ex af,af'	; Stash the initial offset, 0 or 1. (carry' is reset)
 
-	ex (sp),hl	; (SP) := Token pointer; HL := coords
-	jr nc,.render_token
-.preceding_space:
-	inc l
-.render_token:
-	call RENDER_TEXT
-	ex (sp),hl	; (SP) := coords; HL := token pointer
+.loop:	ex (sp),hl	; (SP) := attr pointer; HL := token pointer
+	call DECODE	; DE: string, B: len, A: attrs, HL: next token
+	jr z,.return	; Return if end of stream.
+	jr nc,.no_preceding_space
+.is_preceding_space:	ex af,af'	; A' := attr, A := half-Offset
+	inc a
+	ex af,af'
+.no_preceding_space:	ex af,af'	; A' := attr, A := half-offset
+
+	ld c,64
+	call MEASURE_SPAN	; [Does not affect flags]
+	add a,c	; [Carry should be zero as a result.]
+	jr z,.colour_loop_end
+	inc a	; Round up...
+	rra	; ...and divide by 2.
+	ld b,a	; B := full cells to colour.
+
+	ccf	; Since we added 1 before shifting, carry flag is opposite what we’d expect:
+	sbc a,a	; carry-set = on cell boundary; carry-reset = at half offset
+		; So now A is 0, or -1 if we went an extra half-cell.
+	ex af,af'	; A' is new half-cell offset. A := attribute.
+
+	ex (sp),hl	; (SP) := Token pointer; HL := attr pointer
+.colour_loop:	ld (hl),a
+	inc hl
+	djnz .colour_loop
+.colour_loop_end:
 	jr .loop
 .return:
 	pop de
