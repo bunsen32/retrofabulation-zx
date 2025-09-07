@@ -351,14 +351,15 @@ function charCode(singleChar: string) {
 	return CharsetFromUnicode[singleChar.charAt(0)]
 }
 
-function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, maxWidth: byte = 127) {
+function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte|'none' = 0b00111000, maxWidth: byte = 127) {
 	vm.setRam(0x9000, asBytes(text))
 	vm.pokeWord(globals.FONT, rom.FONT_LOOKUP.addr)
 	vm.setRegisters({
 		DE: 0x9000,
 		B: text.length as byte,
 		C: maxWidth,
-		A: attr,
+		A: attr !== 'none' ? attr : 0b11101010,
+		F: attr !== 'none' ? 0xff : 0x00,
 		H: p.row,
 		L: p.column
 	})
