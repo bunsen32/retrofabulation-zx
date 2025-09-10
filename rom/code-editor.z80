@@ -168,11 +168,11 @@ RENDER_TOKENISED:
 .no_preceding_space:	ex af,af'	; A' := attr, A := half-offset
 
 	ld c,64
-	call MEASURE_SPAN	; [Does not affect flags]
-	add a,c	; [Carry should be zero as a result.]
+	call MEASURE_SPAN
+	add a,c	; [If A was -1, we’d set carry flag here => cannot rely on cleared carry.]
 	jr z,.colour_loop_end
 	inc a	; Round up...
-	rra	; ...and divide by 2.
+	srl a	; ...and divide by 2.
 	ld b,a	; B := full cells to colour.
 
 	ccf	; Since we added 1 before shifting, carry flag is opposite what we’d expect:
@@ -184,11 +184,13 @@ RENDER_TOKENISED:
 .colour_loop:	ld (hl),a
 	inc hl
 	djnz .colour_loop
-.colour_loop_end:
 	jr .loop
 .return:
 	pop de
 	ret
+.colour_loop_end:
+	ex af,af'	; A' := half-offset of zero
+	jr .loop
 
 DECODE:	; Takes:
 	;  HL: Token pointer
