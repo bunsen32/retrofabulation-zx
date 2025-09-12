@@ -159,7 +159,7 @@ RENDER_TOKENISED:
 .no_initial_space:	ex af,af'	; Stash the initial offset, 0 or 1. (carry' is reset)
 
 .loop:	ex (sp),hl	; (SP) := attr pointer; HL := token pointer
-	call DECODE	; DE: string, B: len, A: attrs, HL: next token
+.loop_token:	call DECODE	; DE: string, B: len, A: attrs, HL: next token
 	jr z,.return	; Return if end of stream.
 	jr nc,.no_preceding_space
 .is_preceding_space:	ex af,af'	; A' := attr, A := half-Offset
@@ -170,7 +170,7 @@ RENDER_TOKENISED:
 	ld c,64
 	call MEASURE_SPAN
 	add a,c	; [If A was -1, we’d set carry flag here => cannot rely on cleared carry.]
-	jr z,.colour_loop_end
+	jr z,.colour_zerolen
 	inc a	; Round up...
 	srl a	; ...and divide by 2.
 	ld b,a	; B := full cells to colour.
@@ -188,9 +188,9 @@ RENDER_TOKENISED:
 .return:
 	pop de
 	ret
-.colour_loop_end:
+.colour_zerolen:		; Called when A = 0
 	ex af,af'	; A' := half-offset of zero
-	jr .loop
+	jr .loop_token
 
 DECODE:	; Takes:
 	;  HL: Token pointer
