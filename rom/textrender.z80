@@ -46,6 +46,8 @@ RENDER_TEXT:
 	pop af	; Already beyond the RHS
 	ret 	; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
 
+no_colour_mid_cell:	ex af,af'
+	jr clr_half_cell_only
 
 	; Render some text
 	; IX	= font table
@@ -84,6 +86,9 @@ render_text:
 	jr z,render_common_char
 	ex de,hl
 starts_mid_cell:		; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
+	ex af,af'
+	jr nc,no_colour_mid_cell
+	ex af,af'
 	ld a,(hl)	; a := starting attribute
 	rra
 	rra
@@ -91,7 +96,7 @@ starts_mid_cell:		; We’re starting rendering halfway through a cell, so clear 
 	xor (hl)	; Want to check if paper==ink; in which case, clear the *whole* cell
 	and 7
 	jr z,clr_half_cell0
-	ld a,$f0
+clr_half_cell_only:	ld a,$f0
 clr_half_cell0:
 	ld h,d
 	ld l,e	; hl := de = screen pointer
