@@ -99,13 +99,9 @@ SCREEN_EDIT_CMD:	ex af,af'
 .ex_bit_B:	ex af,af'
 .bit_B:	rra 	; Bit B: redraw
 	jr nc,.bit_C
-	push af
 	push hl
-	ld a,0b01111000	; black ink, white paper
-	or a	; Clear Colour Flag
 	call PRINT_WRAP
 	pop hl
-	pop af
 
 .bit_C:
 	rra 	; Bit C: right-arrow
@@ -411,13 +407,13 @@ PRINT_WRAP:
 	inc h	; Down one line
 	push hl	; Push start of line.
 .first_line:
-	call RENDER_TEXT	; Render as much as we can (stopping at end of line)
+	call RENDER_TEXT_MONO	; Render as much as we can (stopping at end of line)
 	
 	push bc
 	push de
 	ld de,TWO_SPACES
 	ld b,2
-	call RENDER_TEXT	; Erase any junk at end of line.
+	call RENDER_TEXT_MONO	; Erase any junk at end of line.
 	pop de	; de := next character (start of next line)
 	pop bc	; b := remaining characters to render
 
