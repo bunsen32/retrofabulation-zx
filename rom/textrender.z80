@@ -659,20 +659,20 @@ rowcol_out_of_range:	xor a	; Return all zeros for out of range coordinates. Mean
 	;   C:  maximum width in half-cell columns.
 	; RETURNS
 	;   DE: point to NEXT character (or end of span)
-	;   B:  character count to fit (or zero)
-	;   C:  column count of text (or zero)
+	;   H:  character count to fit (or zero)
+	;   L:  Length of visible chars, in columns (or zero)
+	;   B:  remaining characters
+	;   C:  remaining columns
 	; TRASHES
 	;   NOTHING! (Not even A or flags).
 MEASURE_SPAN:
 	push af
-	push hl
 	exx
 	push hl
 	push bc
 	exx
-	ld h,0	; Char count to fit := 0
-	ld l,c	; Limit column := C (parameter)
-	ld c,h	; Column count := 0
+	ld hl,0	; H (Char count to fit) := 0
+		; L (Column count to fit) := 0
 	inc b
 	dec b
 	jr z,.end	; Return if char count = 0
@@ -681,24 +681,25 @@ MEASURE_SPAN:
 	exx
 	call MEASURE_CHAR.core
 	exx
-	add c	; Add char width to columns so far (C)
-	cp l	; Compare to column limit (L)
+	add l	; Add char width to columns so far (L)
+	cp c	; Compare to column limit (C)
 	jr z,.eq
 	jr nc,.end	; Beyond column limit?
-.eq	ld c,a
+.eq	ld l,a
 	inc de
 	inc h	; One more char
 	djnz .loop
 .end:
-	ld b,h	; B := char count to fit
+	ld a,c
+	sub l
+	ld c,a
 	exx
 	pop bc
 	pop hl
 	exx
-	pop hl
 	pop af
 	ret
-6
+
 	; Take a character (in A), and return its glyph width,
 	; 0–3, also in A. Preserves all other registers.
 MEASURE_CHAR:

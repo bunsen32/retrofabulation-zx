@@ -376,12 +376,20 @@ function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {
 		C: maxColumnWidth
 	})
 	vm.callSubroutine(rom.MEASURE_SPAN, 6000)
-	const {DE, B, C} = vm.getRegisters()
-	return {
+	const {DE, B, C, H, L} = vm.getRegisters()
+	const result = {
 		pointerOffset: DE - bufferAddress,
-		charFit: B,
-		columnWidth: C
+		charFit: H,
+		columnWidth: L,
+		remainingChars: B,
+		remainingColumns: C,
 	}
+
+	// Invariants:
+	expect(result.remainingChars).toBe(text.length - result.charFit)
+	expect(result.remainingColumns).toBe(maxColumnWidth - result.columnWidth)
+
+	return result
 }
 
 function getCoordsAfterRendering(vm: Vm): TextCoords {

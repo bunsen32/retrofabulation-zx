@@ -168,8 +168,10 @@ RENDER_TOKENISED:
 .no_preceding_space:	ex af,af'	; A' := attr, A := half-offset
 
 	ld c,64
+	push hl
 	call MEASURE_SPAN
-	add a,c	; [If A was -1, we’d set carry flag here => cannot rely on cleared carry.]
+	add a,l	; [If A was -1, we’d set carry flag here => cannot rely on cleared carry.]
+	pop hl
 	jr z,.colour_zerolen
 	inc a	; Round up...
 	srl a	; ...and divide by 2.

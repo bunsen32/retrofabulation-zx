@@ -90,7 +90,7 @@ SCREEN_EDIT_CMD:	ex af,af'
 	ld b,a	; B := distance along line in characters
 	ld c,64	; C := maximum line width (= "no limit")
 	call MEASURE_SPAN	; DE := cursor buffer position; C := measured width of line
-	ld a,c	; A := measured width of line
+	ld a,l	; A := measured width of line
 	pop bc
 	pop hl	; HL := HL'
 	add l	; A := width of line + left margin
@@ -139,9 +139,12 @@ SCREEN_EDIT_CMD:	ex af,af'
 	ld a,64
 	sub l	; A := column space to end of line
 	ld c,a	; C := allowed columns for characters
-	call MEASURE_SPAN
 	ld a,l
-	add c	; A: = L (cursor-X) + span width
+	push hl
+	call MEASURE_SPAN
+	add l	; A: = L (cursor-X) + span width
+	ld b,h	; B := chars to end of line
+	pop hl
 	ld l,a	; L := position of end of line
 	ld a,b	; A := chars to end of line
 	pop bc
@@ -159,9 +162,12 @@ SCREEN_EDIT_CMD:	ex af,af'
 	ld a,(G.IDEAL_CUR_X)
 	sub l
 	ld c,a	; C := (IDEAL_CUR_X - left margin)
-	call MEASURE_SPAN
 	ld a,l
-	add c
+	push hl
+	call MEASURE_SPAN
+	add l
+	ld b,h	; B := count of characters to desired position
+	pop hl
 	ld l,a	; L (cursor X) := desired position
 	ld a,b	; A := count of characters to desired position
 	pop bc
