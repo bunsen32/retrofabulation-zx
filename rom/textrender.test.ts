@@ -363,7 +363,7 @@ function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte|'none' = 0b001
 		H: p.row,
 		L: p.column
 	})
-	vm.callSubroutine(rom.RENDER_TEXT, 4050 + 674 * text.length)
+	vm.callSubroutine(rom.RENDER_TEXT, 2700 + 674 * text.length)
 }
 
 function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {
