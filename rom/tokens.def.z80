@@ -80,6 +80,7 @@ AFTER_DEFINITION	EQU 62
 TOK_END_SIMPLE	EQU 62
 
 ; Each of these followed by <length> byte and <offset> byte (to text buffer)
+; The XXXX1 variants are for single-character tokens, which do not need a length byte.
 TOK_RAW_INVALID	EQU $60	; Unrecognised token.
 TOK_RAW_INVALID1	EQU $61	; Unrecognised token.
 TOK_RAW_COMMENT	EQU $62	; # to end of line
