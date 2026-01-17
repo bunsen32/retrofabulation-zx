@@ -43,7 +43,7 @@ export class Vm {
 		this.registerPairs = new Uint16Array(this.memory.buffer, core.REGISTERS, 12);
 		this.tapePulses = new Uint16Array(this.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
 	
-		this.loadRom(ROM, 10)
+		this.loadRom(ROM, 8)
 		this.core.setTapeTraps(false)
 	}
 
@@ -195,7 +195,7 @@ export class Vm {
 		this.runPcAt({addr:0x8000}, tStatesPlusOverhead)
 		const {SP} = this.getRegisters()
 
-		expect(this.core.getHalted(), `Should have HALTED (PC=${this.core.getPC()})`).toBe(1)
+		expect(this.core.getHalted(), `Should have HALTED (PC=${hex16(this.core.getPC())})`).toBe(1)
 		expect(SP, `Subroutine should balance stack (SP=${hex16(SP)})`).toBe(stackTop)
 	}
 }
