@@ -1,0 +1,320 @@
+
+TEXT_BUFFER	EQU $5C00
+LINE_OFFSET_STACK	EQU $5D00
+TOKEN_BUFFER	EQU $5D10
+
+
+	; Read-Execute-Print Loop
+POP_AND_REPL:
+	pop bc	; Pop off a return address
+REPL:
+.cls
+	ld a,7
+	out ($fe),a	; Set border to white
+	ld hl,$5800
+	ld (hl),0b00111111	; White ink; white paper
+	ld de,$5801
+	ld bc,768
+	ldir 	; Clear screen to all white (16123 t-states)
+.init_buffer:
+	ld hl,$0000
+	ld (G.CAPS_ICON_XY),hl
+	ld hl,$0004
+	ld (G.MODE_ICON_XY),hl
+	ld de,TEXT_BUFFER
+	ld bc,0	; prior-chars := 0; subsequent-chars := 0
+	ld a,b
+	exx
+	ld de,LINE_OFFSET_STACK
+	ld (de),a
+	ld b,$ff	; Max length
+	ld c,1	; Current line number
+	ld hl,$0300	; First line start coords
+	push hl
+	exx
+	pop hl
+	ld (G.CURSOR_XY), hl
+
+	; Clear first character cell so that flashing cursor is visible:
+	push bc
+	push de
+	push hl
+	ld de,TWO_SPACES
+	ld b,1
+	ld a,0b01111000	; black ink, white paper
+	call RENDER_TEXT
+	pop hl
+	pop de
+	pop bc
+
+	push hl
+	jr CODE_EDITOR.check_key	; We might have come in here with a keypress, so check.
+
+	; Buffer: [xxxxxx|xxxx-----]
+	; A: scratch register
+	; HL: screen position of cursor (row,half-cell)
+	; DE: buffer position of cursor (byte pointer)
+	; B : characters prior to cursor
+	; C : characters after cursor
+	; B': remaining space in buffer (characters)
+	; C': Current line number (1-based)
+	; HL': screen position of column-zero (row,half-cell)
+	; DE': buffer position of column-zero (we push lines on, and pop them off)
+
+	; AF': Carry' = buffer-dirty?
+CODE_EDITOR:	
+.frame_loop:	halt 	; Wait for some potential keyboard input.
+	push hl
+	call CURSOR_ANIM_FRAME
+	call CAPS_SHIFT_ANIM
+.check_key:	ld hl,G.KEY_CHAR
+	ld a,(hl)
+	ld (hl),0	; So we can detect if a key is pressed while we’re doing other things.
+	pop hl
+
+	or a
+	jr z,.do_other_stuff
+	call LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
+	or a
+	jr z,.do_other_stuff
+	push af
+	rra	; Examine low bit
+	jr c,.no_redraw	; Low bit = 1 => cursor move.
+	rra	; Examine next bit (redraw)
+	jr nc,.no_redraw
+	ex af,af'
+	scf	; Set buffer dirty
+	ex af,af'
+.no_redraw:	pop af
+	call nz,SCREEN_EDIT_CMD
+	jr .frame_loop
+
+.do_other_stuff:	; No key was pressed, so we can do OTHER things…
+	ex af,af'	; Check dirty flag in AF'
+	jr nc,.frame_loop
+
+.is_dirty:
+	push hl
+	push de
+	push bc
+	exx
+	push hl
+	push bc
+	exx
+	ASSERT (TEXT_BUFFER & $ff) == 0
+	ld d,TEXT_BUFFER>>8	; Add null-terminator to text:
+	ld a,b
+	add c	; Find end of text...
+	ld e,a
+	xor a
+	ld (de),a	; ...and add \0
+	ld e,a
+	ld hl,TOKEN_BUFFER
+	call TOKENISE
+	ld hl,$0300
+	ld de,TOKEN_BUFFER
+	ld c,$40
+	call RENDER_TOKENISED	; (This will trash our dirty flag in F')
+	exx
+	pop bc
+	pop hl
+	exx
+	pop bc
+	pop de
+	pop hl
+	or a	; Clear (primary) carry flag
+	ex af,af'	; AF' Dirty flag is now clear.
+	jr .frame_loop
+
+	; Render stream of tokens as text to the screen. Similar model to RENDER_TEXT (it keeps going
+	; until it hits the edge of the screen or the end of the stream). However, token stream is null-terminated
+	; rather than having an explicit length. And attributes are determined by the tokens!
+	; Takes:
+	;   HL: Coordinates to render at
+	;   DE: Token stream
+	;   C: (max) number of columns (half-cells) allowed
+	; Trashes:
+	;   HL, DE, A, B, C, AF'
+RENDER_TOKENISED:
+	exx
+	push hl
+	push de
+	ld hl,(G.SYNTAX_COLOURS)
+	ex de,hl
+	exx
+	call .render
+	exx
+	pop de
+	pop hl
+	exx
+	ret
+
+.render:
+	push de	; Token stream
+	call ROWCOL_ADDR	; HL := attributes pointer
+	xor a
+	bit 5,d
+	jr z,.no_initial_space
+	inc a
+.no_initial_space:	ex af,af'	; Stash the initial offset, 0 or 1. (carry' is reset)
+
+.loop:	ex (sp),hl	; (SP) := attr pointer; HL := token pointer
+.loop_token:	call DECODE	; DE: string, B: len, A: attrs, HL: next token
+	jr z,.return	; Return if end of stream.
+	jr nc,.no_preceding_space
+.is_preceding_space:	ex af,af'	; A' := attr, A := half-Offset
+	inc a
+	ex af,af'
+.no_preceding_space:	ex af,af'	; A' := attr, A := half-offset
+
+	ld c,64
+	push hl
+	call MEASURE_SPAN
+	add a,l	; [If A was -1, we’d set carry flag here => cannot rely on cleared carry.]
+	pop hl
+	jr z,.colour_zerolen
+	inc a	; Round up...
+	srl a	; ...and divide by 2.
+	ld b,a	; B := full cells to colour.
+
+	ccf	; Since we added 1 before shifting, carry flag is opposite what we’d expect:
+	sbc a,a	; carry-set = on cell boundary; carry-reset = at half offset
+		; So now A is 0, or -1 if we went an extra half-cell.
+	ex af,af'	; A' is new half-cell offset. A := attribute.
+
+	ex (sp),hl	; (SP) := Token pointer; HL := attr pointer
+.colour_loop:	ld (hl),a
+	inc hl
+	djnz .colour_loop
+	jr .loop
+.return:
+	pop de
+	ret
+.colour_zerolen:		; Called when A = 0
+	ex af,af'	; A' := half-offset of zero
+	jr .loop_token
+
+DECODE:	; Takes:
+	;  HL: Token pointer
+	;  DE': Palette pointer
+	; Returns:
+	;  HL: Point to next token (or end of stream)
+	;  Zero flag: is end of stream
+	;  Carry flag: has preceding space
+	;  DE: Point to text of token (or undefined)
+	;  B: Length of token text (or undefined)
+	;  A: Attributes (or undefined)
+	; Trashes:
+	;  HL'
+	ld b,(hl)
+	inc hl
+	srl b	; Carry := was_previous_space? Z := zero token
+	ret z
+
+	ex af,af'	; Stash Carry bit & Zero flag
+	push af
+	ld a,b
+	cp TOK_END_SIMPLE
+	jr nc,.long_raw_token
+
+	; It’s a ‘simple’ token: reserved word or symbol.
+.simple_token:	; Simple token. First get token text:
+	ex de,hl
+	ld h,TOKENS_TEXT>>8
+	ld l,a	; HL := token text lookup
+	ld l,(hl)	; HL := pointer to token string
+	ld b,(hl)	; B := string length
+	inc l	; HL := pointer to token characters
+	ex de,hl	; DE := pointer to token characters
+	exx	; Now compute colour by category:
+	ASSERT AFTER_OPERATORS < AFTER_PUNCTUATION
+	ASSERT AFTER_PUNCTUATION < AFTER_BOOLEANS
+	ASSERT AFTER_BOOLEANS < AFTER_CONTROLFLOW
+	ASSERT AFTER_CONTROLFLOW < AFTER_DEFINITION
+	cp AFTER_PUNCTUATION
+	jr nc,.after_punctuation
+.ops_punct:	cp AFTER_OPERATORS
+	ld l,SYNTAX_COLOURS.punctuation
+	jr nc,.got_category
+	ld l,SYNTAX_COLOURS.operator
+	jp .got_category
+.after_punctuation:	cp AFTER_BOOLEANS
+	jr c,.boolean_ops
+	cp AFTER_CONTROLFLOW
+	ld l,SYNTAX_COLOURS.control_flow
+	jr c,.got_category
+	ld l,SYNTAX_COLOURS.definition
+	jr .got_category	; [skip 2 bytes]
+.boolean_ops:	ld l,SYNTAX_COLOURS.boolean
+.got_category:	ld h,0
+	add hl,de
+	pop af
+	ex af,af'	; Retore Flags
+	ld a,(hl)
+	exx
+	ret
+
+.long_raw_token:	
+	exx	; Now look up colour
+	rra	; Ignore low bit
+	and 0b111
+	ld l,a
+	ld h,0
+	add hl,de
+	ex af,af'	; Restore Flags
+	ld a,(hl)	; A := attributes for token
+	ex af,af'	; Stash attrs & flags
+	exx
+	rr b	; Test lowest bit of token.
+	jr nc,.longlong
+
+.shortlong:	ld d,h
+	ld e,l
+	ld b,1
+	inc hl
+	pop af
+	ex af,af'	; Restore attrs & flags
+	ret
+.longlong:
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	pop af
+	ex af,af'	; Restore attrs & flags
+	ret
+
+	STRUCT SYNTAX_COLOURS
+invalid	db
+comment	db
+identifier	db
+string	db
+real	db
+int_decimal	db
+int_hex	db
+int_binary	db
+operator	db
+punctuation	db
+boolean	db
+control_flow	db
+definition	db
+	ENDS
+
+DEFAULT_SYNTAX_COLOURS:	SYNTAX_COLOURS {
+	0b01000010,	; Invalid
+	0b00111011,	; Comment
+	0b00111010,	; Identifier
+	0b00111001,	; String
+	0b00111100,	; Real
+	0b00111101,	; Int (decimal, hex & binary)
+	0b00111110,	; Int (hex)
+	0b00111001,	; Int (binary)
+	
+	0b01111001,	; Operator
+	0b01111010,	; Punctuation
+	0b01111011,	; 'true', 'false', 'and', 'or', 'not'
+	0b01111100,	; Control flow
+	0b01111101	; Definition ('let', 'def', 'import', 'as')
+}

@@ -1,110 +1,208 @@
+
+
 	; "Safe" text rendering: takes into account right-and-side of the screen
 	; Render some text
-	; DE	= pointer to characters
-	; B	= (max) count of characters
-	; HL	= row/column (h = row 0–23; l = column 0–63)
-	; C	= (max) number of columns (half-cells) allowed
-	; A	= attrs for the text (h = row 0–23; l = column 0–63)
+	;   DE	= pointer to characters
+	;   B	= (max) count of characters
+	;   HL	= row/column (h = row 0–23; l = column 0–63)
+	;   C	= (max) number of columns (half-cells) allowed
 	; RETURNS:
-	; HL	= end row/column 
-	; DE	= pointer to next character, or 1 + end of buffer
-	; B	= remaining character count (if we hit the column limit) or zero
-	; C	= remaining half-cell column limit
-RENDER_TEXT:
+	;   HL	= end row/column 
+	;   DE	= pointer to next character, or 1 + end of buffer
+	;   B	= remaining character count (if we hit the column limit) or zero
+	;   C	= remaining half-cell column limit
+RENDER_TEXT_MONO:
+	inc b
+	dec b
+	ret z	; Return if no characters to render.
+
 	push af
 	ld a,64
 	sub l	; a := half-cells to RHS of screen
 	jr c,.margin_off_screen
 		; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
 .margin_ok:	ld c,a
-	pop af
+	inc b	; b := characters to print + 1
 
 	push ix
 	ld ix,(G.FONT)
 
-	exx
-	push hl
-	push de
-	push bc
-	exx
-
-	call render_text
-
-	exx
-	pop bc
-	pop de
-	pop hl
-	exx 	; Restore original values of BC', DE' & HL'
-	pop ix
-
-	ret
-
-.margin_off_screen:
-	pop af	; Already beyond the RHS
-	ret 	; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
-
-
-	; Render some text
-	; IX	= font table
-	; DE	= pointer to characters
-	; B	= (max) count of characters
-	; HL	= row/column (h = row 0–23; l = column 0–63)
-	; C	= (max) number of columns (half-cells) allowed
-	; A	= attrs for the text (h = row 0–23; l = column 0–63)
-	; RETURNS:
-	; HL	= end row/column 
-	; DE	= pointer to next character, or 1 + end of buffer
-	; B	= remaining character count (if we hit the column limit) or zero
-	; C	= remaining half-cell column limit
-	; TRASHES: BC', DE', HL'
-render_text:
-	inc b
-	dec b
-	ret z	; Return if no characters to render.
-
-	inc b	; b := characters to print + 1
-
-	push af	; push attrs value
-	ex af,af'
-	push af
-
 	push hl
 	exx 	; de' := char pointer; b' := remaining character count + 1
-	pop hl	; hl := (row, column)
+	ex (sp),hl	; hl := (row, column)
+	push de
+	push bc
+
 	push hl	; Push (row, column) to return, modified, at the end.
 	; get screen position pointer into DE from HL coordinates (and attr pointer in HL)
 	call ROWCOL_ADDR	; de := pixel address; hl := attr address
 	push hl	; Push address of attr block, to colour in character cells at the end.
 	bit 5, d
-	ex de,hl
-	jr z,render_common_char
-	ex de,hl
-starts_mid_cell:		; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
+	jr z,.make_the_call_ex	; Rendering on a cell boundary?
+.starts_mid_cell:		; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
+	ld h,d
+	ld l,e	; hl := de = screen pointer
+	res 5, h
+	ld bc,$08f0	; c := char-cell mask (to clear rhs of cell)
+		; b := count of cell lines
+.clr_half_cell:	ld a,(hl)
+	and c
+	ld (hl),a
+	inc h
+	djnz .clr_half_cell
+
+.make_the_call_ex:	ex de,hl	; hl := screen pointer
+.make_the_call:
+	ex af,af'
+	push af
+	call render_common_char
+	pop af
+	ex af,af'	; Restore original value of AF'
+
+	exx 	; hl := screen pointer
+	ld a,l
+	pop de	; de := pointer to attribute block (of FIRST char)
+	sub e
+	or a	; clear carry flag
+	bit 5, h
+	jr z,.no_half_incr
+.has_half_incr:	scf 	; Carry flag := extra half cell to add
+.no_half_incr:	rla 	; Multiply width in cells by 2, adding a half-cell if necessary (if Carry flag was set)
+	pop hl	; Pop initial (row, column)
+	res 0,l	; (New half-cell offset INCLUDES original odd/even bit.)
+	add l	; Add half-cell offset to column originally passed in
+	ld l,a	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
+
+	pop bc	; Restore BC'
+	pop de	; Restore DE'
+	ex (sp),hl	; Push end-of-text coordinates and restore HL'
+	exx
+	pop hl	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
+		; de = pointer to next char
+		; b = remaining characters in buffer
+		; c = remaining half-cells on screen.
+	pop ix
+.margin_off_screen:	pop af
+	ret
+
+
+	; "Safe" text rendering: takes into account right-and-side of the screen
+	; Render some text
+	;   DE	= pointer to characters
+	;   B	= (max) count of characters
+	;   HL	= row/column (h = row 0–23; l = column 0–63)
+	;   C	= (max) number of columns (half-cells) allowed
+	;   A	= attrs for the text (h = row 0–23; l = column 0–63)
+	; RETURNS:
+	;   HL	= end row/column 
+	;   DE	= pointer to next character, or 1 + end of buffer
+	;   B	= remaining character count (if we hit the column limit) or zero
+	;   C	= remaining half-cell column limit
+	;   A (preserved)	= attrs
+RENDER_TEXT:
+	inc b
+	dec b
+	ret z	; Return if no characters to render.
+
+	push af
+	ld a,64
+	sub l	; a := half-cells to RHS of screen
+	jr c,RENDER_TEXT_MONO.margin_off_screen
+		; (Don’t bother dealing with the zero case; that will be handled by rendering loop)
+.margin_ok:	ld c,a
+	inc b	; b := characters to print + 1
+
+	pop af
+
+	push ix
+	ld ix,(G.FONT)
+
+	push hl	; Push (row, column)
+	exx
+	ex (sp),hl	; Stash HL' and pop (row, column)
+	push de
+	push bc
+		; de' := char pointer; b' := remaining character count + 1
+
+	push af	; push attrs value
+	push hl	; Push (row, column) to return, modified, at the end.
+	; get screen position pointer into DE from HL coordinates (and attr pointer in HL)
+	call ROWCOL_ADDR	; de := pixel address; hl := attr address
+	push hl	; Push address of attr block, to colour in character cells at the end.
+	bit 5, d
+	jr z,.make_the_call_ex	; Rendering on a cell boundary?
+.starts_mid_cell:		; We’re starting rendering halfway through a cell, so clear the rhs of the cell:
 	ld a,(hl)	; a := starting attribute
 	rra
 	rra
 	rra
 	xor (hl)	; Want to check if paper==ink; in which case, clear the *whole* cell
 	and 7
-	jr z,clr_half_cell0
-	ld a,$f0
-clr_half_cell0:
+	jr z,.clr_half_cell0
+.clr_half_cell_only:	ld a,$f0
+.clr_half_cell0:
 	ld h,d
 	ld l,e	; hl := de = screen pointer
 	res 5, h
 	ld c,a	; c := char-cell mask (to clear rhs of cell)
 	ld b,$08	; b := count of cell lines
-clr_half_cell:
-	ld a,(hl)
+
+.clr_half_cell:	ld a,(hl)
 	and c
 	ld (hl),a
 	inc h
-	djnz clr_half_cell
+	djnz .clr_half_cell
+
+.make_the_call_ex:	ex de,hl	; hl := screen pointer
+.make_the_call:
+	ex af,af'
+	push af	; Push original AF'
+	call render_common_char
+	pop af
+	ex af,af'	; Restore original value of AF'
+
+.colour_it_in:	exx 	; hl := screen pointer
+	ld a,l
+	pop de	; de := pointer to attribute block (of FIRST char)
+	sub e
+	ld b,a	; b := count cells to colour in
+
+	or a	; clear carry flag
+	bit 5, h
+	jr z,.no_half_incr
+.has_half_incr:	scf 	; Carry flag := extra half cell to add
+	inc b	; We gonna colour into the next cell
+.no_half_incr:	rla 	; Multiply width in cells by 2, adding a half-cell if necessary (if Carry flag was set)
+	pop hl	; Pop initial (row, column)
+	res 0,l	; (New half-cell offset INCLUDES original odd/even bit.)
+	add l	; Add half-cell offset to column originally passed in
+	ld l,a	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
+
+	pop af	; a  := attrs
+	inc b
+	jr .colour_loop_rpt	; Add 1 and jump to end of the loop, to deal with 0-case.
+.colour_loop:
+	ld (de),a
+	inc e
+.colour_loop_rpt:	djnz .colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
+		; For short runs, up to 10 characters, djnz is faster. For 32 characters, ldir is 10% faster.
+		; For VERY short runs (1–2 characters), djnz is twice as fast.
+.end_colour:
+	pop bc	; Restore BC'
+	pop de	; Restore DE'
+	ex (sp),hl	; Push end-of-text coordinates and restore HL'
+	exx 	; Restore original values of BC', DE' & HL'
+	pop hl	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
+		; de = pointer to next char
+		; b = remaining characters in buffer
+		; c = remaining half-cells on screen.
+
+	pop ix
+	ret
 
 render_zw_character:		; Jumped to if we hit a glyph with zero width. (At some point we want to render diacritics here.)
 	ex de,hl	; hl := screen pointer
 	jr render_common_char
-
 render_next_char_offset:
 	ex af,af'
 	or 1<<5	; Set bit 5 => offset next char by 4 pixels
@@ -114,7 +212,7 @@ render_next_char_line_from_a:
 render_common_char:
 	exx 	; de := char pointer; b := remaining characters + 1; hl' := screen pointer
 	dec b
-	jr z,colour_it_in
+	ret z
 	ld a,(de)	; a := next character to render
 	inc de
 
@@ -133,9 +231,9 @@ render_common_char:
 .replace:	xor a	; ...Otherwise replace with the first glyph.
 .lookup:
 	; Look up glyph data:
-	inc a
 	ld c,a
 	ld b,0
+	inc bc	; Can’t just increase A (or C) because it might be 255…
 	add hl,bc
 	add hl,bc
 	ld b,(hl)	; b := HIGH byte of offset to character data pointer
@@ -235,44 +333,8 @@ beyond_rhs:		; c has OLD space remaining
 	exx
 	ex de,hl
 	exx
-		; (No need to increase 'b' here since we already did that at the start.)
-colour_it_in:
-	exx 	; hl := screen pointer
-	ld a,l
-	pop de	; de := pointer to attribute block (of FIRST char)
-	sub e
-	ld b,a	; b := count cells to colour in
-
-	or a	; clear carry flag
-	bit 5, h
-	jr z,.no_half_incr
-.has_half_incr:	scf 	; Carry flag := extra half cell to add
-	inc b	; We gonna colour into the next cell
-.no_half_incr:	rla 	; Multiply width in cells by 2, adding a half-cell if necessary (if Carry flag was set)
-	pop hl	; Pop initial (row, column)
-	res 0,l	; (New half-cell offset INCLUDES original odd/even bit.)
-	add l	; Add half-cell offset to column originally passed in
-	ld l,a	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
-
-	pop af
-	ex af,af'	; Restore original value of AF'
-	pop af	; a  := attrs
-	inc b
-	jr .colour_loop_rpt	; Add 1 and jump to end of the loop, to deal with 0-case.
-.colour_loop:
-	ld (de),a
-	inc e
-.colour_loop_rpt:	djnz .colour_loop	; We could have used ldir for memory copy here. It takes more setup, but fewer clocks per cell.
-		; For short runs, up to 10 characters, djnz is faster. For 32 characters, ldir is 10% faster.
-		; For VERY short runs (1–2 characters), djnz is twice as fast.
-	push hl	; Push end-of-text coordinates
-	exx
-	pop hl	; hl := row/column (h = row 0–23; l = column 0–63) (at end of text)
-		; de = pointer to next char
-		; b = remaining characters in buffer
-		; c = remaining half-cells on screen.
 	ret
-
+		; (No need to increase 'b' here since we already did that at the start.)
 	; RENDER 12-BIT GLYPH AT OFFSET ZERO
 render_w3_o0:
 	xor a
@@ -644,46 +706,63 @@ rowcol_out_of_range:	xor a	; Return all zeros for out of range coordinates. Mean
 
 	; Iterate through a buffer of characters, for a given maximum count and
 	; text width, and return the ending position (by width and char count)
-	; DE: char pointer
-	; B:  max number of characters
-	; C:  maximum width in half-cell columns.
+	;   DE: char pointer
+	;   B:  max number of characters
+	;   C:  maximum width in half-cell columns.
 	; RETURNS
-	; DE: point to NEXT character (or end of span)
-	; B:  character count to fit (or zero)
-	; C:  column count of text (or zero)
+	;   DE: point to NEXT character (or end of span)
+	;   H:  character count to fit (or zero)
+	;   L:  Length of visible chars, in columns (or zero)
+	;   B:  remaining characters
+	;   C:  remaining columns
+	; TRASHES
+	;   NOTHING! (Not even A or flags).
 MEASURE_SPAN:
 	push af
+	exx
 	push hl
-	ld h,0	; Char count to fit := 0
-	ld l,c	; Limit column := C (parameter)
-	ld c,h	; Column count := 0
+	push bc
+	exx
+	ld hl,0	; H (Char count to fit) := 0
+		; L (Column count to fit) := 0
 	inc b
 	dec b
 	jr z,.end	; Return if char count = 0
 .loop:
 	ld a,(de)
-	call MEASURE_CHAR
-	add c	; Add char width to columns so far (C)
-	cp l	; Compare to column limit (L)
+	exx
+	call MEASURE_CHAR.core
+	exx
+	add l	; Add char width to columns so far (L)
+	cp c	; Compare to column limit (C)
 	jr z,.eq
 	jr nc,.end	; Beyond column limit?
-.eq	ld c,a
+.eq	ld l,a
 	inc de
 	inc h	; One more char
 	djnz .loop
 .end:
-	ld b,h	; B := char count to fit
+	ld a,c
+	sub l
+	ld c,a
+	exx
+	pop bc
 	pop hl
+	exx
 	pop af
 	ret
-6
+
 	; Take a character (in A), and return its glyph width,
 	; 0–3, also in A. Preserves all other registers.
 MEASURE_CHAR:
 	push hl
 	push bc
-	ld hl,FONT_LOOKUP	; Character index table
+	call .core
+	pop bc
+	pop hl
+	ret
 
+.core:	ld hl,(G.FONT)	; Character index table
 	; Force character (in A) to be in range of glyphs:
 	sub (hl)	; First character represented
 	inc hl	; (DOES NOT AFFECT CARRY)
@@ -694,15 +773,13 @@ MEASURE_CHAR:
 .replace:	xor a	; ...Otherwise replace with the first glyph.
 .lookup:
 	; Look up glyph data:
-	inc a
 	ld c,a
 	ld b,0
+	inc bc	; Can’t just increase A (or C) because it might be 255…
 	add hl,bc
 	add hl,bc
 	ld a,(hl)	; HIGH byte of offset to character data pointer
 	rlca
 	rlca
 	and 3
-	pop bc
-	pop hl
 	ret

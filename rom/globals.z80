@@ -10,7 +10,8 @@ UDG_RAM_LENGTH:	equ 16*9
 CLOCK_TICKS:	D24
 need_init:	; Global variables which need initised (to something other than zero)
 	; Initial values are copied from ‘INITIAL_GLOBAL_VALUES’ in startup ‘GLOBALS_INIT’ code.
-FONT:	WORD
+FONT:	WORD	; Pointer
+SYNTAX_COLOURS:	WORD	; Pointer
 REPDEL:	BYTE
 REPPER:	BYTE
 I_HANDLER:	BLOCK 5	; Enough for CALL XXXX, EI, RET	

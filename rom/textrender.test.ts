@@ -351,35 +351,45 @@ function charCode(singleChar: string) {
 	return CharsetFromUnicode[singleChar.charAt(0)]
 }
 
-function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte = 0b00111000, maxWidth: byte = 127) {
+function renderAt(vm: Vm, text: string, p: TextCoords, attr: byte|'none' = 0b00111000, maxWidth: byte = 127) {
 	vm.setRam(0x9000, asBytes(text))
 	vm.pokeWord(globals.FONT, rom.FONT_LOOKUP.addr)
 	vm.setRegisters({
 		DE: 0x9000,
 		B: text.length as byte,
 		C: maxWidth,
-		A: attr,
+		A: attr !== 'none' ? attr : 0b11101010,
+		F: attr !== 'none' ? 0xff : 0x00,
 		H: p.row,
 		L: p.column
 	})
-	vm.callSubroutine(rom.RENDER_TEXT, 4050 + 674 * text.length)
+	vm.callSubroutine(rom.RENDER_TEXT, 2700 + 674 * text.length)
 }
 
 function measureSpan(vm: Vm, text: string, maxColumnWidth: byte = 255) {
 	const bufferAddress = 0x9000
 	vm.setRam(bufferAddress, asBytes(text))
+	vm.pokeWord(globals.FONT, rom.FONT_LOOKUP.addr)
 	vm.setRegisters({
 		DE: bufferAddress,
 		B: text.length as byte,
 		C: maxColumnWidth
 	})
 	vm.callSubroutine(rom.MEASURE_SPAN, 6000)
-	const {DE, B, C} = vm.getRegisters()
-	return {
+	const {DE, B, C, H, L} = vm.getRegisters()
+	const result = {
 		pointerOffset: DE - bufferAddress,
-		charFit: B,
-		columnWidth: C
+		charFit: H,
+		columnWidth: L,
+		remainingChars: B,
+		remainingColumns: C,
 	}
+
+	// Invariants:
+	expect(result.remainingChars).toBe(text.length - result.charFit)
+	expect(result.remainingColumns).toBe(maxColumnWidth - result.columnWidth)
+
+	return result
 }
 
 function getCoordsAfterRendering(vm: Vm): TextCoords {

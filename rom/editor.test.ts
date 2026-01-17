@@ -383,6 +383,7 @@ function whenTyped(vm: Vm, c: string|byte) {
 		? c as byte
 		: c.charCodeAt(0) as byte
 
+	vm.pokeWord(globals.FONT, rom.FONT_LOOKUP.addr)
 	vm.setRegisters({A: b})
 	vm.callSubroutine(rom.LINE_EDIT, 10000)
 }

@@ -82,6 +82,17 @@ export class Vm {
 				}
 			}
 		)
+		const {F} = result
+		result.flags = {
+			C: !!(F & 0b1),
+			N: !!(F & 0b10),
+			PV:!!(F & 0b100),
+			y: !!(F & 0b1000),
+			H: !!(F & 0b10000),
+			x: !!(F & 0b100000),
+			Z: !!(F & 0b1000000),
+			S: !!(F & 0b10000000),
+		}
 		return result as RegisterSet
 	}
 
@@ -182,8 +193,10 @@ export class Vm {
 		const tStatesPlusOverhead = forTStates + 17 + 4 // Add overhead for CALL + HALT
 		this.setRegisters({SP: stackTop})
 		this.runPcAt({addr:0x8000}, tStatesPlusOverhead)
+		const {SP} = this.getRegisters()
 
 		expect(this.core.getHalted(), `Should have HALTED (PC=${this.core.getPC()})`).toBe(1)
+		expect(SP, `Subroutine should balance stack (SP=${hex16(SP)})`).toBe(stackTop)
 	}
 }
 
@@ -191,6 +204,17 @@ const JSPECCY = "../../jsspeccy3/dist/jsspeccy"
 const ROM = "./dist/neo48.rom"
 const memoryPageWriteMap = [11, 5, 2, 0]
 export const stackTop = 0xF000
+
+export type FlagsRegister = {
+	C: boolean,
+	N: boolean,
+	PV: boolean,
+	y: boolean,
+	H: boolean,
+	x: boolean,
+	Z: boolean,
+	S: boolean
+}
 
 export type RegisterSet = {
 	AF: number,
@@ -227,6 +251,7 @@ export type RegisterSet = {
 	IYl: byte,
 	I: byte,
 	R: byte,
+	flags: FlagsRegister,
 }
 type RegisterName = keyof RegisterSet
 export type PartialRegisterSet = Partial<RegisterSet>
@@ -271,3 +296,9 @@ export function asString(bytesOrString: ArrayLike<byte>|string): string {
 	return str
 }
 
+export function hex16(word: number): string {
+	const hex = word.toString(16)
+	return hex.length === 1
+		? `0${hex}`
+		: hex
+}

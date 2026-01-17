@@ -130,6 +130,7 @@ COPYRIGHT:
 	ld bc,(COPYRIGHT_TEXT.length << 8) | $7f
 	ld a,%00111000	; Black ink on white paper
 	ld hl,$1602	; x := 2 (half-cells), y := 22
+	scf	; Set Colour Flag
 	call RENDER_TEXT
 
 .wait_for_key:	call FRAME_CHECK
@@ -212,6 +213,7 @@ COPYRIGHT_TEXT:
 
 INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
 .font:	dw FONT_LOOKUP
+.SYNTAX_COLOURS:	dw DEFAULT_SYNTAX_COLOURS
 .repdel:	db 35
 .repper:	db 5
 .i_handler:	jp DEFAULT_INTERRUPT_HANDLER

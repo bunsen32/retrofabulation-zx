@@ -1,58 +1,13 @@
-TEXT_BUFFER	EQU $5C00
-LINE_OFFSET_STACK	EQU $5D00
-
 SCR_CUR_UP	EQU 0b0001
 SCR_CUR_DOWN	EQU 0b0011
 SCR_SHOW_CURSOR	EQU $80
 SCR_REDRAW_TEXT	EQU 0b0010
 SCR_ISSUE_RIGHT	EQU 0b0100
 
-	; Read-Execute-Print Loop
-POP_AND_REPL:
-	pop bc	; Pop off a return address
-REPL:
-.cls
-	ld a,7
-	out ($fe),a	; Set border to white
-	ld hl,$5800
-	ld (hl),0b00111111	; White ink; white paper
-	ld de,$5801
-	ld bc,768
-	ldir 	; Clear screen to all white (16123 t-states)
-.init_buffer:
-	ld hl,$0000
-	ld (G.CAPS_ICON_XY),hl
-	ld hl,$0004
-	ld (G.MODE_ICON_XY),hl
-	ld de,TEXT_BUFFER
-	ld bc,0	; prior-chars := 0; subsequent-chars := 0
-	ld a,b
-	exx
-	ld de,LINE_OFFSET_STACK
-	ld (de),a
-	ld b,$ff	; Max length
-	ld c,1	; Current line number
-	ld hl,$0300	; First line start coords
-	push hl
-	exx
-	pop hl
-	ld (G.CURSOR_XY), hl
-
-	; Clear first character cell so that flashing cursor is visible:
-	push bc
-	push de
-	push hl
-	ld de,TWO_SPACES
-	ld b,1
-	ld a,0b01111000	; black ink, white paper
-	call RENDER_TEXT
-	pop hl
-	pop de
-	pop bc
-
+	ds 63
 
 	; Buffer: [xxxxxx|xxxx-----]
-	; A: scratch register
+	; A: scratch register (trashed)
 	; HL: screen position of cursor (row,half-cell)
 	; DE: buffer position of cursor (byte pointer)
 	; B : characters prior to cursor
@@ -60,25 +15,24 @@ REPL:
 	; B': remaining space in buffer (characters)
 	; C': Current line number (1-based)
 	; HL': screen position of column-zero (row,half-cell)
-	; (SP): buffer position of column-zero (we push lines on, and pop them off)
-REPL_LOOP:	
-.check_key:
-	ld a,(G.KEY_CHAR)
-	or a
-	call nz,LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
-	or a
-	call nz,.screen_cmd
-.await	halt 	; Wait for some potential keyboard input.
+	; DE': buffer position of column-zero (we push lines on, and pop them off)
+	; AF',IX,IY,others: Unmodified
+EDITOR:	
+.frame_loop:	halt 	; Wait for some potential keyboard input.
 	push hl
 	call CURSOR_ANIM_FRAME
 	call CAPS_SHIFT_ANIM
+.check_key:	ld hl,G.KEY_CHAR
+	ld a,(hl)
+	ld (hl),0	; So we can detect if a key is pressed while we’re doing other things.
 	pop hl
-	jr .check_key
 
-	; Cycle back round again and move cursor right
-.right_by_one:	ld a,CHAR_RIGHT
-	call LINE_EDIT
-	; fallthrough to .screen_cmd
+	or a
+	jr z,.frame_loop
+	call LINE_EDIT	; Returns with ‘screen-editing’ command (or zero).
+	or a
+	call nz,SCREEN_EDIT_CMD
+	jr .frame_loop
 
 	// If we get here, we (might) need to move between lines, or redraw the display.
 	// Implies a cursor move/reset too. Takes in bits of A:
@@ -88,11 +42,17 @@ REPL_LOOP:
 	// 2: Issue CURSOR_RIGHT key to move cursor after inserting a character.
 	// 3–6: <unused>
 	// 7: (Can be set to 1 to show cursor and do nothing else.)
-.screen_cmd:	ex af,af'
+SCREEN_EDIT_CMD:	ex af,af'
+	push af	; Stash AF' from caller
 	call HIDE_CURSOR
 	ex af,af'
-.bit_A:
-	rra 	; Bit A+0: vertical movement (up or down arrow)
+	jr .bit_A
+
+	; Cycle back round again and move cursor right
+.right_by_one:	ld a,CHAR_RIGHT
+	call LINE_EDIT
+
+.bit_A:	rra 	; Bit A+0: vertical movement (up or down arrow)
 	jr c,.mov_vertical
 
 	// Sort out cursor position. If it’s to the left of the allowed screen area,
@@ -130,7 +90,7 @@ REPL_LOOP:
 	ld b,a	; B := distance along line in characters
 	ld c,64	; C := maximum line width (= "no limit")
 	call MEASURE_SPAN	; DE := cursor buffer position; C := measured width of line
-	ld a,c	; A := measured width of line
+	ld a,l	; A := measured width of line
 	pop bc
 	pop hl	; HL := HL'
 	add l	; A := width of line + left margin
@@ -139,12 +99,9 @@ REPL_LOOP:
 .ex_bit_B:	ex af,af'
 .bit_B:	rra 	; Bit B: redraw
 	jr nc,.bit_C
-	push af
 	push hl
-	ld a,0b01111000	; black ink, white paper
 	call PRINT_WRAP
 	pop hl
-	pop af
 
 .bit_C:
 	rra 	; Bit C: right-arrow
@@ -156,6 +113,8 @@ REPL_LOOP:
 .end_screen_cmd:	; Set new cursor position & display it:
 	ld (G.CURSOR_XY),hl
 	call SHOW_CURSOR
+	pop af
+	ex af,af'	; Restore AF' from caller
 	ret
 
 .mov_vertical:	rra 	; Bit A+1: 0=UP 1=DOWN
@@ -176,9 +135,12 @@ REPL_LOOP:
 	ld a,64
 	sub l	; A := column space to end of line
 	ld c,a	; C := allowed columns for characters
-	call MEASURE_SPAN
 	ld a,l
-	add c	; A: = L (cursor-X) + span width
+	push hl
+	call MEASURE_SPAN
+	add l	; A: = L (cursor-X) + span width
+	ld b,h	; B := chars to end of line
+	pop hl
 	ld l,a	; L := position of end of line
 	ld a,b	; A := chars to end of line
 	pop bc
@@ -196,9 +158,12 @@ REPL_LOOP:
 	ld a,(G.IDEAL_CUR_X)
 	sub l
 	ld c,a	; C := (IDEAL_CUR_X - left margin)
-	call MEASURE_SPAN
 	ld a,l
-	add c
+	push hl
+	call MEASURE_SPAN
+	add l
+	ld b,h	; B := count of characters to desired position
+	pop hl
 	ld l,a	; L (cursor X) := desired position
 	ld a,b	; A := count of characters to desired position
 	pop bc
@@ -442,13 +407,13 @@ PRINT_WRAP:
 	inc h	; Down one line
 	push hl	; Push start of line.
 .first_line:
-	call RENDER_TEXT	; Render as much as we can (stopping at end of line)
+	call RENDER_TEXT_MONO	; Render as much as we can (stopping at end of line)
 	
 	push bc
 	push de
 	ld de,TWO_SPACES
 	ld b,2
-	call RENDER_TEXT	; Erase any junk at end of line.
+	call RENDER_TEXT_MONO	; Erase any junk at end of line.
 	pop de	; de := next character (start of next line)
 	pop bc	; b := remaining characters to render
 
