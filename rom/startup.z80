@@ -44,7 +44,7 @@ GLOBALS_INIT:
 	ld bc,INITIAL_GLOBAL_VALUES.length
 	ldir
 
-	ld sp,$f000	; Placeholder stack top.
+	ld sp,$f000	; Placeholder stack top. TODO
 	call RESET_UDG
 	ei
 
