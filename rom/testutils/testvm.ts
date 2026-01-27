@@ -8,7 +8,7 @@ export type word = number
 
 export type Z80Address = { addr: number }
 
-const REGISTER_PAIRS: RegisterName[][] = [
+const REGISTER_PAIRS: [keyof RegisterSet16, ...RegisterName[]][] = [
 	['AF', 'A', 'F'],
 	['BC', 'B', 'C'],
 	['DE', 'D', 'E'],
@@ -70,19 +70,19 @@ export class Vm {
 	}
 
 	getRegisters(): RegisterSet {
-		const result: any = {};
+		const result: Partial<RegisterSet> = {};
 		REGISTER_PAIRS.forEach(
 			(registers, i) => {
 				const [rPair, rHigh, rLow] = registers
 				const word = this.registerPairs[i]
 				result[rPair] = word
 				if (rHigh) {
-					result[rHigh] = (word >> 8)
-					result[rLow] = (word & 0xff)
+					result[rHigh] = (word >> 8) as byte
+					result[rLow] = (word & 0xff) as byte
 				}
 			}
 		)
-		const {F} = result
+		const {F} = result as RegisterSet
 		result.flags = {
 			C: !!(F & 0b1),
 			N: !!(F & 0b10),
@@ -96,8 +96,7 @@ export class Vm {
 		return result as RegisterSet
 	}
 
-	setRegisters(registerValues: PartialRegisterSet) {
-		const reg: any = registerValues
+	setRegisters(reg: PartialRegisterSet) {
 		REGISTER_PAIRS.forEach(
 			([rPair, rHigh, rLow], i) => {
 				const word = reg[rPair]
@@ -171,7 +170,7 @@ export class Vm {
 		this.core.setPC(address.addr)
 		const trace: CpuSnapshot[] = []
 		while (1) {
-			const cpu = this.getRegisters() as any
+			const cpu = this.getRegisters() as CpuSnapshot
 			cpu.PC = this.core.getPC()
 			cpu.t = this.core.getTStates()
 			cpu.stack = this.getStack()
@@ -216,7 +215,7 @@ export type FlagsRegister = {
 	S: boolean
 }
 
-export type RegisterSet = {
+export type RegisterSet16 = {
 	AF: number,
 	BC: number,
 	DE: number,
@@ -229,6 +228,8 @@ export type RegisterSet = {
 	IY: number,
 	SP: number,
 	IR: number,
+}
+export type RegisterSet = RegisterSet16 & {
 	A: byte,
 	F: byte,
 	B: byte,
@@ -253,7 +254,7 @@ export type RegisterSet = {
 	R: byte,
 	flags: FlagsRegister,
 }
-type RegisterName = keyof RegisterSet
+type RegisterName = keyof Omit<RegisterSet, 'flags'>
 export type PartialRegisterSet = Partial<RegisterSet>
 export type CpuSnapshot = RegisterSet & {
 	t: number,
