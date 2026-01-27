@@ -1,0 +1,78 @@
+	; TEST AND INITIALISE RAM
+	; On entry, interrupts are disabled, and IM 1 is set.
+	; RAM is tested with following patterns:
+	;
+	; 01010101 (0x55)
+	; 10101010 (0xAA)
+	; 00000000 (0x00) — last one clears RAM to all zeros.
+
+RAM_TEST
+	xor a	; black
+	out ($fe), a	; set border
+	ld a, $55
+.iteration:
+	ld bc,16 * 1024 / 8 / 256	; DO NOT put brackets round this!
+	ld sp,$8000
+	ld d,a
+	ld e,a
+.fast_clear_loop:
+	push de
+	push de
+	push de
+	push de
+	djnz .fast_clear_loop
+	dec c
+	jr nz,.fast_clear_loop
+.test_bytes:
+	ld bc,16 * 1024 / 2 / 256	; DO NOT put brackets round this!
+.test_loop:
+	pop de
+	cp d
+	jr nz,.RAM_TEST_END
+	cp e
+	jr nz,.RAM_TEST_END
+	djnz .test_loop
+	dec c
+	jr nz,.test_loop
+
+	rrca
+	jr c,.iteration
+	ld a, b	; B was 0, because loop finished.
+	jr nz,.iteration	; (If result of rrca was non-zero.)
+	pop de
+.RAM_TEST_END:		; Register C is the size of bad RAM in 512-byte blocks
+	push de
+	ld hl,$0000
+	add hl,sp
+	ld a, 16 * 1024 / 2 / 256
+	sub c	; A := Number of whole GOOD 512-byte blocks (carry is 0)
+	rra	; A := Number of whole GOOD 1KB blocks
+	cp 16	; Less than 16K? We consider that a failure.
+	jr c, .BAD_RAM_SIZE
+	dec hl	; HL := top of available RAM
+	ld (G.RAMTOP),hl
+	jp INIT
+
+.BAD_RAM_SIZE:	ld sp,.RAM_BAD_STACK
+	ld de,.RAM_FAIL_TEXT
+	ld bc,(.RAM_FAIL_LENGTH+1)<<8 | 30
+	exx
+	ld hl,$4000
+	ld ix,FONT_LOOKUP
+	jp render_common_char
+.colour_the_text:
+	ld hl,$5800	; Start of screen attributes
+	ld bc, (16 << 8) | $C2	; 16 cells, attribute $C2 (bright red on black)
+.colour_loop:	ld (hl),c
+	inc hl
+	djnz .colour_loop
+.BAD_RAM_HALT:	jr c,.BAD_RAM_HALT
+
+	; We’re running when possibly none of the RAM works, so we can’t use a stack in RAM.
+	; Instead, we use a small, hard-coded stack in ROM:
+.RAM_BAD_STACK:	dw .RAM_FAIL_TEXT
+	dw .colour_the_text
+	dw $ffff	; AF: Set the carry flag to indicate failure
+
+.RAM_FAIL_TEXT:	db "RAM TEST FAILED!"
+.RAM_FAIL_LENGTH:	equ $ - .RAM_FAIL_TEXT
