@@ -8,9 +8,10 @@
 			"dependencies": ["assemble"]
 		},
 		"deploy": {
-			"command": "cp dist/neo48.rom ../dist/jsspeccy/roms/48.rom",
+			"command": "cp dist/neo48.rom ../dist/roms/neo48.rom && deno task hash-rom-file",
 			"dependencies": ["assemble"]
 		},
+		"hash-rom-file": "cat ../dist/_spectrum.html | deno run build/subst.ts __HASH__ \"$(deno run build/sha256.ts < dist/neo48.rom)\" >../dist/spectrum.html",
 		"genfont": "deno run build/makefont.ts >generated/font.z80",
 		"symtojs": "cat generated/symbols.txt | deno run --allow-env build/symbolstojs.ts >generated/symbols.ts",
 		"assemble": {
