@@ -19,7 +19,9 @@ RAM_TEST:
 
 .FIRST_TEST_RETURN:	jp z,INIT	; Fail fast if we have less than 8 KB of RAM.
 
-.BAD_RAM_SIZE:	ld sp,.RAM_BAD_STACK
+.BAD_RAM_SIZE:	ld a,2	; RED
+	out ($fe), a	; set border
+	ld sp,.RAM_BAD_STACK
 	ld de,.RAM_FAIL_TEXT
 	ld bc,(.RAM_FAIL_LENGTH+1)<<8 | 30
 	exx
@@ -60,7 +62,6 @@ RAM_TEST:
 	; We’re running when possibly none of the RAM works, so we can’t use a stack in RAM.
 	; Instead, we use a small, hard-coded stack in ROM:
 .RAM_BAD_STACK:	dw .colour_the_text
-	dw $ffff	; AF: Set the carry flag to indicate failure
 
 .RAM_FAIL_TEXT:	db " FAIL 16K RAM"
 .RAM_FAIL_LENGTH:	equ $ - .RAM_FAIL_TEXT
