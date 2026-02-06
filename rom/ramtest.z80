@@ -11,7 +11,7 @@ RAM_TEST:
 	out ($fe), a	; set border
 
 	; Test 8 KB of RAM (enough to show splash animation)
-	; RAM might not work, so returns to IY (instead of return address on stack)
+	; We obviously can’t trust RAM yet, so returns to IY (instead of return address on stack)
 .test_blocks:	ld bc,$0020	; Loop counters: test 0x2000 = 8192 bytes of RAM.
 	ld hl,$3fff	; Start of RAM - 1
 	ld iy,.FIRST_TEST_RETURN

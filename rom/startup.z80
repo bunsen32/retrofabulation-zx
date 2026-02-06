@@ -50,21 +50,6 @@ GLOBALS_INIT:
 	ei
 
 SPLASH_ANIM:
-
-.cyan_cyan	=	%00101101
-.cyan_blue	=	%00101001
-.cyan_black	=	%00101000
-.cyan_white	=	%00101111
-.green_cyan	=	%00100101
-.green_green	=	%00100100
-.green_blue	=	%00100001
-.yellow_yellow	=	%00110110
-.yellow_green	=	%00110100
-.red_red	=	%00010010
-.red_yellow	=	%00010110
-.white_white	=	%00111111
-.white_red	=	%00111010
-
 	ld iy,.ram_test_return
 	exx	; HL' = end of RAM; IY = RAM test return address; C' = 0 (will be size of RAM in KB); B' = 0 (will be OR of keypresses during RAM test)
 	ld hl,.data
@@ -81,6 +66,10 @@ SPLASH_ANIM:
 	inc hl
 	ld e,(hl)	; e := leading colour
 	inc hl
+
+	; Draw the next frame of the splash animation, and test some RAM while we wait for the next frame.
+	; We always test the same amount of RAM per frame. We *could* test more in later frames, once we get
+	; past the 16K slow memory… but the difference would be marginal.
 .phase_loop:
 	halt	; Wait for next frame.
 	call STRIPE_n
@@ -92,7 +81,7 @@ SPLASH_ANIM:
 	ld b,a	; B = bitwise OR of recent keypresses.
 	dec c
 	inc c
-	jr nz,.allowed_to_exit	; If we’ve already tested all memory, allow exit on keypress. Otherwise, ignore keypresses until next phase.
+	jr nz,.allowed_to_exit	; If we’ve already tested all memory, allow exit on keypress. Otherwise, test more memory.
 	push bc
 	ld bc,$9003	; Test 2.5 blocks of RAM per phase, (actually 0x290 = 656 bytes).
 	jp RAM_TEST.do_test
@@ -120,6 +109,20 @@ SPLASH_ANIM:
 	jr .next_phase
 
 .data:
+.cyan_cyan	=	%00101101
+.cyan_blue	=	%00101001
+.cyan_black	=	%00101000
+.cyan_white	=	%00101111
+.green_cyan	=	%00100101
+.green_green	=	%00100100
+.green_blue	=	%00100001
+.yellow_yellow	=	%00110110
+.yellow_green	=	%00110100
+.red_red	=	%00010010
+.red_yellow	=	%00010110
+.white_white	=	%00111111
+.white_red	=	%00111010
+
 	; WIPE CYAN
 	db 2, 0	; width, startx
 	db 22	; iterations
