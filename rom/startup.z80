@@ -42,9 +42,10 @@ GLOBALS_INIT:
 	ld hl,INITIAL_GLOBAL_VALUES
 	ld de,G.need_init
 	ld bc,INITIAL_GLOBAL_VALUES.length
-	ldir
+	ldir	; After this, BC = 0
 
-	ld sp,$6000	; Placeholder stack top. TODO
+	ld hl,$5fff	; Last valid byte of RAM (tested so far).
+	ld sp,hl	; Placeholder stack top. We’ll move it to the correct place after we’ve tested the RAM.
 	call RESET_UDG
 	ei
 
@@ -64,6 +65,8 @@ SPLASH_ANIM:
 .white_white	=	%00111111
 .white_red	=	%00111010
 
+	ld iy,.ram_test_return
+	exx	; HL' = end of RAM; IY = RAM test return address; C' = 0 (will be size of RAM in KB); B' = 0 (will be OR of keypresses during RAM test)
 	ld hl,.data
 .next_phase	ld a,(hl)
 	or a
@@ -79,8 +82,39 @@ SPLASH_ANIM:
 	ld e,(hl)	; e := leading colour
 	inc hl
 .phase_loop:
-	call FRAME_CHECK	; Wait a frame & exit if keyboard input
+	halt	; Wait for next frame.
 	call STRIPE_n
+	
+	push af	; NOW CHECK SOME RAM!
+	exx
+	ld a,(G.KEY_CHAR)
+	or b
+	ld b,a	; B = bitwise OR of recent keypresses.
+	dec c
+	inc c
+	jr nz,.allowed_to_exit	; If we’ve already tested all memory, allow exit on keypress. Otherwise, ignore keypresses until next phase.
+	push bc
+	ld bc,$9003	; Test 2.5 blocks of RAM per phase, (actually 0x290 = 656 bytes).
+	jp RAM_TEST.do_test
+.ram_test_return:	pop bc
+	jr z,.continue_phase_loop ; Block of RAM passed, but we might not be finished, so continue with next phase.
+	ld (G.RAMTOP),hl	; Test ‘failed’, but it might just have hit the start of ROM.
+	inc hl	; Round up one byte.
+	ld a,h
+	sub 16*4	; Subtract 16 KB of ROM (in pages: 16 * 4 pages/KB).
+	rrca	; Divide by 2
+	rrca	; Divide by 2
+	and %00111111	; Mask off two junk bits that we rotated in.
+	cp MINIMUM_RAM	; Do we have at least the minimum RAM?
+	jp c,RAM_TEST.BAD_RAM_SIZE	; Otherwise, show RAM failure message.
+	ld (G.RAMSIZE_KB),a	; Store RAM size in KB, for display purposes.
+	ld c,a	; Store RAM size in C, to record that we finished.
+.allowed_to_exit:	inc b
+	dec b
+	jp nz,REPL
+.continue_phase_loop:	exx
+	pop af
+	
 	dec c
 	jr nz,.phase_loop
 	jr .next_phase
@@ -116,7 +150,7 @@ SPLASH_ANIM:
 .end
 	ld b,8	; We could save two bytes here by rearranging data a bit, and assigning B in the loop…
 	ld c,0b00101000	; Cyan paper
-.border_loop	call FRAME_CHECK	; Wait a frame & exit if keyboard input
+.border_loop	halt	; Wait for next frame
 	out ($fe), a	; set border, in spectrum from black to white. Makes transition softer & less jarring.
 	xor c	; Add in paper colour.
 	ld ($5aff), a	; bottom-right screen cell
@@ -132,17 +166,11 @@ COPYRIGHT:
 	ld hl,$1602	; x := 2 (half-cells), y := 22
 	call RENDER_TEXT
 
-.wait_for_key:	call FRAME_CHECK
-	jr .wait_for_key
-
-	; Wait a frame, check for (keyboard) input, and quit to REPL as soon as that happens.
-FRAME_CHECK:	halt
-	ex af,af'
+.wait_for_key:	halt
 	ld a,(G.KEY_CHAR)
 	or a
-	jp nz,POP_AND_REPL
-	ex af,af'
-	ret
+	jp nz,REPL
+	jr .wait_for_key
 
 STRIPE_n:
 	; Draw a steep diagonal section of rainbow down the screen, from given x position,

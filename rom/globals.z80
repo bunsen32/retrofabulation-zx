@@ -33,6 +33,7 @@ CURSOR_FRAMES:	BYTE 	; bits <count><X> where
 		; <X> is 0: cursor is off; 1: cursor is on.
 IDEAL_CUR_X:	BYTE 	; When moving up or down, column to aim for.
 RAMTOP:	WORD 	; Top byte of available RAM
+RAMSIZE_KB:	BYTE 	; Size of RAM in KB. Redundant with RAMTOP, (but convenient).
 
 	ENDS
 

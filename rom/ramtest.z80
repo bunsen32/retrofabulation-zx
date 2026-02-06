@@ -12,14 +12,15 @@ RAM_TEST:
 
 	; Test 8 KB of RAM (enough to show splash animation)
 	; RAM might not work, so returns to IY (instead of return address on stack)
-.test_blocks:	ld bc,$0020	; Loop counters:
+.test_blocks:	ld bc,$0020	; Loop counters: test 0x2000 = 8192 bytes of RAM.
 	ld hl,$3fff	; Start of RAM - 1
 	ld iy,.FIRST_TEST_RETURN
 	jp .do_test
 
-.FIRST_TEST_RETURN:	jp z,INIT	; Fail fast if we have less than 8 KB of RAM.
+.FIRST_TEST_RETURN:	jp z,INIT	; Only proceed to rest of startup if we have ≥8 KB of RAM.
 
-.BAD_RAM_SIZE:	ld a,2	; RED
+.BAD_RAM_SIZE:	di	; In case we came here from the splash anim (which uses interrupts).
+	ld a,2	; RED
 	out ($fe), a	; set border
 	ld sp,.RAM_BAD_STACK
 	ld de,.RAM_FAIL_TEXT
@@ -38,9 +39,9 @@ RAM_TEST:
 
 
 .do_test:	ld de,$55aa	; First two test patterns: $55 and $aa.
-.test_loop:	inc hl
+	inc hl
 	; 94 clocks per byte.
-	ld a, d
+.test_loop:	ld a, d
 	ld (hl),a
 	cp (hl)
 	jr nz,.test_end_fail
@@ -52,12 +53,13 @@ RAM_TEST:
 	ld (hl),a
 	cp (hl)
 	jr nz,.test_end_fail
-	djnz .do_test
+	inc hl
+	djnz .test_loop
 	dec c
-	jr nz,.do_test
-.test_end_success:	jp (iy)	; Success. HL points to last successful byte.
-.test_end_fail:	dec hl
-	jp (iy)	; Failure. HL points to last successful byte.
+	jr nz,.test_loop
+.test_end_success:
+.test_end_fail:	dec hl	; Success or failure. HL points to last successful byte.
+	jp (iy)	; Return. Z indicates success, NZ indicates failure.
 
 	; We’re running when possibly none of the RAM works, so we can’t use a stack in RAM.
 	; Instead, we use a small, hard-coded stack in ROM:
