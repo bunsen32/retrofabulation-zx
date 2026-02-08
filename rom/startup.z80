@@ -1,11 +1,9 @@
 INIT:
 SPLASH_INIT:
 	ld sp,$5B00
-	ld b,(24 * 32) / 8
+	ld b,(24 * 32) / 4
 	ld de,$0000	; No bright, paper = black, ink = black
 .cls_black:	push de
-	push de
-	push de
 	push de
 	djnz .cls_black
 
@@ -53,14 +51,13 @@ SPLASH_ANIM:
 	ld iy,.ram_test_return
 	exx	; HL' = end of RAM; IY = RAM test return address; C' = 0 (will be size of RAM in KB); B' = 0 (will be OR of keypresses during RAM test)
 	ld hl,.data
-.next_phase	ld a,(hl)
-	or a
-	jr z,.end
-	ld b,a	; b := width of trailing colour stripe
-	inc hl
-	ld a,(hl)	; a := starting x position
+.next_phase	ld b,(hl)	; b := width of trailing colour stripe
 	inc hl
 	ld c,(hl)	; c := loop counter: steps across the screen
+	inc hl
+	ld a,(hl)	; a := starting x position
+	cp b	; (a = b) => end of loop
+	jr z,.end
 	inc hl
 	ld d,(hl)	; d := trailing colour
 	inc hl
@@ -124,35 +121,29 @@ SPLASH_ANIM:
 .white_red	=	%00111010
 
 	; WIPE CYAN
-	db 2, 0	; width, startx
-	db 22	; iterations
+	db 2, 22, 0	; width (B), iterations (C), startx (A)
 	db .cyan_cyan, .cyan_black
 
 	; WIPE GREEN
-	db 2, 1	; width, startx
-	db 21	; iterations
+	db 2, 21, 1	; width, iterations, startx
 	db .green_green, .green_cyan
 
 	; WIPE YELLOW
-	db 4, 0	; width, startx
-	db 11	; iterations
+	db 4, 11, 0	; width, iterations, startx
 	db .yellow_yellow, .yellow_green
 
 	; WIPE RED
-	db 4, -1	; width, startx
-	db 11	; iterations
+	db 4, 11, -1	; width, iterations, startx
 	db .red_red, .red_yellow
 
 	; WIPE WHITE
-	db 4, -2	; width, startx
-	db 11	; iterations
+	db 4, 11, -2	; width, iterations, startx
 	db .white_white, .white_red
 
 	; END
-	DB 0
+	DB 8, 0b00101000, 8	; fade steps (B), cyan paper (C), terminator (A=B)
 .end
-	ld b,8	; We could save two bytes here by rearranging data a bit, and assigning B in the loop…
-	ld c,0b00101000	; Cyan paper
+	xor a
 .border_loop	halt	; Wait for next frame
 	out ($fe), a	; set border, in spectrum from black to white. Makes transition softer & less jarring.
 	xor c	; Add in paper colour.
