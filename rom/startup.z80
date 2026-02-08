@@ -162,12 +162,28 @@ SPLASH_ANIM:
 	inc a
 	djnz .border_loop
 
-COPYRIGHT:
+COPYRIGHT:	; Print copyright text:
 	ld de,COPYRIGHT_TEXT
 	ld bc,(COPYRIGHT_TEXT.length << 8) | $7f
 	ld a,%00111000	; Black ink on white paper
-	ld hl,$1602	; x := 2 (half-cells), y := 22
+	ld hl,$1600	; x := 2 (half-cells), y := 22
 	call RENDER_TEXT
+
+	; Print RAM size (if less than 48K):
+	ld a,(G.RAMSIZE_KB)
+	cp 48
+	jr z,.wait_for_key	; Omit RAM size if exactly 48K
+	push hl	; Push next screen coords
+	ld hl,$5C00
+	push hl	; Push pointer to text buffer
+	call INT8_TO_STRING
+	ld (hl),'K'
+	inc hl
+	ld bc,$037f	; B = 3 = number of chars ("00K"); C = column limit (end of screen).
+	ld a,%00111001	; Blue ink on white paper
+	pop de	; Pop text pointer
+	pop hl	; Pop screen coords
+	call RENDER_TEXT	
 
 .wait_for_key:	halt
 	ld a,(G.KEY_CHAR)
@@ -238,7 +254,7 @@ STRIPE:
 	jr .counter_is_in_a
 
 COPYRIGHT_TEXT:
-	db $a9,' 1982 Sinclair Research Ltd.'
+	db $a9,' 1982 Sinclair Research Ltd. '
 .length	= $ - COPYRIGHT_TEXT
 
 INITIAL_GLOBAL_VALUES:		; (Basically just the interrupt handler for now.)
