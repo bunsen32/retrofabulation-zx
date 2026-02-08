@@ -27,7 +27,10 @@
 		ENDIF
 	ENDM
 
+MINIMUM_RAM:	EQU 16	; Minimum RAM size in KB
+
 	INCLUDE "reset.z80"	; 0000 to 00CF
+	INCLUDE "ramtest.z80"
 	INCLUDE "interpreter.z80"	; 00D0 to 05FF
 	PADTO $0600
 	INCLUDE "textrender.z80"	; 0600 to 0800

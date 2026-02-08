@@ -1,0 +1,69 @@
+	; TEST AND INITIALISE RAM
+	; On entry, interrupts are disabled, and IM 1 is set.
+	; RAM is tested with following patterns:
+	;
+	; 01010101 (0x55)
+	; 10101010 (0xAA)
+	; 00000000 (0x00) — last one clears RAM to all zeros.
+
+RAM_TEST:
+	xor a	; black
+	out ($fe), a	; set border
+
+	; Test 8 KB of RAM (enough to show splash animation)
+	; We obviously can’t trust RAM yet, so returns to IY (instead of return address on stack)
+.test_blocks:	ld bc,$0020	; Loop counters: test 0x2000 = 8192 bytes of RAM.
+	ld hl,$3fff	; Start of RAM - 1
+	ld iy,.FIRST_TEST_RETURN
+	jp .do_test
+
+.FIRST_TEST_RETURN:	jp z,INIT	; Only proceed to rest of startup if we have ≥8 KB of RAM.
+
+.BAD_RAM_SIZE:	di	; In case we came here from the splash anim (which uses interrupts).
+	ld a,2	; RED
+	out ($fe), a	; set border
+	ld sp,.RAM_BAD_STACK
+	ld de,.RAM_FAIL_TEXT
+	ld bc,(.RAM_FAIL_LENGTH+1)<<8 | 30
+	exx
+	ld hl,$4000
+	ld ix,FONT_LOOKUP
+	jp render_common_char
+.colour_the_text:
+	ld hl,$5800	; Start of screen attributes
+	ld bc, (11 << 8) | $42	; 16 cells, attribute $C2 (bright red on black)
+.colour_loop:	ld (hl),c
+	inc hl
+	djnz .colour_loop
+.BAD_RAM_HALT:	jr .BAD_RAM_HALT
+
+
+.do_test:	ld de,$55aa	; First two test patterns: $55 and $aa.
+	inc hl
+	; 94 clocks per byte.
+.test_loop:	ld a, d
+	ld (hl),a
+	cp (hl)
+	jr nz,.test_end_fail
+	ld a, e
+	ld (hl),a
+	cp (hl)
+	jr nz,.test_end_fail
+	xor a
+	ld (hl),a
+	cp (hl)
+	jr nz,.test_end_fail
+	inc hl
+	djnz .test_loop
+	dec c
+	jr nz,.test_loop
+.test_end_success:
+.test_end_fail:	dec hl	; Success or failure. HL points to last successful byte.
+	jp (iy)	; Return. Z indicates success, NZ indicates failure.
+
+	; We’re running when possibly none of the RAM works, so we can’t use a stack in RAM.
+	; Instead, we use a small, hard-coded stack in ROM:
+.RAM_BAD_STACK:	dw .colour_the_text
+
+.RAM_FAIL_TEXT:	db " FAIL 16K RAM"
+.RAM_FAIL_LENGTH:	equ $ - .RAM_FAIL_TEXT

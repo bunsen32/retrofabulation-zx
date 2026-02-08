@@ -4,7 +4,7 @@ INT_00:
 	xor a
 	ld i,a	; Avoid ULA ‘snow’ when I in (40, 7F]
 	im 1	;
-	jr RAM_TEST
+	jr RAM_TEST_JP
 
 	PADTO $0008
 INT_08:
@@ -23,58 +23,4 @@ INT_38:
 	; stuff
 	jp G.I_HANDLER	; Interrupt handler is in RAM to allow overrides.
 
-	; Slightly weird routine for wiping memory downwards, from SP
-	; CB: is count of 4-byte blocks to clear; A is value to clear with.
-	; HL is the return address. HL & A are preserved. DE is destroyed. BC is zeroed
-	MACRO WIPE_SP_BC bytecount
-.blockcount	=	bytecount / 8
-.lsb	=	.blockcount & $ff
-.msb	=	(.blockcount + $ff) >> 8
-	ld bc,(.lsb << 8) | (.msb)
-	ENDM
-WIPE_SP_32
-	ld d,a
-	ld e,a
-fast_clear_loop:
-	push de
-	push de
-	push de
-	push de
-	djnz fast_clear_loop
-	dec c
-	jr nz,fast_clear_loop
-	jp (hl)
-
-RAM_TEST
-	xor a	; black
-	out ($fe), a	; set border
-
-	ld hl,.test_bytes
-	ld a,2
-.set_bytes:
-	ld sp,$0000
-	WIPE_SP_BC (48 * 1024)
-	jr WIPE_SP_32
-.test_bytes:
-	ld bc,48 * 1024 / 2 / 256	; DO NOT put brackets round this!
-.loop:
-	pop de
-	cp d
-	jr nz,RAM_TEST_FAIL
-	cp e
-	jr nz,RAM_TEST_FAIL
-	djnz .loop
-	dec c
-	jr nz,.loop
-
-	sub 1
-	jr nc,.set_bytes
-
-RAM_TEST_SUCCESS:
-	jp INIT
-
-RAM_TEST_FAIL:
-	; TBD
-	HALT
-	
-
+RAM_TEST_JP	jp RAM_TEST
