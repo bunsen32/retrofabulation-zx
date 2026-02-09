@@ -1,7 +1,7 @@
 	; Convert 16 bit int in BC (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
 	; Returns last ASCII digit in A.
-	; MAX ~1250 tstates (for ‘59999’). MIN 73 tstates (for ’0‘–‘9’)
+	; MAX 1221 tstates (for ‘59999’). MIN 73 tstates (for ’0‘–‘9’)
 INT16_TO_STRING:	xor a
 	cp b
 	jr z,.INT8_TO_STRING_c
@@ -14,41 +14,42 @@ INT16_TO_STRING:	xor a
 	ld h,b
 	ld l,c	; HL: int16 to convert.
 	ld de,.table
+	jr .find_first_digit	; TODO: jump 2 bytes (Z flag unset)
+
+.find_first_digit_rpt:	add hl,bc
 .find_first_digit:		; Clear carry flag.
 	; Start with 5xs
 	ex de,hl
 	ld c,(hl)
-	inc hl
+	inc l
 	ld b,(hl)
-	inc hl
+	inc l
 	ex de,hl
 	or a
 	sbc hl,bc
 	jr nc,.found_5x
-	add hl,bc	; Also clears carry flag.
+	add hl,bc	; (Will have set the carry flag.)
 	; Next do 1xs
 	ex de,hl
 	ld c,(hl)
-	inc hl
+	inc l
 	ld b,(hl)
-	inc hl
+	inc l
 	ex de,hl
 	or a
 	sbc hl,bc
-	jr nc,.found_1x
-	add hl,bc
-	jr .find_first_digit
+	jr c,.find_first_digit_rpt
+
 .found_1x:	ld a,'1'
 	jr .increment
 
 .found_5x:	ld a,'5'	; Always called with Carry unset
-.found_lt_5x:	ex de,hl
+.found_lt_5x:	ex de,hl	; Always called with Carry unset
 	ld c,(hl)
-	inc hl
+	inc l
 	ld b,(hl)
-	inc hl	; BC has next (lower) power of ten
+	inc l	; BC has next (lower) power of ten
 	ex de,hl
-	or a
 .increment:	sbc hl,bc
 	inc a
 	jr nc,.increment
@@ -61,17 +62,18 @@ INT16_TO_STRING:	xor a
 	ex de,hl	; DE: has integer
 	ld c,(hl)
 	inc c
-	jr z,.continue_8bit
+	jr z,.continue_8bit	; Exit if we found end of table (-1)
 	dec c
-	inc hl
+	inc l
 	ld b,(hl)
-	inc hl	; BC has next lower 5x power of ten
+	inc l	; BC has next lower 5x power of ten
 	ex de,hl
 	or a	; Clear carry flag
 	sbc hl,bc
 	jr nc,.found_5x
 	add hl,bc
 	ld a,'0'
+	or a
 	jr .found_lt_5x
 
 	SAME_PAGE .table_end
@@ -96,23 +98,22 @@ INT16_TO_STRING:	xor a
 	; Convert 8 bit int in A (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
 	; Returns last ASCII digit in A.
-	; MAX 444 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
+	; MAX 440 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
 INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	cp 10
 	jr c,.single_digit
 	push de
 	push bc
 	ex de,hl
-	ld hl,.table-1
+	ld hl,.table
 	ld c,'0'
-.find_first_digit:
-	inc l
-	cp (hl)
-	jr nc,.found_digit
-	inc l
-	cp (hl)
-	jr c,.find_first_digit
 
+	cp (hl)
+	jr nc,.found_digit	; ≥100
+	inc l
+	cp (hl)
+	jr c,.found_10	; ≥10 (by default)
+		; Or ≥50
 .found_50:	sub (hl)
 	ld c,'5'
 .found_10:	inc l
