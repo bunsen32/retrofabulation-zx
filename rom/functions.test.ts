@@ -43,7 +43,7 @@ describe("INT8_TO_STRING", () => {
 function int8ToString(vm: Vm, intValue: byte): string {
 	const buffer = 0x5800
 	vm.setRegisters({ A: intValue, HL: buffer })
-	vm.callSubroutine(rom.INT8_TO_STRING, 431)
+	vm.callSubroutine(rom.INT8_TO_STRING, 424)
 	const {HL} = vm.getRegisters()
 	return asString(vm.getRam(buffer, HL - buffer))
 }

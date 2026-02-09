@@ -1,7 +1,7 @@
 	; Convert 8 bit int in A (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
 	; Trashes A.
-	; MAX 431 tstates (for 249). MIN 49 tstates (for 0–9)
+	; MAX 424 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
 INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	cp 10
 	jr c,.single_digit
@@ -10,16 +10,16 @@ INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	ld hl,.table-1
 	ld c,'0'
 .find_first_digit:
-	inc hl
+	inc l
 	cp (hl)
 	jr nc,.found_digit
-	inc hl
+	inc l
 	cp (hl)
 	jr c,.find_first_digit
 
 .found_50:	sub (hl)
 	ld c,'5'
-.found_10:	inc hl
+.found_10:	inc l
 .found_digit:	ld b,(hl)
 .increment:	inc c
 	sub b
@@ -31,7 +31,7 @@ INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	inc hl
 	ex de,hl
 
-	inc hl
+	inc l
 	ld b,(hl)
 	inc b
 	dec b
@@ -48,7 +48,9 @@ INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	inc hl
 	ret
 
+	SAME_PAGE .table_end
 .table:	db 100
 	db 50
 	db 10
 	db 0
+.table_end:
