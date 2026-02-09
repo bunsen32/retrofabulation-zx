@@ -1,11 +1,107 @@
+	; Convert 16 bit int in BC (unsigned) to string at HL
+	; Writes string at HL, returns HL at end of string.
+	; Returns last ASCII digit in A.
+	; MAX ~1250 tstates (for ‘59999’). MIN 73 tstates (for ’0‘–‘9’)
+INT16_TO_STRING:	xor a
+	cp b
+	jr z,.INT8_TO_STRING_c
+	push de
+	push bc
+	push ix
+	ex de,hl
+	ld ixh,d
+	ld ixl,e	; IX: Output pointer.
+	ld h,b
+	ld l,c	; HL: int16 to convert.
+	ld de,.table
+.find_first_digit:		; Clear carry flag.
+	; Start with 5xs
+	ex de,hl
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	ex de,hl
+	or a
+	sbc hl,bc
+	jr nc,.found_5x
+	add hl,bc	; Also clears carry flag.
+	; Next do 1xs
+	ex de,hl
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl
+	ex de,hl
+	or a
+	sbc hl,bc
+	jr nc,.found_1x
+	add hl,bc
+	jr .find_first_digit
+.found_1x:	ld a,'1'
+	jr .increment
+
+.found_5x:	ld a,'5'	; Always called with Carry unset
+.found_lt_5x:	ex de,hl
+	ld c,(hl)
+	inc hl
+	ld b,(hl)
+	inc hl	; BC has next (lower) power of ten
+	ex de,hl
+	or a
+.increment:	sbc hl,bc
+	inc a
+	jr nc,.increment
+	add hl,bc
+	dec a
+
+	ld (ix),a	; Write a single digit.
+	inc ix	; Increment output pointer.
+	
+	ex de,hl	; DE: has integer
+	ld c,(hl)
+	inc c
+	jr z,.continue_8bit
+	dec c
+	inc hl
+	ld b,(hl)
+	inc hl	; BC has next lower 5x power of ten
+	ex de,hl
+	or a	; Clear carry flag
+	sbc hl,bc
+	jr nc,.found_5x
+	add hl,bc
+	ld a,'0'
+	jr .found_lt_5x
+
+	SAME_PAGE .table_end
+.table:	dw 50000
+	dw 10000
+	dw  5000
+	dw  1000
+	dw   500
+	dw   100
+	db -1
+.table_end:
+
+.continue_8bit:	ld a,e	; A: remaining two-decimal-digit int.
+	ld e,ixl
+	ld d,ixh	; DE: current character pointer.
+	pop ix
+	ld hl,INT8_TO_STRING.table_50
+	ld b,(hl)
+	jr INT8_TO_STRING.cmp_next_digit
+
+.INT8_TO_STRING_c:	ld a,c
 	; Convert 8 bit int in A (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
-	; Trashes A.
-	; MAX 424 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
+	; Returns last ASCII digit in A.
+	; MAX 444 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
 INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	cp 10
 	jr c,.single_digit
 	push de
+	push bc
 	ex de,hl
 	ld hl,.table-1
 	ld c,'0'
@@ -36,12 +132,13 @@ INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	inc b
 	dec b
 	jr z,.last_digit
-	cp b
+.cmp_next_digit:	cp b
 	jr nc,.found_50
 	ld c,'0'
 	jr .found_10
 
 .last_digit:	ex de,hl
+	pop bc
 	pop de
 .single_digit:	add '0'
 	ld (hl),a
@@ -50,7 +147,7 @@ INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 
 	SAME_PAGE .table_end
 .table:	db 100
-	db 50
+.table_50:	db 50
 	db 10
 	db 0
 .table_end:
