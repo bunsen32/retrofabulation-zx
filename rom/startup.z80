@@ -95,6 +95,7 @@ SPLASH_ANIM:
 	jp c,RAM_TEST.BAD_RAM_SIZE	; Otherwise, show RAM failure message.
 	ld (G.RAMSIZE_KB),a	; Store RAM size in KB, for display purposes.
 	ld c,a	; Store RAM size in C, to record that we finished.
+	ex af,af'	; Stash RAM size.
 .allowed_to_exit:	inc b
 	dec b
 	jp nz,REPL
@@ -161,7 +162,7 @@ COPYRIGHT:	; Print copyright text:
 	call RENDER_TEXT
 
 	; Print RAM size (if less than 48K):
-	ld a,(G.RAMSIZE_KB)
+	ex af,af'	; Retrieve stashed RAM size.
 	cp 48
 	jr z,.wait_for_key	; Omit RAM size if exactly 48K
 	push hl	; Push next screen coords
@@ -170,7 +171,7 @@ COPYRIGHT:	; Print copyright text:
 	call INT8_TO_STRING
 	ld (hl),'K'
 	inc hl
-	ld bc,$037f	; B = 3 = number of chars ("00K"); C = column limit (end of screen).
+	ld b,$03	; B = 3 = number of chars ("00K").
 	ld a,%00111001	; Blue ink on white paper
 	pop de	; Pop text pointer
 	pop hl	; Pop screen coords
