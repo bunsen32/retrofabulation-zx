@@ -1,7 +1,11 @@
+; Some inspiration in the itoa conversion from
+; https://github.com/Zeda/Z80-Optimized-Routines/blob/master/conversion/itoa_16.z80
+; (Especially the adding negative numbers.)
+
 	; Convert 16 bit int in BC (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
 	; Returns last ASCII digit in A.
-	; MAX 1221 tstates (for ‘59999’). MIN 73 tstates (for ’0‘–‘9’)
+	; MAX 1165 tstates (for ‘59999’). MIN 73 tstates (for ’0‘–‘9’)
 INT16_TO_STRING:	xor a
 	cp b
 	jr z,.INT8_TO_STRING_c
@@ -16,7 +20,7 @@ INT16_TO_STRING:	xor a
 	ld de,.table
 	jr .find_first_digit	; TODO: jump 2 bytes (Z flag unset)
 
-.find_first_digit_rpt:	add hl,bc
+.find_first_digit_rpt:	sbc hl,bc
 .find_first_digit:		; Clear carry flag.
 	; Start with 5xs
 	ex de,hl
@@ -25,10 +29,9 @@ INT16_TO_STRING:	xor a
 	ld b,(hl)
 	inc l
 	ex de,hl
-	or a
+	add hl,bc
+	jr c,.found_5x
 	sbc hl,bc
-	jr nc,.found_5x
-	add hl,bc	; (Will have set the carry flag.)
 	; Next do 1xs
 	ex de,hl
 	ld c,(hl)
@@ -36,24 +39,23 @@ INT16_TO_STRING:	xor a
 	ld b,(hl)
 	inc l
 	ex de,hl
-	or a
-	sbc hl,bc
-	jr c,.find_first_digit_rpt
+	add hl,bc
+	jr nc,.find_first_digit_rpt
 
 .found_1x:	ld a,'1'
 	jr .increment
 
-.found_5x:	ld a,'5'	; Always called with Carry unset
-.found_lt_5x:	ex de,hl	; Always called with Carry unset
+.found_5x:	ld a,'5'
+.found_lt_5x:	ex de,hl
 	ld c,(hl)
 	inc l
 	ld b,(hl)
 	inc l	; BC has next (lower) power of ten
 	ex de,hl
-.increment:	sbc hl,bc
+.increment:	add hl,bc
 	inc a
-	jr nc,.increment
-	add hl,bc
+	jr c,.increment
+	sbc hl,bc
 	dec a
 
 	ld (ix),a	; Write a single digit.
@@ -68,21 +70,19 @@ INT16_TO_STRING:	xor a
 	ld b,(hl)
 	inc l	; BC has next lower 5x power of ten
 	ex de,hl
-	or a	; Clear carry flag
-	sbc hl,bc
-	jr nc,.found_5x
 	add hl,bc
+	jr c,.found_5x
+	sbc hl,bc
 	ld a,'0'
-	or a
 	jr .found_lt_5x
 
 	SAME_PAGE .table_end
-.table:	dw 50000
-	dw 10000
-	dw  5000
-	dw  1000
-	dw   500
-	dw   100
+.table:	dw -50000
+	dw -10000
+	dw  -5000
+	dw  -1000
+	dw   -500
+	dw   -100
 	db -1
 .table_end:
 
