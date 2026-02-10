@@ -2,14 +2,7 @@
 ; https://github.com/Zeda/Z80-Optimized-Routines/blob/master/conversion/itoa_16.z80
 ; (Especially the adding negative numbers.)
 
-	; Convert 16 bit int in BC (unsigned) to string at HL
-	; Writes string at HL, returns HL at end of string.
-	; Returns last ASCII digit in A.
-	; MAX 1165 tstates (for ‘59999’). MIN 73 tstates (for ’0‘–‘9’)
-INT16_TO_STRING:	xor a
-	cp b
-	jr z,.INT8_TO_STRING_c
-	push de
+atoi16:	push de
 	push bc
 	push ix
 	ex de,hl
@@ -94,7 +87,16 @@ INT16_TO_STRING:	xor a
 	ld b,(hl)
 	jr INT8_TO_STRING.cmp_next_digit
 
-.INT8_TO_STRING_c:	ld a,c
+	; Convert 16 bit int in BC (unsigned) to string at HL
+	; Writes string at HL, returns HL at end of string.
+	; Returns last ASCII digit in A.
+	; MAX 1170 tstates (for ‘59999’). MIN 68 tstates (for ’0‘–‘9’)
+INT16_TO_STRING:	xor a
+	cp b
+	jr nz,atoi16
+	ld a,c
+	; Fall through to 8-bit function:
+
 	; Convert 8 bit int in A (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
 	; Returns last ASCII digit in A.
