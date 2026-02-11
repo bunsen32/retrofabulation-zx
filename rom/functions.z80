@@ -4,93 +4,80 @@
 
 atoi16:	push bc
 	push de
-	push ix
-	ex de,hl
-	ld ixh,d
-	ld ixl,e	; IX: Output pointer.
+	ex de,hl	; DE: Output pointer.
 	ld h,b
 	ld l,c	; HL: int16 to convert.
-	ld de,.table
-	jr .find_first_digit	; TODO: jump 2 bytes (Z flag unset)
 
-.find_first_digit_rpt:	sbc hl,bc
-.find_first_digit:		; Clear carry flag.
-	; Start with 5xs
-	ex de,hl
-	ld c,(hl)
-	inc l
-	ld b,(hl)
-	inc l
-	ex de,hl
+	ld bc,-50000
 	add hl,bc
-	jr c,.found_5x
+	ld a,'5'-1
+	jr c,.tenthousands_init
 	sbc hl,bc
-	; Next do 1xs
-	ex de,hl
-	ld c,(hl)
-	inc l
-	ld b,(hl)
-	inc l
-	ex de,hl
-	add hl,bc
-	jr nc,.find_first_digit_rpt
-
-.found_1x:	ld a,'1'
-	jr .increment
-
-.found_5x:	ld a,'5'
-.found_lt_5x:	ex de,hl
-	ld c,(hl)
-	inc l
-	ld b,(hl)
-	inc l	; BC has next (lower) power of ten
-	ex de,hl
-.increment:	add hl,bc
-	inc a
-	jr c,.increment
-	sbc hl,bc
-	dec a
-
-	ld (ix),a	; Write a single digit.
-	inc ix	; Increment output pointer.
 	
-	ex de,hl	; DE: has integer
-	ld c,(hl)
-	inc c
-	jr z,.continue_8bit	; Exit if we found end of table (-1)
-	dec c
-	inc l
-	ld b,(hl)
-	inc l	; BC has next lower 5x power of ten
-	ex de,hl
+	ld bc,-10000
 	add hl,bc
-	jr c,.found_5x
+	ld a,'1'-1
+	jr c,.tenthousands_loop
 	sbc hl,bc
-	ld a,'0'
-	jr .found_lt_5x
 
-	SAME_PAGE .table_end
-.table:	dw -50000
-	dw -10000
-	dw  -5000
-	dw  -1000
-	dw   -500
-	dw   -100
-	db -1
-.table_end:
+	ld bc,-5000
+	add hl,bc
+	ld a,'5'-1
+	jr c,.thousands_init
+	sbc hl,bc
+	
+	ld bc,-1000
+	add hl,bc
+	ld a,'1'-1
+	jr c,.thousands_loop
+	sbc hl,bc
+	jr .hundreds
 
-.continue_8bit:	ld a,e	; A: remaining two-decimal-digit int.
-	ld e,ixl
-	ld d,ixh	; DE: current character pointer.
-	ex de,hl
-	pop ix
+.tenthousands_init:	ld bc,-10000
+.tenthousands_loop:	add hl,bc
+	inc a
+	jr c,.tenthousands_loop
+	sbc hl,bc
+	ld (de),a
+	inc de
+
+.thousands:	ld bc,-5000
+	add hl,bc
+	ld a,'5'-1
+	jr c,.thousands_init
+	sbc hl,bc
+	ld a,'0'-1
+.thousands_init:	ld bc,-1000
+.thousands_loop:	add hl,bc
+	inc a
+	jr c,.thousands_loop
+	sbc hl,bc
+	ld (de),a
+	inc de
+
+.hundreds:	ld bc,-500
+	add hl,bc
+	ld a,'5'-1
+	jr c,.hundreds_init
+	sbc hl,bc
+	ld a,'0'-1
+.hundreds_init:	ld bc,-100
+.hundreds_loop:	add hl,bc
+	inc a
+	jr c,.hundreds_loop
+	sbc hl,bc
+	ld (de),a
+	inc de
+
+.continue_8bit:	ld a,l	; A: remaining two-decimal-digit int.
+	ex de,hl	; HL: output pointer
 	pop de
 	jr INT8_TO_STRING.tens
 
 	; Convert 16 bit int in BC (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
 	; Returns last ASCII digit in A.
-	; MAX 1170 tstates (for ‘59999’). MIN 68 tstates (for ’0‘–‘9’)
+	; MAX 800 tstates (for ‘59999’). MIN 68 tstates (for ’0‘–‘9’)
 INT16_TO_STRING:	xor a
 	cp b
 	jr nz,atoi16
