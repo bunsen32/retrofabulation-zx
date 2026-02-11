@@ -66,7 +66,7 @@ describe("INT16_TO_STRING", () => {
 function int8ToString(vm: Vm, intValue: byte): string {
 	const buffer = 0x5800
 	vm.setRegisters({ A: intValue, HL: buffer })
-	vm.callSubroutine(rom.INT8_TO_STRING, 440)
+	vm.callSubroutine(rom.INT8_TO_STRING, 274)
 	const {HL} = vm.getRegisters()
 	return asString(vm.getRam(buffer, HL - buffer))
 }
@@ -74,7 +74,7 @@ function int8ToString(vm: Vm, intValue: byte): string {
 function int16ToString(vm: Vm, intValue: number): string {
 	const buffer = 0x5800
 	vm.setRegisters({ BC: intValue, HL: buffer })
-	vm.callSubroutine(rom.INT16_TO_STRING, 1170)
+	vm.callSubroutine(rom.INT16_TO_STRING, 1107)
 	const {HL} = vm.getRegisters()
 	return asString(vm.getRam(buffer, HL - buffer))
 }

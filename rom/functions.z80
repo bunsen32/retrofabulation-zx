@@ -2,8 +2,8 @@
 ; https://github.com/Zeda/Z80-Optimized-Routines/blob/master/conversion/itoa_16.z80
 ; (Especially the adding negative numbers.)
 
-atoi16:	push de
-	push bc
+atoi16:	push bc
+	push de
 	push ix
 	ex de,hl
 	ld ixh,d
@@ -82,10 +82,10 @@ atoi16:	push de
 .continue_8bit:	ld a,e	; A: remaining two-decimal-digit int.
 	ld e,ixl
 	ld d,ixh	; DE: current character pointer.
+	ex de,hl
 	pop ix
-	ld hl,INT8_TO_STRING.table_50
-	ld b,(hl)
-	jr INT8_TO_STRING.cmp_next_digit
+	pop de
+	jr INT8_TO_STRING.tens
 
 	; Convert 16 bit int in BC (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
@@ -100,57 +100,34 @@ INT16_TO_STRING:	xor a
 	; Convert 8 bit int in A (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
 	; Returns last ASCII digit in A.
-	; MAX 440 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
+	; MAX 274 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
 INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	cp 10
 	jr c,.single_digit
-	push de
 	push bc
-	ex de,hl
-	ld hl,.table
-	ld c,'0'
-
-	cp (hl)
-	jr nc,.found_digit	; ≥100
-	inc l
-	cp (hl)
-	jr c,.found_10	; ≥10 (by default)
-		; Or ≥50
-.found_50:	sub (hl)
-	ld c,'5'
-.found_10:	inc l
-.found_digit:	ld b,(hl)
-.increment:	inc c
+	cp 100
+	jr c,.tens
+	sub 200
+	ld c,'2'
+	jr nc,.ge_200
+	add 100
+	ld c,'1'
+.ge_200:	ld (hl),c
+	inc hl
+.tens:	ld bc,10 << 8 | ('0' - 1)	; B := 10 (to subtract from A); C := one before '0' (starting digit)
+	cp 50
+	jr c,.lt_50
+	sub 50
+	ld c,'5' - 1
+.lt_50:	inc c
 	sub b
-	jr nc,.increment
+	jr nc,.lt_50
 	add b
-	dec c
-	ex de,hl
 	ld (hl),c
 	inc hl
-	ex de,hl
-
-	inc l
-	ld b,(hl)
-	inc b
-	dec b
-	jr z,.last_digit
-.cmp_next_digit:	cp b
-	jr nc,.found_50
-	ld c,'0'
-	jr .found_10
-
-.last_digit:	ex de,hl
 	pop bc
-	pop de
 .single_digit:	add '0'
 	ld (hl),a
 	inc hl
 	ret
 
-	SAME_PAGE .table_end
-.table:	db 100
-.table_50:	db 50
-	db 10
-	db 0
-.table_end:
