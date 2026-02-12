@@ -2,9 +2,13 @@ import { expect } from "jsr:@std/expect";
 import {readFileSync} from 'node:fs'
 
 export const FRAME_BUFFER_SIZE = 0x6600;
+const TRAP_ADDRESS = 0x3fff
+
 
 import {Charset, CharsetFromUnicode, type byte} from '@zx/sys'
+import type { KeyRowIndex, VmCore } from "./vmcore.ts";
 export type word = number
+export type TStates = { t: number }
 
 export type Z80Address = { addr: number }
 
@@ -36,15 +40,17 @@ export class Vm {
 	registerPairs: Uint16Array
 	tapePulses: Uint16Array
 
-	constructor(public core: any) {
+	constructor(public core: VmCore) {
 		this.memory = core.memory
 		this.memoryData = new Uint8Array(this.memory.buffer);
 		this.workerFrameData = this.memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
 		this.registerPairs = new Uint16Array(this.memory.buffer, core.REGISTERS, 12);
 		this.tapePulses = new Uint16Array(this.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
+		const romPage = core.ROM_PAGE_0
 	
-		this.loadRom(ROM, 8)
-		this.core.setTapeTraps(false)
+		this.loadRom(ROM, romPage)
+		this.core.clearAllTraps()
+		expect(this.core.addAddressTrap(romPage, TRAP_ADDRESS)).toBeTruthy()
 	}
 
 	loadRom(filename: string, page: number) {
@@ -112,15 +118,15 @@ export class Vm {
 		)
 	}
 
-	keyDown(row: number, mask: byte) {
+	keyDown(row: KeyRowIndex, mask: byte) {
 		this.keysDown([{row, mask}])
 	}
 		
-	keysDown(keys: {row: number, mask: byte}[]) {
-		for(let row = 0; row < 8; row ++) {
-			this.core.keyUp(row, 0x1f)
+	keysDown(keys: {row: KeyRowIndex, mask: byte}[]) {
+		for(let row: KeyRowIndex = 0; row < 8; row ++) {
+			this.core.keyUp(row as KeyRowIndex, 0x1f)
 		}
-		for(let k of keys) {
+		for(const k of keys) {
 			this.core.keyDown(k.row, k.mask)
 		}
 	}
@@ -154,15 +160,20 @@ export class Vm {
 	}
 	
 	pokeWord(pos: Z80Address, v: number) {
-		this.core.poke(pos.addr + 0, v & 0xff)
-		this.core.poke(pos.addr + 1, v >> 8)
+		this.core.poke(pos.addr + 0, (v & 0xff) as byte)
+		this.core.poke(pos.addr + 1, (v >> 8) as byte)
 	}
 	
-	runPcAt(address: Z80Address, forTStates: number = 100){
+	runPcAt(address: Z80Address, forTStates: number = 100, expectTrap: boolean = false): TStates {
 		this.core.reset()
 		this.core.setPC(address.addr)
+		const startT = this.core.getTStates()
 		const result = this.core.runUntil(forTStates)
-		expect(result).toBe(0)
+		const endT = this.core.getTStates()
+		expect(result).toBe(expectTrap?2:0)
+		const t = endT - startT
+		expect(t).toBeLessThanOrEqual(forTStates + 4)
+		return { t }
 	}
 	
 	tracePcAt(address: Z80Address, forTStates: number): CpuSnapshot[] {
@@ -183,20 +194,19 @@ export class Vm {
 		return trace
 	}
 	
-	callSubroutine(address: Z80Address, forTStates: number) {
-		const sub = address.addr
-		this.setRam(0x8000, [
-			0xCD, (sub & 0xff) as byte, (sub >> 8) as byte, // call sub
-			0x76, // HALT
-		])
-		const tStatesPlusOverhead = forTStates + 17 + 4 // Add overhead for CALL + HALT
-		this.setRegisters({SP: stackTop})
-		this.runPcAt({addr:0x8000}, tStatesPlusOverhead)
+	callSubroutine(address: Z80Address, forTStates: number): TStates {
+		this.pokeWord({addr: stackTop - 2}, TRAP_ADDRESS)
+		const overhead = 0 // No overhead. We return straight into a trapped address.
+		this.setRegisters({SP: stackTop - 2})
+		const t = this.runPcAt(address, forTStates + overhead, true)
 		const {SP} = this.getRegisters()
 
-		expect(this.core.getHalted(), `Should have HALTED (PC=${hex16(this.core.getPC())})`).toBe(1)
 		expect(SP, `Subroutine should balance stack (SP=${hex16(SP)})`).toBe(stackTop)
+		return {
+			t: t.t - overhead
+		}
 	}
+
 }
 
 const JSPECCY = "../../jsspeccy3/dist/jsspeccy"

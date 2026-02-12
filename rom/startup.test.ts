@@ -6,6 +6,7 @@ import {rom} from './generated/symbols.ts'
 import { existsSync } from "node:fs";
 import { readLinesFromFile } from "./testutils/files.ts";
 import { expect } from "jsr:@std/expect/expect";
+import { byte } from "../zxsys/Byte.ts";
 
 const rootActualMismatchFiles = "./testout"
 
@@ -148,7 +149,7 @@ function writeZigzags(vm: Vm) {
 	let p = 0x4000
 	for(let y = 0, n = 192; n > 0; y ++, n --) {
 		const i = ((y >> 3) & 0b111) | ((y << 3) & 0b1000)
-		const pattern = 0b1111_1111 >>> (7 - (i >> 1))
+		const pattern = (0b1111_1111 >>> (7 - (i >> 1))) as byte
 		for(let x = 0; x < 32; x++) {
 			core.poke(p, pattern)
 			p++
