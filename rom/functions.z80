@@ -23,13 +23,13 @@ atoi16:	push bc
 	ld bc,-5000
 	add hl,bc
 	ld a,'5'-1
-	jr c,.thousands_init
+	jr c,.thousands_hi
 	sbc hl,bc
 	
 	ld bc,-1000
 	add hl,bc
 	ld a,'1'-1
-	jr c,.thousands_loop
+	jr c,.thousands_hi_loop
 	sbc hl,bc
 	jr .hundreds
 
@@ -41,34 +41,47 @@ atoi16:	push bc
 	ld (de),a
 	inc de
 
+	; THOUSANDS COLUMN:
 .thousands:	ld bc,-5000
 	add hl,bc
 	ld a,'5'-1
-	jr c,.thousands_init
-	sbc hl,bc
-	ld a,'0'-1
-.thousands_init:	ld bc,-1000
-.thousands_loop:	add hl,bc
+	jr c,.thousands_hi
 	inc a
-	jr c,.thousands_loop
+	ld bc,1000
+.thousands_lo_loop:	dec a
+	add hl,bc
+	jr nc,.thousands_lo_loop
+	jr .thousands_write
+
+.thousands_hi:	ld bc,-1000
+.thousands_hi_loop:	add hl,bc
+	inc a
+	jr c,.thousands_hi_loop
 	sbc hl,bc
-	ld (de),a
+.thousands_write:	ld (de),a
 	inc de
 
+	; HUNDREDS COLUMN:
 .hundreds:	ld bc,-500
 	add hl,bc
 	ld a,'5'-1
-	jr c,.hundreds_init
-	sbc hl,bc
-	ld a,'0'-1
-.hundreds_init:	ld bc,-100
-.hundreds_loop:	add hl,bc
+	jr c,.hundreds_hi
 	inc a
-	jr c,.hundreds_loop
+	ld bc,100
+.hundreds_lo_loop:	dec a
+	add hl,bc
+	jr nc,.hundreds_lo_loop
+	jr .hundreds_write
+
+.hundreds_hi:	ld bc,-100
+.hundreds_hi_loop:	add hl,bc
+	inc a
+	jr c,.hundreds_hi_loop
 	sbc hl,bc
-	ld (de),a
+.hundreds_write:	ld (de),a
 	inc de
 
+	; TENS COLUMN:
 .continue_8bit:	ld a,l	; A: remaining two-decimal-digit int.
 	ex de,hl	; HL: output pointer
 	pop de
