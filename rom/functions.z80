@@ -8,9 +8,9 @@ atoi16:	push bc
 	ld h,b
 	ld l,c	; HL: int16 to convert.
 
-	ld bc,-50000
+	ld bc,-30000
 	add hl,bc
-	ld a,'5'-1
+	ld a,'3'-1
 	jr c,.tenthousands_init
 	sbc hl,bc
 	
@@ -90,7 +90,7 @@ atoi16:	push bc
 	; Convert 16 bit int in BC (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
 	; Returns last ASCII digit in A.
-	; MAX 933 tstates (for ‘44444’). MIN 68 tstates (for ’0‘–‘9’)
+	; MAX 864 tstates (for ‘44444’). MIN 68 tstates (for ’0‘–‘9’)
 INT16_TO_STRING:	xor a
 	cp b
 	jr nz,atoi16
