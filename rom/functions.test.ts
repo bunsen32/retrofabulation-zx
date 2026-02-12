@@ -17,27 +17,7 @@ describe("INT8_TO_STRING", () => {
 			expect(result).toBe(intValue.toString())
 		})
 	}
-	rendersInt(0)
-	rendersInt(9)
-	rendersInt(10)
-	rendersInt(11)
-	rendersInt(15)
-	rendersInt(16)
-	rendersInt(19)
-	rendersInt(20)
-	rendersInt(42)
-	rendersInt(49)
-	rendersInt(50)
-	rendersInt(51)
-	rendersInt(99)
-	rendersInt(100)
-	rendersInt(101)
-	rendersInt(110)
-	rendersInt(160)
-	rendersInt(199)
-	rendersInt(201)
-	rendersInt(249)	// Takes the most time.
-	rendersInt(255)
+	for(let x = 0; x < 256; x++) rendersInt(x as byte);
 })
 
 describe("INT16_TO_STRING", () => {
@@ -50,6 +30,7 @@ describe("INT16_TO_STRING", () => {
 			expect(result).toBe(intValue.toString())
 		})
 	}
+	//for(let x = 0; x < 65536; x+=2) rendersInt(x as byte);
 	rendersInt(0)
 	rendersInt(9)
 	rendersInt(10)
@@ -66,7 +47,14 @@ describe("INT16_TO_STRING", () => {
 	rendersInt(5001)
 	rendersInt(9999)
 	rendersInt(10101)
+	rendersInt(34449)
+	rendersInt(42480)
+	rendersInt(42495)
+	rendersInt(42499)
+	rendersInt(44444)
+	rendersInt(49998)
 	rendersInt(59999)
+	rendersInt(64995)
 	rendersInt(65534)
 	rendersInt(65535)
 })
@@ -82,7 +70,7 @@ function int8ToString(vm: Vm, intValue: byte): string {
 function int16ToString(vm: Vm, intValue: number): string {
 	const buffer = 0x5800
 	vm.setRegisters({ BC: intValue, HL: buffer })
-	vm.callSubroutine(rom.INT16_TO_STRING, 800)
+	vm.callSubroutine(rom.INT16_TO_STRING, 933)
 	const {HL} = vm.getRegisters()
 	return asString(vm.getRam(buffer, HL - buffer))
 }
