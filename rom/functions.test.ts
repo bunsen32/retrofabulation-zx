@@ -30,7 +30,21 @@ describe("INT16_TO_STRING", () => {
 			expect(result).toBe(intValue.toString())
 		})
 	}
-	for(let x = 0; x < 65536; x+=10) rendersInt(x as byte);
+	rendersInt(1);
+	rendersInt(999);
+	rendersInt(1999);
+	rendersInt(9999);
+	rendersInt(44444);
+	rendersInt(65535);
+	it('Renders all 16-bit values (skip units)', async () => {
+		const vm = await loadedVm
+
+		// Units are rendered with 8-bit subroutine, so skip (most of) them.
+		for(let x = 0; x < 65536; x += 10) {
+			const result = int16ToString(vm, x)
+			expect(result).toBe(x.toString())
+		}
+	})
 })
 
 function int8ToString(vm: Vm, intValue: byte): string {
