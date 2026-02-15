@@ -2,6 +2,11 @@
 ; https://github.com/Zeda/Z80-Optimized-Routines/blob/master/conversion/itoa_16.z80
 ; (Especially the adding negative numbers.)
 
+; Possibly this could be faster, but it seems to be near at least a local minimum.
+; I’ve tried extensively rearranging the first section (where we find out if we need
+; to start with 10000s, 1000s or 100s), and it doesn’t get any better at all.
+; Can shave a few percentage points off by replacing the loop jumps with jp.
+
 atoi16:	push bc
 	push de
 	ex de,hl	; DE: Output pointer.
