@@ -15,7 +15,6 @@ atoi16:	push bc
 
 	ld bc,-30000
 	add hl,bc
-	ld a,'3'-1
 	jr c,.tenthousands_init
 	sbc hl,bc
 	
@@ -27,8 +26,7 @@ atoi16:	push bc
 
 	ld bc,-5000
 	add hl,bc
-	ld a,'5'-1
-	jr c,.thousands_hi
+	jr c,.thousands_hi_a
 	sbc hl,bc
 	
 	ld bc,-1000
@@ -39,6 +37,8 @@ atoi16:	push bc
 	jr .hundreds
 
 .tenthousands_init:	ld bc,-10000
+	ld a,'3'-1
+
 .tenthousands_loop:	add hl,bc
 	inc a
 	jr c,.tenthousands_loop
@@ -58,7 +58,9 @@ atoi16:	push bc
 	jr nc,.thousands_lo_loop
 	jr .thousands_write
 
+.thousands_hi_a:	ld a,'5'-1
 .thousands_hi:	ld bc,-1000
+
 .thousands_hi_loop:	add hl,bc
 	inc a
 	jr c,.thousands_hi_loop

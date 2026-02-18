@@ -62,7 +62,7 @@ describe("INT16_TO_STRING", () => {
 		}
 		const avg = sum / count
 		expect(max, 'maximum').toBe(867)
-		expect(Math.ceil(avg), 'average').toBe(669)
+		expect(Math.ceil(avg), 'average').toBe(665)
 		expect(min, 'min').toBe(68)
 	})
 })
