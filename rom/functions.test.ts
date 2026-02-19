@@ -17,33 +17,48 @@ describe("INT8_TO_STRING", () => {
 			expect(result).toBe(intValue.toString())
 		})
 	}
-	rendersInt(0)
-	rendersInt(9)
-	rendersInt(10)
-	rendersInt(11)
-	rendersInt(15)
-	rendersInt(16)
-	rendersInt(19)
-	rendersInt(20)
-	rendersInt(42)
-	rendersInt(49)
-	rendersInt(50)
-	rendersInt(51)
-	rendersInt(99)
-	rendersInt(100)
-	rendersInt(101)
-	rendersInt(110)
-	rendersInt(160)
-	rendersInt(199)
-	rendersInt(201)
-	rendersInt(249)	// Takes the most time.
-	rendersInt(255)
+	for(let x = 0; x < 256; x++) rendersInt(x as byte);
+})
+
+describe("INT16_TO_STRING", () => {
+	function rendersInt(intValue: number) {
+		it(`Renders ${intValue}`, async () => {
+			const vm = await loadedVm
+
+			const result = int16ToString(vm, intValue)
+
+			expect(result).toBe(intValue.toString())
+		})
+	}
+	rendersInt(1);
+	rendersInt(999);
+	rendersInt(1999);
+	rendersInt(9999);
+	rendersInt(44444);
+	rendersInt(65535);
+	it('Renders all 16-bit values (skip units)', async () => {
+		const vm = await loadedVm
+
+		// Units are rendered with 8-bit subroutine, so skip (most of) them.
+		for(let x = 0; x < 65536; x += 10) {
+			const result = int16ToString(vm, x)
+			expect(result).toBe(x.toString())
+		}
+	})
 })
 
 function int8ToString(vm: Vm, intValue: byte): string {
 	const buffer = 0x5800
 	vm.setRegisters({ A: intValue, HL: buffer })
-	vm.callSubroutine(rom.INT8_TO_STRING, 424)
+	vm.callSubroutine(rom.INT8_TO_STRING, 274)
+	const {HL} = vm.getRegisters()
+	return asString(vm.getRam(buffer, HL - buffer))
+}
+
+function int16ToString(vm: Vm, intValue: number): string {
+	const buffer = 0x5800
+	vm.setRegisters({ BC: intValue, HL: buffer })
+	vm.callSubroutine(rom.INT16_TO_STRING, 864)
 	const {HL} = vm.getRegisters()
 	return asString(vm.getRam(buffer, HL - buffer))
 }

@@ -1,56 +1,133 @@
+; Some inspiration in the itoa conversion from
+; https://github.com/Zeda/Z80-Optimized-Routines/blob/master/conversion/itoa_16.z80
+; (Especially the adding negative numbers.)
+
+atoi16:	push bc
+	push de
+	ex de,hl	; DE: Output pointer.
+	ld h,b
+	ld l,c	; HL: int16 to convert.
+
+	ld bc,-30000
+	add hl,bc
+	ld a,'3'-1
+	jr c,.tenthousands_init
+	sbc hl,bc
+	
+	ld bc,-10000
+	add hl,bc
+	ld a,'1'-1
+	jr c,.tenthousands_loop
+	sbc hl,bc
+
+	ld bc,-5000
+	add hl,bc
+	ld a,'5'-1
+	jr c,.thousands_hi
+	sbc hl,bc
+	
+	ld bc,-1000
+	add hl,bc
+	ld a,'1'-1
+	jr c,.thousands_hi_loop
+	sbc hl,bc
+	jr .hundreds
+
+.tenthousands_init:	ld bc,-10000
+.tenthousands_loop:	add hl,bc
+	inc a
+	jr c,.tenthousands_loop
+	sbc hl,bc
+	ld (de),a
+	inc de
+
+	; THOUSANDS COLUMN:
+.thousands:	ld bc,-5000
+	add hl,bc
+	ld a,'5'-1
+	jr c,.thousands_hi
+	inc a
+	ld bc,1000
+.thousands_lo_loop:	dec a
+	add hl,bc
+	jr nc,.thousands_lo_loop
+	jr .thousands_write
+
+.thousands_hi:	ld bc,-1000
+.thousands_hi_loop:	add hl,bc
+	inc a
+	jr c,.thousands_hi_loop
+	sbc hl,bc
+.thousands_write:	ld (de),a
+	inc de
+
+	; HUNDREDS COLUMN:
+.hundreds:	ld bc,-500
+	add hl,bc
+	ld a,'5'-1
+	jr c,.hundreds_hi
+	inc a
+	ld bc,100
+.hundreds_lo_loop:	dec a
+	add hl,bc
+	jr nc,.hundreds_lo_loop
+	jr .hundreds_write
+
+.hundreds_hi:	ld bc,-100
+.hundreds_hi_loop:	add hl,bc
+	inc a
+	jr c,.hundreds_hi_loop
+	sbc hl,bc
+.hundreds_write:	ld (de),a
+	inc de
+
+	; TENS COLUMN:
+.continue_8bit:	ld a,l	; A: remaining two-decimal-digit int.
+	ex de,hl	; HL: output pointer
+	pop de
+	jr INT8_TO_STRING.tens
+
+	; Convert 16 bit int in BC (unsigned) to string at HL
+	; Writes string at HL, returns HL at end of string.
+	; Returns last ASCII digit in A.
+	; MAX 864 tstates (for ‘44444’). MIN 68 tstates (for ’0‘–‘9’)
+INT16_TO_STRING:	xor a
+	cp b
+	jr nz,atoi16
+	ld a,c
+	; Fall through to 8-bit function:
+
 	; Convert 8 bit int in A (unsigned) to string at HL
 	; Writes string at HL, returns HL at end of string.
-	; Trashes A.
-	; MAX 424 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
+	; Returns last ASCII digit in A.
+	; MAX 274 tstates (for ‘249’). MIN 49 tstates (for ’0‘–‘9’)
 INT8_TO_STRING:	; [Will do full 16 (and 32?) bit numbers later.]
 	cp 10
 	jr c,.single_digit
-	push de
-	ex de,hl
-	ld hl,.table-1
-	ld c,'0'
-.find_first_digit:
-	inc l
-	cp (hl)
-	jr nc,.found_digit
-	inc l
-	cp (hl)
-	jr c,.find_first_digit
-
-.found_50:	sub (hl)
-	ld c,'5'
-.found_10:	inc l
-.found_digit:	ld b,(hl)
-.increment:	inc c
+	push bc
+	cp 100
+	jr c,.tens
+	sub 200
+	ld c,'2'
+	jr nc,.ge_200
+	add 100
+	ld c,'1'
+.ge_200:	ld (hl),c
+	inc hl
+.tens:	ld bc,10 << 8 | ('0' - 1)	; B := 10 (to subtract from A); C := one before '0' (starting digit)
+	cp 50
+	jr c,.lt_50
+	sub 50
+	ld c,'5' - 1
+.lt_50:	inc c
 	sub b
-	jr nc,.increment
+	jr nc,.lt_50
 	add b
-	dec c
-	ex de,hl
 	ld (hl),c
 	inc hl
-	ex de,hl
-
-	inc l
-	ld b,(hl)
-	inc b
-	dec b
-	jr z,.last_digit
-	cp b
-	jr nc,.found_50
-	ld c,'0'
-	jr .found_10
-
-.last_digit:	ex de,hl
-	pop de
+	pop bc
 .single_digit:	add '0'
 	ld (hl),a
 	inc hl
 	ret
 
-	SAME_PAGE .table_end
-.table:	db 100
-	db 50
-	db 10
-	db 0
-.table_end:
