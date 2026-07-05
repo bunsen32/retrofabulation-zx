@@ -2,6 +2,42 @@ import { Token, IntLiteral, FloatLiteral, StringLiteral, Identifier, LineComment
 
 export type Line = {indent: number, tokens: Token[]}
 
+export function tokeniseLines(lines: string[]): Line[] {
+	if (!lines.length) return []
+
+	const tokenised: Line[] = []
+	for(const text of lines) {
+		tokenised.push(tokeniseLine(text))
+	}
+
+	return normaliseIndents(tokenised, 0, 0)
+}
+
+function normaliseIndents(tokenised: Line[], startIx: number, logicalIndent: number): Line[] {
+	const first = tokenised[startIx]
+	const currentPhysical = first.indent
+	const normalised: Line[] = [{indent: logicalIndent, tokens: first.tokens}]
+
+	let ix = startIx + 1
+	while(ix < tokenised.length) {
+		const line = tokenised[ix]
+		const isBlank = !line.tokens.length
+		const nextPhysical = line.indent
+		if (nextPhysical === currentPhysical || isBlank) {
+			normalised.push({indent: logicalIndent, tokens: line.tokens})
+			ix++
+		} else if (nextPhysical > currentPhysical) {
+			const nested = normaliseIndents(tokenised, ix, logicalIndent + 1)
+			normalised.push(...nested)
+			ix += nested.length
+		} else {
+			return normalised
+		}
+	}
+
+	return normalised
+}
+
 export function tokeniseLine(text: string): Line {
 	const tokens: Token[] = []
 	let p = 0
@@ -59,8 +95,8 @@ export function tokeniseLine(text: string): Line {
 				case '(':
 				case ')':
 				case ',':
+				case '.':
 				case '-':
-				case '/':
 				case ':':
 				case ';':
 				case '=':
@@ -75,8 +111,12 @@ export function tokeniseLine(text: string): Line {
 				case '≥':
 				case '≠':
 				case 'π':
+				case '×':
 					tokens.push(nextChar)
 					fetchNext()
+					break
+				case '/':
+					tokens.push(parseSlash())
 					break
 				case '+':
 					tokens.push(parsePlus())
@@ -107,6 +147,21 @@ export function tokeniseLine(text: string): Line {
 			t: 'comment',
 			v: str
 		}
+	}
+
+	function parseSlash(): Token {
+		fetchNext()
+		if (next != 0) {
+			switch (String.fromCharCode(next)) {
+				case '/':
+					fetchNext()
+					return '//'
+				default:
+					break
+			}
+		}
+
+		return '/'
 	}
 
 	function parseLt(): Token {

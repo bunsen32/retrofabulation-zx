@@ -33,6 +33,7 @@ export const keywordLookup = {
 	'false': 1,
 	'true': 1,
     'module': 1,
+	'import': 1,
 	'def': 1,
 	'let': 1,
 	'set': 1,
@@ -46,6 +47,10 @@ export const keywordLookup = {
 	'break': 1,
 	'continue': 1,
 	'not': 1,
+	'or': 1,
+	'and': 1,
+	'in': 1,
+	'as': 1
 }
 
 export const symbolLookup = {
@@ -64,6 +69,7 @@ export const symbolLookup = {
 	'-': 1,
 	'×': 1,
 	'/': 1,
+	'//': 1,
 	'%': 1,
 	'**': 1,
 	'~': 1,
@@ -79,6 +85,7 @@ export const symbolLookup = {
 	'<<': 1,
 	'>>': 1,
 
+	'.': 1,
 	',': 1,
 	';': 1,
 	':': 1,
@@ -176,12 +183,12 @@ export type TokenStruct =
 	LineComment |
 	UnrecognisedToken
 
-function narrowSymbolForSigil(sigil?: IdentifierTypeSigil): string|undefined {
+function narrowSymbolForSigil(sigil?: IdentifierTypeSigil): string {
 	switch (sigil){
 		case '$': return NARROW_DOLLAR
 		case '%': return NARROW_PERCENT
 		case '?': return NARROW_QUEST
 		case '#': return NARROW_HASH
-		default: return undefined
+		default: return ''
 	}
 }
