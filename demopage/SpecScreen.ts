@@ -119,8 +119,10 @@ export class SpecScreen {
 	}
 
 	public setPixel(x: number, y: number): void {
-		const [ink, _] = this.coloursForPixel(x, y)
 		const index = this.pixelByteIndex(x >> 3, y)
+		if (index == undefined) return
+
+		const [ink, _] = this.coloursForPixel(x, y)
 		const offset = x % 8
 		this.pixelData[index] |= (1 << (7 - offset))
 
@@ -130,8 +132,10 @@ export class SpecScreen {
 	}
 
 	public clearPixel(x: number, y: number): void {
-		const [_, paper] = this.coloursForPixel(x, y)
 		const index = this.pixelByteIndex(x >> 3, y)
+		if (index == undefined) return
+
+		const [_, paper] = this.coloursForPixel(x, y)
 		const offset = x % 8
 		this.pixelData[index] &= (0xff ^ (1 << (7 - offset)))
 		
@@ -142,12 +146,16 @@ export class SpecScreen {
 
 	public setByte(col: number, y: number, v: number): void {
 		const i = this.pixelByteIndex(col, y)
+		if (i == undefined) return
+
 		this.drawByte(col, y, v, this.coloursForCell(col, y >> 3))
 		this.pixelData[i] = v
 	}
 
 	public orByte(col: number, y: number, byte: number): void {
 		const i = this.pixelByteIndex(col, y)
+		if (i == undefined) return
+
 		const v = this.pixelData[i] | byte
 		this.drawByte(col, y, v, this.coloursForCell(col, y >> 3))
 		this.pixelData[i] = v
@@ -155,6 +163,8 @@ export class SpecScreen {
 
 	public andByte(col: number, y: number, byte: number): void {
 		const i = this.pixelByteIndex(col, y)
+		if (i == undefined) return
+
 		const v = this.pixelData[i] & byte
 		this.drawByte(col, y, v, this.coloursForCell(col, y >> 3))
 		this.pixelData[i] = v
@@ -163,20 +173,24 @@ export class SpecScreen {
 	public setAttr(col: number, row: number, attr: Attr): void;
 	public setAttr(col: number, row: number, ink: Colour, paper: Colour, isBright: boolean): void;
 	public setAttr(col: number, row: number, inkOrAttr: Colour|Attr, paper?: Colour, isBright?: boolean) {
-		if (col < 0 || row < 0 || col >= this.columns || row >= this.rows) return
+		const attrIndex = this.attrByteIndex(col, row)
+		if (attrIndex == undefined) return
 
 		const attr = (!paper)
 			? (inkOrAttr as Attr)
 			: {ink: inkOrAttr as Colour, paper: paper as Colour, isBright: isBright as boolean}
 
 		const v = this.bitsFromAttr(attr)
-		this.attrData[row * this.columns + col] = v
+		this.attrData[attrIndex] = v
 
 		// Redraw the cell with new attributes:
 		const inkAndPaper = coloursFromAttr(v)
 		let y = row << 3
 		for (let i = 0; i < 8; i ++) {
-			const byte = this.pixelData[this.pixelByteIndex(col, y)]
+			const pixelIndex = this.pixelByteIndex(col, y)
+			if (pixelIndex == undefined) break
+
+			const byte = this.pixelData[pixelIndex]
 			this.drawByte(col, y, byte, inkAndPaper)
 			y ++
 		}
@@ -213,12 +227,18 @@ export class SpecScreen {
 	}
 
 	private attrForCell(col: number, row: number): number {
-		if (col < 0 || row < 0 || col >= this.columns || row >= this.rows) throw "out of range"
-		return this.attrData[row * this.columns + col]
+		const ix = this.attrByteIndex(col, row)
+		if (ix == undefined) throw "out of range"
+		return this.attrData[ix]
 	}
 
-	private pixelByteIndex(col: number, y: number): number {
-		if (col < 0 || y < 0 || col >= this.columns || y >= this.height) throw "out of range"
+	private attrByteIndex(col: number, row: number): number|undefined {
+		if (col < 0 || row < 0 || col >= this.columns || row >= this.rows) return undefined
+		return row * this.columns + col
+	}
+
+	private pixelByteIndex(col: number, y: number): number|undefined {
+		if (col < 0 || y < 0 || col >= this.columns || y >= this.height) return undefined
 		return y * this.columns + col
 	}
 }
