@@ -1,7 +1,7 @@
 
 import { type Attr, SpecScreen } from './SpecScreen.ts'
 import { glyphs } from '@zx/fonts'
-import { type Line, tokeniseLine, type LineComment } from '@zx/interpreter'
+import { type Line, tokeniseLine, type LineComment, tokeniseLines } from '@zx/interpreter'
 import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '@zx/sys'
 import type { byte } from "../zxsys/Byte.ts";
 
@@ -384,18 +384,18 @@ function combine(base: Attr, diff?: Partial<Attr>): Attr {
 	return result
 }
 const theme = {
-	paper: {paper: 'black', ink: 'white', isBright: false} as Attr,
-	literal: {ink: 'green', isBright: true} as Partial<Attr>,
-	keyword: {ink: 'red', isBright: true} as Partial<Attr>,
-	symbol: {ink: 'white'} as Partial<Attr>,
-	comment: {ink: 'green', isBright: false} as Partial<Attr>,
-	identifier: {ink: 'cyan', isBright: false} as Partial<Attr>,
+	paper: {paper: 'white', ink: 'black', isBright: false} as Attr,
+	literal: {ink: 'green', isBright: false} as Partial<Attr>,
+	keyword: {ink: 'black', isBright: true} as Partial<Attr>,
+	symbol: {ink: 'black'} as Partial<Attr>,
+	comment: {ink: 'magenta', isBright: false} as Partial<Attr>,
+	identifier: {ink: 'blue', isBright: false} as Partial<Attr>,
 	error: {ink: 'red', isBright: true} as Partial<Attr>
 }
 
-function printTokenisedLine(col: number, row: number, line: Line) {
+function printTokenisedLine(col: number, row: number, line: Line): number {
 	const y = row << 3
-	let x = (col << 3) + (line.indent * 20)
+	let x = (col << 3) + (line.indent * 12)
 	for (let token of line.tokens) {
 		let text: string
 		let attr: Partial<Attr>|undefined = undefined
@@ -447,15 +447,15 @@ function printTokenisedLine(col: number, row: number, line: Line) {
 		}
 		x = renderText(x, y, text, combine(theme.paper, attr)) + 4
 	}
+	return row + 1
 }
 
 export function parseAndRender() {
 	cls(theme.paper)
 	const textLines = textEditor.value.split('\n')
-	let row = 1
-	for(let line of textLines) {
-		const t = tokeniseLine(line)
-		printTokenisedLine(1, row, t)
-		row++
+	const tokenised = tokeniseLines(textLines)
+	let row = 0
+	for(const line of tokenised) {
+		row = printTokenisedLine(0, row, line)
 	}
 }
