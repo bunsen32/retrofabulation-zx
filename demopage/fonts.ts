@@ -1,7 +1,7 @@
 
 import { type Attr, SpecScreen } from './SpecScreen.ts'
 import { glyphs } from '@zx/fonts'
-import { type Line, tokeniseLine, type LineComment, tokeniseLines } from '@zx/interpreter'
+import { type Line, tokeniseLine, type LineComment, tokeniseLines, Token } from '@zx/interpreter'
 import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '@zx/sys'
 import type { byte } from "../zxsys/Byte.ts";
 
@@ -395,17 +395,29 @@ const theme = {
 function printTokenisedLine(col: number, row: number, line: Line): number {
 	const y = row << 3
 	let x = (col << 3) + (line.indent * 12)
-	for (let token of line.tokens) {
+	let shouldAdvance = false
+	let prev: Token|undefined = undefined
+	let attr: Partial<Attr>|undefined = undefined
+	for (const token of line.tokens) {
 		let text: string
-		let attr: Partial<Attr>|undefined = undefined
-		if (typeof token === 'string') {
+		if (token === '.' || token === '(') {
+			text = token
+			shouldAdvance = false
+		} else if (token === ')') {
+			attr = theme.identifier
+			text = token
+			if (prev === '(') shouldAdvance = false
+
+		} else if (typeof token === 'string') {
 			attr = (token >= 'a' && token <= 'z') ? theme.keyword : theme.symbol
 			text = token
+
 		} else {
 			switch(token.t) {
 				case 'identifier':
 					text = token.v
 					attr = theme.identifier
+					if (prev === '.') shouldAdvance = false
 					break
 				case 'stringliteral':
 					text = '“' + token.v + '”'
@@ -433,18 +445,22 @@ function printTokenisedLine(col: number, row: number, line: Line): number {
 					text = token.v ? 'true' : 'false'
 					attr = theme.literal
 					break
-				case 'comment':
+				case 'comment': {
 					const token3 = token as LineComment
 					text = '#'+token3.v
 					attr = theme.comment
 					break
+				}
 				case '!!':
 					text = 'error'
 					attr = theme.error
 					break
 			}
 		}
-		x = renderText(x, y, text, combine(theme.paper, attr)) + 4
+		x += (shouldAdvance ? 4 : 0)
+		x = renderText(x, y, text, combine(theme.paper, attr))
+		prev = token
+		shouldAdvance = true
 	}
 	return row + 1
 }
