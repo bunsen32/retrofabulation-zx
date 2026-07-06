@@ -134,16 +134,29 @@
 			</div>
 			<div id="right">
 				<span id="tab-area"></span>
-				<textarea id="text-editor">
-# Here is a function definition
-def leap_year?(year%):
-	if year% % 4 != 0: return false
-	if (year% % 100 = 0) and
-		(year% % 400 <> 0):
-		return false
-	return true
+				<textarea id="text-editor">import gfx as g
+import time as t
 
-let b% = b% & $f077</textarea>
+let cx% = 126; let cy% = 66 # centre
+drawNumbers( cx% // 4, cy% // 8 )
+let r# = 60 # Length of second hand
+let sx% = cx%; let sy% = cy% # ‘previous’
+g.mode( "xor" )
+loop:
+ t.waitFrame()
+ let s# = t.uptime() % 60.0
+ let a# = s# / 30 × π # Angle of sec hand
+ g.moveTo( cx%, cy% )
+ g.line( sx#, sy# ) # Erase previous
+ sx% = r# × sin(a); sy% = r# × cos(a)
+ g.moveTo( cx%, cy% )
+ g.line(sx#, sy#) # Draw new one
+
+def drawNumbers( x%, y% ):
+ for h% in range( 1, 12 ):
+  let a# = ( h% / 12 ) × π × 2
+  at( x% + 20 × sin( a ), y% - 10 × cos( a ) )
+  print( h% )</textarea>
 			</div>
 		</div>
 	</body>
