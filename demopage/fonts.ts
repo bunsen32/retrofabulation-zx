@@ -305,7 +305,7 @@ function escapeCharacterToJavaScriptString(c: byte) {
 }
 
 function cls(paper?: Attr){
-	screen.cls(paper ?? {paper: 'white', ink: 'black', isBright: false})
+	screen.cls(paper ?? {paper: 'white', ink: 'black'})
 }
 
 export function doTestRender(){
@@ -378,19 +378,18 @@ function parse(text: string): number[] {
 function combine(base: Attr, diff?: Partial<Attr>): Attr {
 	const result = {
 		ink: diff?.ink ?? base.ink,
-		paper: diff?.paper ?? base.paper,
-		isBright: diff?.isBright ?? base.isBright
+		paper: diff?.paper ?? base.paper
 	}
 	return result
 }
 const theme = {
-	paper: {paper: 'white', ink: 'black', isBright: false} as Attr,
-	literal: {ink: 'green', isBright: false} as Partial<Attr>,
-	keyword: {ink: 'black', isBright: true} as Partial<Attr>,
-	symbol: {ink: 'black'} as Partial<Attr>,
-	comment: {ink: 'magenta', isBright: false} as Partial<Attr>,
-	identifier: {ink: 'blue', isBright: false} as Partial<Attr>,
-	error: {ink: 'red', isBright: true} as Partial<Attr>
+	paper: {paper: 'white', ink: 'black'} as Attr,
+	literal: {ink: 'red'} as Partial<Attr>,
+	keyword: {ink: 'blue'} as Partial<Attr>,
+	symbol: {ink: 'brightBlack'} as Partial<Attr>,
+	comment: {ink: 'brightMagenta'} as Partial<Attr>,
+	identifier: {ink: 'black'} as Partial<Attr>,
+	error: {ink: 'brightRed'} as Partial<Attr>
 }
 
 function printTokenisedLine(col: number, row: number, line: Line): number {
