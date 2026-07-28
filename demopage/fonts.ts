@@ -1,8 +1,8 @@
 
-import { type Attr, SpecScreen } from './SpecScreen.ts'
+import { type Attr, ColourName, SpecScreen } from './SpecScreen.ts'
 import { glyphs } from '@zx/fonts'
-import { type Line, tokeniseLine, type LineComment } from '@zx/interpreter'
-import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '@zx/sys'
+import { type Line, tokeniseLine, type LineComment, tokeniseLines, Token } from '@zx/interpreter'
+import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST, white } from '@zx/sys'
 import type { byte } from "../zxsys/Byte.ts";
 
 export { Charset } from '@zx/sys'
@@ -305,7 +305,7 @@ function escapeCharacterToJavaScriptString(c: byte) {
 }
 
 function cls(paper?: Attr){
-	screen.cls(paper ?? {paper: 'white', ink: 'black', isBright: false})
+	screen.cls(paper ?? {paper: 'white', ink: 'black'})
 }
 
 export function doTestRender(){
@@ -378,35 +378,46 @@ function parse(text: string): number[] {
 function combine(base: Attr, diff?: Partial<Attr>): Attr {
 	const result = {
 		ink: diff?.ink ?? base.ink,
-		paper: diff?.paper ?? base.paper,
-		isBright: diff?.isBright ?? base.isBright
+		paper: diff?.paper ?? base.paper
 	}
 	return result
 }
 const theme = {
-	paper: {paper: 'black', ink: 'white', isBright: false} as Attr,
-	literal: {ink: 'green', isBright: true} as Partial<Attr>,
-	keyword: {ink: 'red', isBright: true} as Partial<Attr>,
-	symbol: {ink: 'white'} as Partial<Attr>,
-	comment: {ink: 'green', isBright: false} as Partial<Attr>,
-	identifier: {ink: 'cyan', isBright: false} as Partial<Attr>,
-	error: {ink: 'red', isBright: true} as Partial<Attr>
+	paper: {paper: 'white', ink: 'black'} as Attr,
+	literal: {ink: 'red'} as Partial<Attr>,
+	keyword: {ink: 'blue'} as Partial<Attr>,
+	symbol: {ink: 'brightBlack'} as Partial<Attr>,
+	comment: {ink: 'brightMagenta'} as Partial<Attr>,
+	identifier: {ink: 'black'} as Partial<Attr>,
+	error: {ink: 'brightRed'} as Partial<Attr>
 }
 
-function printTokenisedLine(col: number, row: number, line: Line) {
+function printTokenisedLine(col: number, row: number, line: Line): number {
 	const y = row << 3
-	let x = (col << 3) + (line.indent * 20)
-	for (let token of line.tokens) {
+	let x = (col << 3) + (line.indent * 12)
+	let shouldAdvance = false
+	let prev: Token|undefined = undefined
+	let attr: Partial<Attr>|undefined = undefined
+	for (const token of line.tokens) {
 		let text: string
-		let attr: Partial<Attr>|undefined = undefined
-		if (typeof token === 'string') {
+		if (token === '.' || token === '(') {
+			text = token
+			shouldAdvance = false
+		} else if (token === ')') {
+			attr = theme.identifier
+			text = token
+			if (prev === '(') shouldAdvance = false
+
+		} else if (typeof token === 'string') {
 			attr = (token >= 'a' && token <= 'z') ? theme.keyword : theme.symbol
 			text = token
+
 		} else {
 			switch(token.t) {
 				case 'identifier':
 					text = token.v
 					attr = theme.identifier
+					if (prev === '.') shouldAdvance = false
 					break
 				case 'stringliteral':
 					text = '“' + token.v + '”'
@@ -434,28 +445,45 @@ function printTokenisedLine(col: number, row: number, line: Line) {
 					text = token.v ? 'true' : 'false'
 					attr = theme.literal
 					break
-				case 'comment':
+				case 'comment': {
 					const token3 = token as LineComment
 					text = '#'+token3.v
 					attr = theme.comment
 					break
+				}
 				case '!!':
 					text = 'error'
 					attr = theme.error
 					break
 			}
 		}
-		x = renderText(x, y, text, combine(theme.paper, attr)) + 4
+		x += (shouldAdvance ? 4 : 0)
+		x = renderText(x, y, text, combine(theme.paper, attr))
+		prev = token
+		shouldAdvance = true
 	}
+	return row + 1
 }
 
 export function parseAndRender() {
 	cls(theme.paper)
 	const textLines = textEditor.value.split('\n')
-	let row = 1
-	for(let line of textLines) {
-		const t = tokeniseLine(line)
-		printTokenisedLine(1, row, t)
-		row++
+	const tokenised = tokeniseLines(textLines)
+	let row = 0
+	for(const line of tokenised) {
+		row = printTokenisedLine(0, row, line)
+	}
+}
+
+export function drawRainbow() {
+	screen.cls({ink: 'white', paper: 'white'});
+	const colours: ColourName[] = ['black', 'brightBlack', 'blue', 'brightBlue', 'red', 'brightRed', 'magenta', 'brightMagenta', 'green', 'brightGreen', 'cyan', 'brightCyan', 'yellow', 'brightYellow', 'white', 'brightWhite']
+	let top = 4
+	for(let y = 0; y < 16; y ++) {
+		const paper = colours[y]
+		for (let x = 0; x < 16; x++) {
+			const ink = colours[x]
+			renderText(x * 16, (top + y)*8, '░0', {ink,paper})
+		}
 	}
 }
