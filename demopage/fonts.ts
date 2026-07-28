@@ -1,8 +1,8 @@
 
-import { type Attr, SpecScreen } from './SpecScreen.ts'
+import { type Attr, ColourName, SpecScreen } from './SpecScreen.ts'
 import { glyphs } from '@zx/fonts'
 import { type Line, tokeniseLine, type LineComment, tokeniseLines, Token } from '@zx/interpreter'
-import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST } from '@zx/sys'
+import { CharsetFromUnicode, NARROW_DOLLAR, NARROW_HASH, NARROW_PERCENT, NARROW_QUEST, white } from '@zx/sys'
 import type { byte } from "../zxsys/Byte.ts";
 
 export { Charset } from '@zx/sys'
@@ -472,5 +472,18 @@ export function parseAndRender() {
 	let row = 0
 	for(const line of tokenised) {
 		row = printTokenisedLine(0, row, line)
+	}
+}
+
+export function drawRainbow() {
+	screen.cls({ink: 'white', paper: 'white'});
+	const colours: ColourName[] = ['black', 'brightBlack', 'blue', 'brightBlue', 'red', 'brightRed', 'magenta', 'brightMagenta', 'green', 'brightGreen', 'cyan', 'brightCyan', 'yellow', 'brightYellow', 'white', 'brightWhite']
+	let top = 4
+	for(let y = 0; y < 16; y ++) {
+		const paper = colours[y]
+		for (let x = 0; x < 16; x++) {
+			const ink = colours[x]
+			renderText(x * 16, (top + y)*8, '░0', {ink,paper})
+		}
 	}
 }

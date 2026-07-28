@@ -127,6 +127,7 @@
 					<button id="save-font">Save font</button>
 					<button id="render-button">Test render</button>
 					<button id="parse-and-render">Parse &amp; Render</button>
+					<button id="rainbow">Draw rainbow</button>
 				</div>
 				<div id="screen-area">
 					<canvas id="screen" width="256" height="192"></canvas>
@@ -169,6 +170,7 @@ def drawNumbers( x%, y% ):
 
 		import { 
 			doTestRender, parseAndRender, selectChar, saveFont,
+			drawRainbow,
 			toggleWidth, toggleType, rotateDown, rotateUp, editSameas,
 			Charset
 		 } from './fonts.js'
@@ -184,6 +186,7 @@ def drawNumbers( x%, y% ):
 		document.getElementById('type-visible').addEventListener('click', () => toggleType('visible'))
 		document.getElementById('type-missing').addEventListener('click', () => toggleType('missing'))
 		document.getElementById('type-sameas').addEventListener('click', () => toggleType('sameas'))
+		document.getElementById('rainbow').addEventListener('click', drawRainbow)
 		document.getElementById('sameas').addEventListener('change', () => editSameas())
 		for(let i = 0x00; i <= 0xff; i++) {
 			const span = document.getElementById("char-"+i)
