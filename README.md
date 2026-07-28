@@ -1,6 +1,8 @@
 # Retrofabulation ZX: The Spectrum ROM Reimagined
 Rebuilding the ZX Spectrum ROM; better, faster, stronger
 
+The brand spanking **[new website _retrofabulation.xyz_](https://retrofabulation.xyz)** explains the why and the what in more detail.
+
 ## TL;DR
 A from-scratch redesign of the ZX Spectrum ROM:
  1. With a ‘better’ BASIC replacement: an easier, more space-efficient, faster language.
